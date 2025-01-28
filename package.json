@@ -1,0 +1,17 @@
+{
+  "name": "bimbo",
+  "version": "1.0.0",
+  "description": "static site generator for dumb girls",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "izzy kestrel",
+  "license": "ISC",
+  "dependencies": {
+    "front-matter": "^4.0.2",
+    "handlebars": "^4.7.8",
+    "markdown-it": "^14.1.0",
+    "toml": "^3.0.0"
+  }
+}

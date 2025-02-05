@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+  {{> head}}
+  <body>
+    <div id="container">
+      {{> header}}
+        <div id="content">
+          <h1>{{page.title}}</h1>
+          {{#if page.date}}
+          <h2>{{page.date}}</h2>
+          {{/if}}
+        
+          {{{page.content}}}
+        </div>
+      {{> footer}}
+    </div>
+  </body>
+</html>

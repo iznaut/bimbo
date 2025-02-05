@@ -1,0 +1,9 @@
+site:
+  title: "the fuckwind's roost"
+  description: "the words and deeds of izzy kestrel"
+  authorName: "izzy kestrel"
+  authorUrl: "https://bsky.app/profile/iznaut.com"
+
+config:
+  buildDir: 'public'
+  postsDir: 'posts'

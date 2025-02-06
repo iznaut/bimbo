@@ -4,6 +4,18 @@ site:
   authorName: "izzy kestrel"
   authorUrl: "https://bsky.app/profile/iznaut.com"
 
-config:
-  buildDir: 'public'
-  postsDir: 'posts'
+contentDefaults:
+  title: cool untitled page
+  template: index.html
+  draft: false # draft content is ignored on build and won't be published
+
+# these paths are here for transparency
+# and/or as a way to learn how things fit together
+# you probably don't need to change them
+paths:
+  content: 'content' # contains .md (Markdown) files that get injected into HTML templates
+  posts: 'content/posts' # this is where you write your blog posts
+  templates: 'templates' # contains .html files which are used as page templates
+  partials: 'templates/partials' # contains .hbs (Handlebars) files for use as HTML snippets
+  static: 'static' # files in here get included in your site as-is
+  build: 'public' # this is where your generated site goes

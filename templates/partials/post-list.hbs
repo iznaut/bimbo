@@ -1,0 +1,7 @@
+<div id="postlistdiv">
+    <ul>
+        {{#each site.blogPosts}}
+            <li><a href="{{this.url}}">{{date this.date "YYYY-MM-DD"}} » {{this.title}}</a></li>
+        {{/each}}
+    </ul>
+</div>

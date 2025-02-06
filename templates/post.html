@@ -3,14 +3,19 @@
   {{> head}}
   <body>
     <div id="container">
-      {{> header}}
+      {{> navbar}}
         <div id="content">
-          <h1>{{page.title}}</h1>
-          {{#if page.date}}
-          <h2>{{page.date}}</h2>
+          <h1>{{title}}</h1>
+          {{#if date}}
+            <h2>{{date date "YYYY-MM-DD"}}</h2>
           {{/if}}
         
-          {{{page.content}}}
+          {{{content}}}
+        </div>
+        <div id="nextprev">
+          {{#if postNext}}<a href="{{postNext.url}}">« next post</a> | {{/if}}
+          <a href="/index.html">home</a>
+          {{#if postPrev}} | <a href="{{postPrev.url}}">previous post »</a>{{/if}}
         </div>
       {{> footer}}
     </div>

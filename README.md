@@ -20,9 +20,7 @@ i made and tested this with Node.js v23.3.0. i would recommend installing that v
 
 `npm run build` will generate your site and save the result in `/public`
 
-`npm run preview` will start a local webserver so you can test your site before deploying
-
-there is no auto-watch/update/build stuff yet. that would be neat. if you're working in VS Code, i use Quokka.js to auto-run the `index.mjs` file which is more or less the same thing
+`npm run watch` will start a local webserver that rebuilds your site everytime you make a change
 
 # disclaimer
 

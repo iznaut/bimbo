@@ -2,6 +2,7 @@ import * as fs from 'node:fs'
 import * as path from 'path'
 import * as yaml from 'yaml'
 import markdownit from 'markdown-it'
+import footnote_plugin from 'markdown-it-footnote'
 import fm from 'front-matter'
 import Handlebars from "handlebars"
 import moment from 'moment'
@@ -108,7 +109,7 @@ function buildMeta(filepath) {
 
 	const md = markdownit({
 		html: true
-	})
+	}).use(footnote_plugin)
 
 	frontMatter.attributes = {
 		...data.contentDefaults, // global defaults

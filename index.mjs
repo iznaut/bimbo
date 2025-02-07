@@ -7,14 +7,23 @@ import Handlebars from "handlebars"
 import moment from 'moment'
 import _ from 'underscore'
 
+const paths = {
+	content: 'content',
+	posts: 'content/posts',
+	templates: 'templates',
+	partials: 'templates/partials',
+	static: 'static',
+	build: 'public'
+}
+
 // load site config data
-let bimbo = yaml.parse(
+let data = yaml.parse(
 	fs.readFileSync("bimbo.yaml", "utf-8")
 )
-bimbo.pageData = []
+data.pages = []
 
 // register Handlebars partials
-const partials = fs.readdirSync(bimbo.paths.partials);
+const partials = fs.readdirSync(paths.partials);
 
 partials.forEach(function (filename) {
 	var matches = /^([^.]+).hbs$/.exec(filename);
@@ -22,13 +31,13 @@ partials.forEach(function (filename) {
 		return;
 	}
 	var name = matches[1];
-	var template = fs.readFileSync(path.join(bimbo.paths.partials, filename), 'utf8');
+	var template = fs.readFileSync(path.join(paths.partials, filename), 'utf8');
 	Handlebars.registerPartial(name, template);
 });
 
 // TODO make separate js for handlebars helpers
-Handlebars.registerHelper('date', function(date, formatStr) {
-	return moment(date).utc().format(formatStr)
+Handlebars.registerHelper('formatDate', function (date) {
+	return moment(date).utc().format(data.site.dateFormat)
 })
 
 // TODO - show post-list on index if archive page?
@@ -37,40 +46,37 @@ Handlebars.registerHelper('date', function(date, formatStr) {
 // 	return 'dynamicPartial'
 // });
 
-fs.rmSync(bimbo.paths.build, { recursive: true, force: true });
-fs.mkdirSync(bimbo.paths.build)
+fs.rmSync(paths.build, { recursive: true, force: true });
+fs.mkdirSync(paths.build)
 
 // build content pages
-await processDir(bimbo.paths.content, buildMeta)
+await processDir(paths.content, buildMeta)
 
-bimbo.site.navPages = _.chain(bimbo.pageData)
-	.pick((v) => { return v.navPosition })
-	.sortBy((v) => { return v.navPosition })
+data.site.navPages = _.chain(data.pages)
+	.pick((v) => { return v.navIndex })
+	.sortBy((v) => { return v.navIndex })
 	.value()
 
 // TODO - sort options
-bimbo.site.blogPosts = _.chain(bimbo.pageData)
-	.filter((v) => { return path.dirname(v.path) == bimbo.paths.posts })
+data.site.blogPosts = _.chain(data.pages)
+	.filter((v) => { return path.dirname(v.path) == paths.posts })
 	.sortBy((v) => { return -v.date })
 	.value()
 
-_.each(bimbo.site.blogPosts, (v, i) => {
+// include prev/next context for posts
+_.each(data.site.blogPosts, (v, i) => {
 	if (i - 1 > -1) {
-		bimbo.site.blogPosts[i].postNext = bimbo.site.blogPosts[i - 1]
+		data.site.blogPosts[i].postNext = data.site.blogPosts[i - 1]
 	}
-	if (i + 1 < bimbo.site.blogPosts.length) {
-		bimbo.site.blogPosts[i].postPrev = bimbo.site.blogPosts[i + 1]
+	if (i + 1 < data.site.blogPosts.length) {
+		data.site.blogPosts[i].postPrev = data.site.blogPosts[i + 1]
 	}
-
-
 })
 
-bimbo.pageData
-
-generatePages(bimbo.pageData)
+generatePages()
 
 // copy static pages
-fs.cp(bimbo.paths.static, bimbo.paths.build, { recursive: true }, (err) => { console.log(err) })
+fs.cp(paths.static, paths.build, { recursive: true }, (err) => { console.log(err) })
 
 async function processDir(dir, func) {
 	const allPaths = await fs.promises.readdir(dir, { recursive: true })
@@ -102,17 +108,17 @@ function buildMeta(filepath) {
 
 	const md = markdownit({
 		html: true
-	}) 
+	})
 
 	frontMatter.attributes = {
-		...bimbo.contentDefaults, // global defaults
+		...data.contentDefaults, // global defaults
 		...getContentDefaults(path.dirname(filepath)), // local defaults
 		...frontMatter.attributes
 	}
 
 	let page = {
 		'path': filepath,
-		'url': filepath.replace(bimbo.paths.content, '').replace('.md', '.html'),
+		'url': filepath.replace(paths.content, '').replace('.md', '.html'),
 		'content': md.render(frontMatter.body)
 	}
 	for (let key in frontMatter.attributes) {
@@ -129,37 +135,32 @@ function buildMeta(filepath) {
 		page.title = path.basename(filepath, '.md')
 	}
 
-	bimbo.pageData.push(page)
+	data.pages.push(page)
 }
 
-function generatePages(pageData) {
-	_.each(pageData, (page) => {
-		let currentPageData = page
-		page.site = bimbo.site
-	
+function generatePages() {
+	_.each(data.pages, (page) => {
+		page.site = data.site
+
 		// get html template
-		let htmlOutput = fs.readFileSync(path.join(bimbo.paths.templates, currentPageData.template), "utf-8")
-	
+		let htmlOutput = fs.readFileSync(path.join(paths.templates, page.template), "utf-8")
+
 		// compile html template
 		let htmlTemplate = Handlebars.compile(htmlOutput)
-		htmlOutput = htmlTemplate(currentPageData)
-	
-		let outputPath = currentPageData.url
-	
-		fs.mkdir(outputPath.substring(0, outputPath.lastIndexOf("/")), { recursive: true }, (err) => {
-			if (err) throw err;
-		});
-	
-		const targetPath = path.parse(outputPath).dir
-		fs.mkdirSync(path.join(bimbo.paths.build, targetPath), { recursive: true })
-	
+		htmlOutput = htmlTemplate(page)
+
+		let outputPath = page.url
+		let outputDir = path.dirname(outputPath)
+
+		if (!fs.existsSync(outputDir)) {
+			fs.mkdirSync(path.join(paths.build, outputDir), { recursive: true })
+		}
+
 		fs.writeFileSync(
-			path.join(bimbo.paths.build, outputPath),
+			path.join(paths.build, outputPath),
 			htmlOutput
 		);
-	
+
 		return outputPath
 	})
-
-
 }

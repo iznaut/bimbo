@@ -1,21 +1,11 @@
 site:
-  title: "the fuckwind's roost"
-  description: "the words and deeds of izzy kestrel"
-  authorName: "izzy kestrel"
-  authorUrl: "https://bsky.app/profile/iznaut.com"
+  title: bimpo blog
+  description: dear diary...i'm a blogger now :)
+  authorName: xXx_sexygurl69_xXx
+  authorUrl: https://penisland.net/
+  dateFormat: YYYY-MM-DD
 
-contentDefaults:
-  title: cool untitled page
-  template: index.html
+contentDefaults: # these get applied to any .md files with no `~default.yml` file in their folder
+  title: cool untitled page # you can set all of these items per .md file. these are fallbacks
+  template: default.html # be sure to include `{{{content}}}` in your template if you want stuff to appear
   draft: false # draft content is ignored on build and won't be published
-
-# these paths are here for transparency
-# and/or as a way to learn how things fit together
-# you probably don't need to change them
-paths:
-  content: 'content' # contains .md (Markdown) files that get injected into HTML templates
-  posts: 'content/posts' # this is where you write your blog posts
-  templates: 'templates' # contains .html files which are used as page templates
-  partials: 'templates/partials' # contains .hbs (Handlebars) files for use as HTML snippets
-  static: 'static' # files in here get included in your site as-is
-  build: 'public' # this is where your generated site goes

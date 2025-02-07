@@ -1,9 +1,7 @@
 ---
 title: home
-navPosition: 1
+navIndex: 1
+template: index.html
 ---
 
-hello this is my cool new website made with [BIMBO](bimbo.com)
-
-- cool
-- beans
+hello this is my cool new website made with BIMBO

@@ -2,9 +2,10 @@
   "name": "bimbo",
   "version": "1.0.0",
   "description": "static site generator for dumb girls",
-  "main": "index.js",
+  "main": "index.mjs",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "node index.mjs",
+    "preview": "npx http-server -p 0 -o -c-1"
   },
   "author": "izzy kestrel",
   "license": "ISC",

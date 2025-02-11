@@ -1,0 +1,8 @@
+{
+	"content": "content",
+	"posts": "content/posts",
+	"templates": "templates",
+	"partials": "templates/partials",
+	"static": "static",
+	"build": "public"
+}

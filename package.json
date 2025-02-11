@@ -1,16 +1,14 @@
 {
   "name": "bimbo",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "static site generator for dumb girls",
-  "main": "watch-and-build.mjs",
-  "scripts": {
-    "build": "node build.mjs",
-    "watch": "node watch-and-build.mjs"
-  },
+  "main": "npm explore bimbo -- watch-and-build.mjs",
+  "bin": "npm explore bimbo -- watch-and-build.mjs",
   "author": "izzy kestrel",
   "license": "ISC",
   "dependencies": {
     "front-matter": "^4.0.2",
+    "global-modules-path": "^3.0.0",
     "handlebars": "^4.7.8",
     "live-server": "^1.2.2",
     "markdown-it": "^14.1.0",

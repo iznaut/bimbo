@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import * as fs from 'node:fs'
 import * as path from 'path'
 import * as yaml from 'yaml'
@@ -7,14 +9,22 @@ import fm from 'front-matter'
 import Handlebars from "handlebars"
 import moment from 'moment'
 import _ from 'underscore'
+import { getPath } from 'global-modules-path'
 
-const paths = {
-	content: 'content',
-	posts: 'content/posts',
-	templates: 'templates',
-	partials: 'templates/partials',
-	static: 'static',
-	build: 'public'
+
+const paths = JSON.parse(
+	fs.readFileSync(
+		new URL('./paths.json', import.meta.url)
+	)
+)
+
+// create base files/folders on first run
+if (!fs.existsSync('bimbo.yaml')) {
+	_.forEach(paths, (dir) => {
+		fs.cpSync(path.join(getPath("bimbo"), dir) , dir, {recursive: true})
+	})
+	
+	fs.cpSync(path.join(getPath("bimbo"), "bimbo.yaml"), "bimbo.yaml")
 }
 
 // load site config data

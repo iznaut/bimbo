@@ -13,9 +13,15 @@
           {{{content}}}
         </div>
         <div id="nextprev">
-          {{#if postNext}}<a href="{{postNext.url}}">« next post</a> | {{/if}}
-          <a href="/index.html">home</a>
-          {{#if postPrev}} | <a href="{{postPrev.url}}">previous post »</a>{{/if}}
+          {{#if site.sortPostsAscending}}
+            {{#if postNext}}<a href="{{postNext.url}}">« previous post</a> | {{/if}}
+            <a href="/index.html">home</a>
+            {{#if postPrev}} | <a href="{{postPrev.url}}">next post »</a>{{/if}}
+          {{else}}
+            {{#if postNext}}<a href="{{postNext.url}}">« next post</a> | {{/if}}
+            <a href="/index.html">home</a>
+            {{#if postPrev}} | <a href="{{postPrev.url}}">previous post »</a>{{/if}}
+          {{/if}}
         </div>
       {{> footer}}
     </div>

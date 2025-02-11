@@ -4,7 +4,7 @@ import * as fs from 'node:fs'
 import * as path from 'path'
 import * as yaml from 'yaml'
 import markdownit from 'markdown-it'
-import footnote_plugin from 'markdown-it-footnote'
+import markdownItFootnote from 'markdown-it-footnote'
 import fm from 'front-matter'
 import Handlebars from "handlebars"
 import moment from 'moment'
@@ -71,7 +71,7 @@ data.site.navPages = _.chain(data.pages)
 // TODO - sort options
 data.site.blogPosts = _.chain(data.pages)
 	.filter((v) => { return path.dirname(v.path) == paths.posts })
-	.sortBy((v) => { return -v.date })
+	.sortBy((v) => { return v.date * (data.site.sortPostsAscending ? 1 : -1) })
 	.value()
 
 // include prev/next context for posts
@@ -119,7 +119,7 @@ function buildMeta(filepath) {
 
 	const md = markdownit({
 		html: true
-	}).use(footnote_plugin)
+	}).use(markdownItFootnote)
 
 	frontMatter.attributes = {
 		...data.contentDefaults, // global defaults

@@ -1,11 +1,12 @@
 site:
-  title: bimpo blog
-  description: dear diary...i'm a blogger now :)
-  authorName: xXx_sexygurl69_xXx
-  authorUrl: https://penisland.net/
+  title: Bimbo Blog
+  description: a static site generator for dumb girls
+  authorName: izzy kestrel
+  authorUrl: https://iznaut.com/
   dateFormat: YYYY-MM-DD
+  sortPostsAscending: true
 
-contentDefaults: # these get applied to any .md files with no `~default.yml` file in their folder
-  title: cool untitled page # you can set all of these items per .md file. these are fallbacks
-  template: default.html # be sure to include `{{{content}}}` in your template if you want stuff to appear
-  draft: false # draft content is ignored on build and won't be published
+contentDefaults:              # these get applied to any .md files with no `~default.yml` file in their folder
+  title: cool untitled page   # you can set all of these items per .md file. these are fallbacks
+  template: default.html      # be sure to include `{{{content}}}` in your template if you want stuff to appear
+  draft: false                # draft content is ignored on build and won't be published

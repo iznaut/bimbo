@@ -9,10 +9,10 @@ execSync(`node ${path.join(getPath("bimbo"), "build.mjs")}`)
 
 live.start({
     mount: [['/', './public']],
-    watch: ['./content', './static', './templates', './data']
+    watch: ['./content', './static', './templates', './data', 'bimbo.yaml']
 })
 
 live.watcher.on('change', function (e) {
-    console.log('building...')
+    console.log('rebuilding...')
     execSync(`node ${path.join(getPath("bimbo"), "build.mjs")}`)
 })

@@ -4,4 +4,4 @@ navIndex: 2
 template: archive.html
 ---
 
-this is where The Old Words go to die!
+read these posts to learn how to make your own website with Bimbo!

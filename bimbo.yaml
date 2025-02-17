@@ -1,12 +1,12 @@
 site:
-  title: Bimbo Blog
-  description: a static site generator for dumb girls
-  authorName: izzy kestrel
-  authorUrl: https://iznaut.com/
+  title: My Cool Website
+  description: my cool description
+  authorName: sexygurl69
+  authorUrl: https://bimbo.nekoweb.org/
   dateFormat: YYYY-MM-DD
-  sortPostsAscending: true
-
-contentDefaults:              # these get applied to any .md files with no `~default.yml` file in their folder
-  title: cool untitled page   # you can set all of these items per .md file. these are fallbacks
-  template: default.html      # be sure to include `{{{content}}}` in your template if you want stuff to appear
-  draft: false                # draft content is ignored on build and won't be published
+  sortPostsAscending: false
+  codeTheme: tokyo-night-dark
+contentDefaults:
+  title: cool untitled page
+  template: default.html
+  draft: false

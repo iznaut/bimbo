@@ -4,11 +4,6 @@ date: 2025-02-06
 draft: false
 ---
 
-<!-- this stuff makes the code snippets on this page look pretty! -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/tokyo-night-dark.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-<script>hljs.highlightAll();</script>
-
 the default structure of a Bimbo project is designed to support blogging, as that's a pretty common use case. however, it's far from the only thing Bimbo is capable of!
 
 you could easily modify the existing templates to create new ones entirely to suit your needs. this will likely require a bit of HTML knowledge, which is out of scope for me to teach here.[^1] i do think it's worth touching briefly on [Handlebars](https://handlebarsjs.com/), tho!
@@ -57,7 +52,7 @@ the end result is a bulleted list of dates and titles, which link to the actual 
 
 i'd recommend checking out the [Handlebars documentation](https://handlebarsjs.com/guide/#simple-expressions) to learn more about this syntax and what kinds of things you can do with it
 
-# the end?
+# that's all!
 
 congrats! you made it to the end of the Bimbo tutorials. i hope it wasn't too complicated, but if it was, please feel free to [shoot me an email](mailto:bimbo@iznaut.com) or DM me on Bluesky and give me feedback!
 

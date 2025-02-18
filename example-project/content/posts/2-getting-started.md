@@ -6,7 +6,7 @@ draft: false
 
 Bimbo has apps for Windows, Mac, and Linux, though i've only personally tested the Mac[^1] one!
 
-you can download it here, along with the `example.zip`, which contains the source files used to make the blog you're reading right now!
+you can [download it here](https://github.com/iznaut/bimbo/releases/latest), along with the `example.zip`, which contains the source files used to make the blog you're reading right now!
 
 make sure you have both the app file and the zip in the same (preferably empty) folder[^2] on your computer. now all you need to do is run the app!
 

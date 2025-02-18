@@ -4,34 +4,14 @@ date: 2025-02-02
 draft: false
 ---
 
-Bimbo works using a program called Node.js, which allows you to run Javascript code on your local computer (as opposed to on a browser). this means the install process is a little more involved than i would like, but i hope to simplify it in the future
+Bimbo has apps for Windows, Mac, and Linux, though i've only personally tested the Mac[^1] one!
 
-## installing Node.js
+you can download it here, along with the `example.zip`, which contains the source files used to make the blog you're reading right now!
 
-you can [get the latest version of Node.js from the official website](https://nodejs.org/en/download)
+make sure you have both the app file and the zip in the same (preferably empty) folder[^2] on your computer. now all you need to do is run the app!
 
-i've tested Bimbo with v23.7.0 so i recommend using that one.
+if everything is working properly, you should see a terminal window pop up. it'll do some initial setup the first time (in this case, unpacking the zip file) and then display "Ready for changes" just before opening your browser with a local version of the website! now you can make changes and see them reflected right away[^3]
 
-## installing Bimbo
-
-once you've installed Node, you'll need to open a Terminal/Command Line window. copy/paste this command to install Bimbo from the Node Package Manager:
-
-`npm install bimbo -g`[^1]
-
-## making your first website
-
-a few more commands and you'll get to see something working! let's make new folder for our project:
-
-`mkdir my-cool-website`
-
-and move into it:
-
-`cd my-cool-website`
-
-now we're ready to initialize your first Bimbo website. last one:
-
-`npx bimbo`
-
-if everything is working properly, you should see "Ready for changes" appear as the last line in your terminal window, and your cool website should open in your browser! as long as this terminal window is open, Bimbo will watch for changes in your project and automatically refresh your website to reflect them.
-
-[^1]: the `-g` flag installs a package "globally", meaning you can use it anywhere. this allows you to make multiple Bimbo projects without having to reinstall each time.
+[^1]: specifically, the Apple Silicon version, which you can use if you have a newer device using their M-series of processors. if you're not sure, you can try using the Intel one
+[^2]: alternatively, you can tell Bimbo to look at a different folder by supplying a `--path` argument, but you don't really need to worry about that unless you want to make multiple websites
+[^3]: this _should_ be instantaneous, to the point the page will reload automatically when it detects changes, but this feature is currently broken for some reason i have yet to understand. you'll have to refresh manually for now, sorry about that

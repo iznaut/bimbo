@@ -10,6 +10,7 @@ OUTFILE_PREFIX="bimbo"
 declare -A targets
 targets[win]="bun-windows-x64"
 targets[mac]="bun-darwin-arm64"
+targets[mac-intel]="bun-darwin-x64"
 targets[linux]="bun-linux-x64"
 
 for key val in "${(@kv)targets}"; do

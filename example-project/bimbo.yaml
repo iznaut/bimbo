@@ -3,6 +3,7 @@ site:
   description: a static site generator for dumb girls
   authorName: izzy kestrel
   authorUrl: https://iznaut.com/
+  authorEmail: contact@iznaut.com
   dateFormat: YYYY-MM-DD
   sortPostsAscending: true
   codeTheme: tokyo-night-dark

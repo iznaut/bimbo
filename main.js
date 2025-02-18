@@ -12,6 +12,8 @@ import moment from 'moment'
 import _ from 'underscore'
 import live from 'alive-server'
 import extract from 'extract-zip'
+import { Feed } from 'feed'
+import * as cheerio from 'cheerio'
 
 const paths = {
 	"content": "content",
@@ -23,6 +25,7 @@ const paths = {
 }
 
 const yamlFilename = 'bimbo.yaml'
+const exampleZipPath = './example.zip'
 
 const defaultYaml = {
 	"site": {
@@ -40,6 +43,8 @@ const defaultYaml = {
 		"draft": false
 	}
 }
+
+let rssFeed
 
 const pathArgIndex = _.indexOf(process.argv, '--path') + 1
 
@@ -68,15 +73,15 @@ watch()
 // }
 
 async function init() {
-	if (fs.existsSync('./example.zip')) {
+	if (fs.existsSync(exampleZipPath)) {
 		try {
-			await extract('./example.zip', {dir: process.cwd()})
+			await extract(exampleZipPath, {dir: process.cwd()})
 		}
 		catch(err) {
 			console.log(err)
 		}
 
-		fs.rmSync('./example.zip')
+		fs.rmSync(exampleZipPath)
 	}
 	else {
 		// create base files/folders
@@ -84,12 +89,12 @@ async function init() {
 			fs.mkdirSync(dir)
 		})
 	
-		fs.writeFileSync('bimbo.yaml', yaml.stringify(defaultYaml))
+		fs.writeFileSync(yamlFilename, yaml.stringify(defaultYaml))
 	}
 }
 
 async function build() {
-	if (!fs.existsSync('bimbo.yaml')) {
+	if (!fs.existsSync(yamlFilename)) {
 		await init()
 	}
 
@@ -119,6 +124,18 @@ async function build() {
 
 	fs.rmSync(paths.build, { recursive: true, force: true });
 	fs.mkdirSync(paths.build)
+
+	rssFeed = new Feed({
+		title: data.site.title,
+		description: data.site.description,
+		id: data.site.authorUrl,
+		link: data.site.authorUrl,
+		author: {
+			name: data.site.authorName,
+			email: data.site.authorEmail,
+			link: data.site.authorUrl
+		}
+	})
 
 	const allPaths = await fs.promises.readdir(paths.content, { recursive: true })
 	let mdPaths = allPaths.filter((item) => { return path.extname(item) == '.md' })
@@ -151,6 +168,11 @@ async function build() {
 
 	// copy static pages
 	fs.cp(paths.static, paths.build, { recursive: true }, (err) => { console.log(err) })
+
+	fs.writeFileSync(
+		path.join(paths.build, 'feed.xml'),
+		rssFeed.rss2()
+	);
 }
 
 function getContentDefaults(dir) {
@@ -202,6 +224,22 @@ function updateMetadata(filepath, data) {
 		page.title = path.basename(filepath, '.md')
 	}
 
+	if (page.redirect) {
+		page.url = page.redirect
+	}
+
+	const $ = cheerio.load(page.content)
+
+	if (page.includeInRSS) {
+		rssFeed.addItem({
+			title: page.title,
+			description: page.description || $('p').html(),
+			url: path.join(data.site.authorUrl, page.url),
+			date: page.date,
+			content: page.content
+		})
+	}
+
 	data.pages.push(page)
 
 	return data
@@ -209,6 +247,10 @@ function updateMetadata(filepath, data) {
 
 function generatePages(data) {
 	_.each(data.pages, (page) => {
+		if (page.redirect) {
+			return
+		}
+
 		page.site = data.site
 
 		// get html template

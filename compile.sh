@@ -1,6 +1,6 @@
 #!/bin/zsh
 
-TEST_TARGET_DIR="../bimbo-website"
+TEST_TARGET_DIR="./test"
 
 MAIN_JS="./main.js"
 BIN_DIR="./bin"
@@ -24,8 +24,9 @@ popd
 # cp ./bin/bimbo-mac $TEST_TARGET_DIR/bimbo-mac
 # cp ./bin/example.zip $TEST_TARGET_DIR/example.zip
 
-# cd $TEST_TARGET_DIR
-# ./bimbo-mac # &
+rm -rf $TEST_TARGET_DIR/*
+cp ./bin/example.zip $TEST_TARGET_DIR/example.zip
+./bin/bimbo-mac --path $TEST_TARGET_DIR
 
 # sleep 3
 # echo "testing" >> "./content/index.md"

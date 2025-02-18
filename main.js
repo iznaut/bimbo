@@ -52,7 +52,7 @@ if (pathArgIndex) {
 	process.chdir(process.argv[pathArgIndex])
 }
 else {
-	process.chdir('../bimbo-website')
+	process.chdir(path.dirname(process.execPath))
 }
 
 watch()
@@ -122,7 +122,9 @@ async function build() {
 		return moment(date).utc().format(data.site.dateFormat)
 	})
 
-	fs.rmSync(paths.build, { recursive: true, force: true });
+	if (fs.existsSync(paths.build)) {
+		fs.rmSync(paths.build, { recursive: true, force: true });
+	}
 	fs.mkdirSync(paths.build)
 
 	rssFeed = new Feed({

@@ -115,7 +115,7 @@
         return htmlText;
     }
 
-    var atPostUri = "at://did:plc:{{integrations.bskyUserId}}/app.bsky.feed.post/{{bskyPostId}}";
+    var atPostUri = "at://did:plc:{{site.integrations.bskyUserId}}/app.bsky.feed.post/{{bskyPostId}}";
     httpGetAsJsonAsync(
         "https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri=" + atPostUri,
         function(responseJson) {

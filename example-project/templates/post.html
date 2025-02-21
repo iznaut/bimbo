@@ -12,6 +12,7 @@
         
           {{{content}}}
         </div>
+        {{> bsky-comments}}
         <div id="nextprev">
           {{#if site.sortPostsAscending}}
             {{#if postNext}}<a href="{{postNext.url}}">« previous post</a> | {{/if}}

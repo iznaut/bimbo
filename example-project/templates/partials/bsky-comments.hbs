@@ -1,3 +1,18 @@
+<style>
+    #social-section {
+        margin: 0 2em 0 2em;
+
+        .icon,
+        .text {
+            vertical-align: middle;
+            display: inline-block;
+        }
+
+        a {
+            text-decoration: none;
+        }
+    }
+</style>
 <div id="social-section">
 </div>
 <script>
@@ -127,13 +142,13 @@
         document.getElementById("social-section").innerHTML = `
             <h3>
                 <a href="${postLink}">
-                    ${threadPost.replyCount} replies
+                    <span class='icon'>{{{getIcon 'corner-up-left' stroke='blue' stroke-width=3 width='1em' height='1em'}}}</span> <span class='text'>${threadPost.replyCount}</span>
                 </a>
                 <a href="${postLink}">
-                    ${threadPost.repostCount + threadPost.quoteCount} reposts
+                    <span class='icon'>{{{getIcon 'repeat' stroke='green' stroke-width=3 width='1em' height='1em'}}}</span> <span class='text'>${threadPost.repostCount + threadPost.quoteCount}</span>
                 </a>
                 <a href="${postLink}">
-                    ${threadPost.likeCount} likes
+                    <span class='icon'>{{{getIcon 'heart' stroke='red' fill='red' stroke-width=3 width='1em' height='1em'}}}</span> <span class='text'>${threadPost.likeCount}</span>
                 </a>
             </h3>
 

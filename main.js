@@ -14,6 +14,7 @@ import live from 'alive-server'
 import extract from 'extract-zip'
 import { Feed } from 'feed'
 import * as cheerio from 'cheerio'
+import * as feather from 'feather-icons'
 
 const paths = {
 	"content": "content",
@@ -120,6 +121,20 @@ async function build() {
 	// TODO make separate js for handlebars helpers
 	Handlebars.registerHelper('formatDate', function (date) {
 		return moment(date).utc().format(data.site.dateFormat)
+	})
+
+	Handlebars.registerHelper('getIcon', function (name, options) {
+		let icon = feather.icons[name]
+
+		icon.attrs = { ...icon.attrs, ...options.hash }
+		console.log(icon.attrs)
+		// if (color) { icon.attrs.stroke = color }
+		// if (thickness) { icon.attrs['stroke-width'] = thickness }
+
+		// icon.attrs.width = '1em'
+		// icon.attrs.height = '1em'
+
+		return icon.toSvg()
 	})
 
 	if (fs.existsSync(paths.build)) {

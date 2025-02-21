@@ -2,7 +2,7 @@
 title: comments with Bluesky
 date: 2025-02-07
 draft: false
-bskyPostId: 3lincp4ikhe2c
+bskyPostId: 3lipmiop62k2e
 ---
 
 when you have a blog, it's nice for your readers to have a space where they can share their thoughts[^1] and connect with you. there are various options available for allowing this ([Disqus](https://disqus.com/) being the one i hear about the most), but we like to keep it sleezy here at Bimbo so i'm taking a different tact

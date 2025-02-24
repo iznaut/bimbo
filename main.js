@@ -47,13 +47,15 @@ const defaultYaml = {
 
 let rssFeed
 
+const startPath = path.dirname(process.argv[1])
 const pathArgIndex = _.indexOf(process.argv, '--path') + 1
 
 if (pathArgIndex) {
+	process.chdir(startPath)
 	process.chdir(process.argv[pathArgIndex])
 }
 else {
-	process.chdir(path.dirname(process.execPath))
+	process.chdir(path.dirname(startPath))
 }
 
 watch()
@@ -76,9 +78,9 @@ watch()
 async function init() {
 	if (fs.existsSync(exampleZipPath)) {
 		try {
-			await extract(exampleZipPath, {dir: process.cwd()})
+			await extract(exampleZipPath, { dir: process.cwd() })
 		}
-		catch(err) {
+		catch (err) {
 			console.log(err)
 		}
 
@@ -89,7 +91,7 @@ async function init() {
 		_.forEach(paths, (dir) => {
 			fs.mkdirSync(dir)
 		})
-	
+
 		fs.writeFileSync(yamlFilename, yaml.stringify(defaultYaml))
 	}
 }
@@ -125,15 +127,7 @@ async function build() {
 
 	Handlebars.registerHelper('getIcon', function (name, options) {
 		let icon = feather.icons[name]
-
 		icon.attrs = { ...icon.attrs, ...options.hash }
-		console.log(icon.attrs)
-		// if (color) { icon.attrs.stroke = color }
-		// if (thickness) { icon.attrs['stroke-width'] = thickness }
-
-		// icon.attrs.width = '1em'
-		// icon.attrs.height = '1em'
-
 		return icon.toSvg()
 	})
 
@@ -301,7 +295,6 @@ async function watch() {
 		watch: [paths.content, paths.static, paths.templates, yamlFilename],
 		port: 6969,
 		wait: 1000,
-		logLevel: 2
 	})
 
 	live.watcher.on('change', async function (e) {

@@ -47,7 +47,13 @@ const defaultYaml = {
 
 let rssFeed
 
-const startPath = path.dirname(process.argv[1])
+let startPath = path.dirname(process.argv[1])
+
+// if running from binary, use exec path
+if (startPath == '/$bunfs/root') {
+	startPath = path.dirname(process.execPath)
+}
+
 const pathArgIndex = _.indexOf(process.argv, '--path') + 1
 
 if (pathArgIndex) {
@@ -57,6 +63,8 @@ if (pathArgIndex) {
 else {
 	process.chdir(path.dirname(startPath))
 }
+
+let watchData
 
 watch()
 
@@ -184,6 +192,18 @@ async function build() {
 		path.join(paths.build, 'feed.xml'),
 		rssFeed.rss2()
 	);
+
+	if (data.site.integrations.bskyUserId) {
+		const wellKnownPath = path.join(paths.build, '.well-known')
+
+		fs.mkdirSync(wellKnownPath)
+		fs.writeFileSync(
+			path.join(wellKnownPath, 'atproto-did'),
+			`did:plc:${data.site.integrations.bskyUserId}`
+		)
+	}
+
+	process.watchData = data
 }
 
 function getContentDefaults(dir) {

@@ -193,14 +193,19 @@ async function build() {
 		rssFeed.rss2()
 	);
 
-	if (data.site.integrations.bskyUserId) {
-		const wellKnownPath = path.join(paths.build, '.well-known')
-
-		fs.mkdirSync(wellKnownPath)
-		fs.writeFileSync(
-			path.join(wellKnownPath, 'atproto-did'),
-			`did:plc:${data.site.integrations.bskyUserId}`
-		)
+	try {
+		if (data.site.integrations.bskyUserId) {
+			const wellKnownPath = path.join(paths.build, '.well-known')
+	
+			fs.mkdirSync(wellKnownPath)
+			fs.writeFileSync(
+				path.join(wellKnownPath, 'atproto-did'),
+				`did:plc:${data.site.integrations.bskyUserId}`
+			)
+		}
+	}
+	catch (err) {
+		console.log('no Bluesky User ID set, skipping integrations...')
 	}
 
 	process.watchData = data
@@ -259,19 +264,19 @@ function updateMetadata(filepath, data) {
 		page.url = page.redirect
 	}
 
+	data.pages.push(page)
+
 	const $ = cheerio.load(page.content)
 
 	if (page.includeInRSS) {
 		rssFeed.addItem({
 			title: page.title,
 			description: page.description || $('p').html(),
-			url: path.join(data.site.authorUrl, page.url),
+			url: path.join(data.site.url, page.url),
 			date: page.date,
 			content: page.content
 		})
 	}
-
-	data.pages.push(page)
 
 	return data
 }

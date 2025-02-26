@@ -1,6 +1,7 @@
 site:
   title: Bimbo Blog
   description: a static site generator for dumb girls
+  url: https://bimbo.nekoweb.org/
   authorName: izzy kestrel
   authorUrl: https://iznaut.com/
   authorEmail: contact@iznaut.com

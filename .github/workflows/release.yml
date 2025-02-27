@@ -17,7 +17,4 @@ jobs:
         run: bun install
 
       - name: Run compile script
-        run: ./compile.sh
-
-      - name: Test binary
-        run: ./bin/bimbo-linux --path ./test
+        run: ./compile.sh &

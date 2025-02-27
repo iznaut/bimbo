@@ -148,7 +148,7 @@ async function build() {
 		title: data.site.title,
 		description: data.site.description,
 		id: data.site.authorUrl,
-		link: data.site.authorUrl,
+		link: data.site.url,
 		author: {
 			name: data.site.authorName,
 			email: data.site.authorEmail,

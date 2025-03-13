@@ -1,7 +1,9 @@
 <head>
-    <title>{{site.title}}</title>
-    <!-- The description is not directly visible on the page. But it can show up in certain places like search engines. Probably unnecessary for most pages in your blog. -->
-    <meta name="description" content="{{site.description}}">
+    <title>{{title}} - {{site.title}}</title>
+    <!-- link preview stuff -->
+    <meta property="og:title" content="{{title}} - {{site.title}}">
+    <meta property="og:description" content="{{useFirstValid description site.description}}">
+    <meta property="og:image" content="{{headerImage}}">
     <!-- This specifies the favicon (little icon on the browser tab) -->
     <link rel="icon" href="/images/favicon.ico" type="image/x-icon" />
     <!-- This helps our site look consistent across devices -->

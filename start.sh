@@ -1,3 +1,3 @@
 #!/bin/bash
 
-node main.js --path ./example-project
+node main.js --path ./example-project --build-only

@@ -66,22 +66,12 @@ else {
 
 let watchData
 
-watch()
-
-// switch(process.argv[2]) {
-// 	case '--init':
-// 		init()
-// 		break
-// 	case '--build':
-// 		build()
-// 		break
-// 	case '--watch':
-// 		watch()
-// 		break
-// 	default:
-// 		watch()
-// 		break
-// }
+if (process.argv.includes('--build-only')) {
+	build()
+}
+else {
+	watch()
+}
 
 async function init() {
 	if (fs.existsSync(exampleZipPath)) {
@@ -137,6 +127,14 @@ async function build() {
 		let icon = feather.icons[name]
 		icon.attrs = { ...icon.attrs, ...options.hash }
 		return icon.toSvg()
+	})
+
+	Handlebars.registerHelper('useFirstValid', function () {
+		const valid = _.filter(arguments, (arg) => {
+			return _.isString(arg)
+		})
+
+		return valid[0]
 	})
 
 	if (fs.existsSync(paths.build)) {
@@ -268,10 +266,25 @@ function updateMetadata(filepath, data) {
 
 	const $ = cheerio.load(page.content)
 
+	if (!page.description) {
+		// TODO make this smarter
+		page.description = $('p').html()
+	}
+
+	let firstImgUrl = $('img').prop('src')
+
+	if (!page.headerImage) {
+		page.headerImage = firstImgUrl || data.site.headerImage
+	}
+
+	if (path.parse(page.headerImage).root == '/') {
+		page.headerImage = path.join(data.site.url, page.headerImage)
+	}
+
 	if (page.includeInRSS) {
 		rssFeed.addItem({
 			title: page.title,
-			description: page.description || $('p').html(),
+			description: page.description,
 			url: path.join(data.site.url, page.url),
 			date: page.date,
 			content: page.content

@@ -285,7 +285,7 @@ function updateMetadata(filepath, data) {
 		rssFeed.addItem({
 			title: page.title,
 			description: page.description,
-			url: path.join(data.site.url, page.url),
+			link: path.join(data.site.url, page.url),
 			date: page.date,
 			content: page.content
 		})

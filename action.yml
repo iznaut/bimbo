@@ -1,0 +1,24 @@
+name: 'Bimbo Build'
+description: 'build your Bimbo website'
+
+branding:
+  icon: 'send'
+  color: 'blue'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Clone Bimbo
+      run: |
+        git clone --depth 1 https://github.com/iznaut/bimbo.git
+      shell: bash
+
+    - name: Setup bun
+      uses: oven-sh/setup-bun@v2
+
+    - run: |
+        cd bimbo
+        bun install
+        cd ../        
+        bun ./bimbo/main.js --path ./
+      shell: bash

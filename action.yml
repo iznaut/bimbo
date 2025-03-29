@@ -20,5 +20,5 @@ runs:
         cd bimbo
         bun install
         cd ../        
-        bun ./bimbo/main.js --path ./
+        bun ./bimbo/main.js --path ./ --build-only
       shell: bash

@@ -16,9 +16,12 @@ runs:
     - name: Setup bun
       uses: oven-sh/setup-bun@v2
 
+    - name: Bun install
     - run: |
         cd bimbo
         bun install
-        cd ../        
-        bun ./bimbo/main.js --path ./ --build-only
+        cd ../
       shell: bash
+
+    - name: Build website
+    - run: bun ./bimbo/main.js --path ./ --build-only

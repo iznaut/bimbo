@@ -9,13 +9,22 @@ inputs:
   bimbo-path:
     description: 'the path to your Bimbo project'
     required: false
+  dev-mode:
+    description: 'skip git clone, use local code'
+    required: false
+    type: boolean
+    default: false
 
 runs:
   using: 'composite'
   steps:
     - name: Clone Bimbo
       run: |
-        git clone --depth 1 https://github.com/iznaut/bimbo.git
+        if [ ${{ inputs.dev-mode }} ]; then
+          echo "we have Bimbo at home, skipping git clone"
+        else
+          git clone --depth 1 https://github.com/iznaut/bimbo.git
+        fi
       shell: bash
 
     - name: Setup bun
@@ -23,11 +32,13 @@ runs:
 
     - name: Build website
       run: |
-        cd bimbo
-        bun install
-        cd ..
+        if [ ! ${{ inputs.dev-mode }} ]; then
+          bun install --cwd ./bimbo
+        else
+          bun install --cwd ./
+        fi
         if [ -n "${{ inputs.bimbo-path }}" ]; then
-          bun main.js --path "${{ inputs.bimbo-path }}" --build-only
+          bun main.js --path ${{ inputs.bimbo-path }} --build-only
         else
           bun main.js --path ./ --build-only
         fi

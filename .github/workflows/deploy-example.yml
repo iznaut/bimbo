@@ -13,7 +13,8 @@ jobs:
       - name: Bimbo Build
         uses: ./ # iznaut/bimbo@v1 (or whatever the latest version is)
         with:
-          bimbo-path: 'example-project'
+          bimbo-path: './example-project'
+          dev-mode: true
 
       - name: Deploy
         uses: deploy2nekoweb/deploy2nekoweb@v4

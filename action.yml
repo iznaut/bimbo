@@ -21,6 +21,9 @@ runs:
         cd bimbo
         bun install
         cd ../
+      shell: bash
 
     - name: Build website
-    - run: bun ./bimbo/main.js --path ./ --build-only
+    - run: |
+        bun ./bimbo/main.js --path ./ --build-only
+      shell: bash

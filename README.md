@@ -8,19 +8,9 @@ i liked the vibe of Zonelets, but missed some of the nice stuff you get with an 
 
 what's a girl to do when she's too smart for the simple tool but too dumb for the advanced tools? she makes her own dumb tool
 
-# setup
+# how do i use this?
 
-i made and tested this with Node.js v23.3.0. i would recommend installing that version for minimal headache
-
-1. clone this repo (or just download a zip if you can't be bothered with all this Git bs)
-2. open a command line/terminal thing in the bimbo directory
-3. enter `npm install`
-
-# usage
-
-`npm run build` will generate your site and save the result in `/public`
-
-`npm run watch` will start a local webserver that rebuilds your site everytime you make a change
+great question. please refer to the [example site](https://bimbo.nekoweb.org) for a guide
 
 # disclaimer
 

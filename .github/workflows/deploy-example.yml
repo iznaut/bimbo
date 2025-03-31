@@ -1,0 +1,24 @@
+name: Build and Deploy Website
+on:
+  push:
+    paths:
+      - example-project/**
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Bimbo Build
+        uses: ./ # iznaut/bimbo@v1 (or whatever the latest version is)
+        with:
+          bimbo-path: 'example-project'
+
+      - name: Deploy
+        uses: deploy2nekoweb/deploy2nekoweb@v4
+        with:
+          nekoweb-api-key: ${{ secrets.NEKOWEB_API_KEY }}
+          # nekoweb-cookie: ${{ secrets.NEKOWEB_COOKIE }}
+          nekoweb-folder: 'bimbo-example'
+          directory: 'example-project/public'

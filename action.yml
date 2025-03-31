@@ -2,8 +2,13 @@ name: 'Bimbo Build'
 description: 'build your Bimbo website'
 
 branding:
-  icon: 'send'
-  color: 'blue'
+  icon: 'shopping-cart'
+  color: 'purple'
+
+inputs:
+  bimbo-path:
+    description: 'the path to your Bimbo project'
+    required: false
 
 runs:
   using: 'composite'
@@ -20,5 +25,10 @@ runs:
       run: |
         cd bimbo
         bun install
-        bun main.js --path ../ --build-only
+        cd ..
+        if [ -n "${{ inputs.bimbo-path }}" ]; then
+          bun main.js --path "${{ inputs.bimbo-path }}" --build-only
+        else
+          bun main.js --path ./ --build-only
+        fi
       shell: bash

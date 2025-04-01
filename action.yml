@@ -13,8 +13,7 @@ inputs:
   dev-mode:
     description: 'skip git clone, use local code'
     required: false
-    type: boolean
-    default: false
+    default: 'false'
 
 runs:
   using: 'composite'
@@ -35,9 +34,7 @@ runs:
 
     - name: Build website
       run: |
-        ls
-        ls ./bimbo
-        if [ ! ${{ inputs.dev-mode }} ]; then
+        if [ ${{ inputs.dev-mode }} == 'false' ]; then
           echo "using cloned Bimbo"
           bun install --cwd="./bimbo"
           bun ./bimbo/main.js --path ${{ inputs.bimbo-path }} --build-only

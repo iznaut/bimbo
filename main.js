@@ -204,9 +204,12 @@ async function build() {
 	}
 	catch (err) {
 		console.log('no Bluesky User ID set, skipping integrations...')
+		console.log(err)
 	}
 
 	process.watchData = data
+
+	console.log("💅 Bimbo build completed")
 }
 
 function getContentDefaults(dir) {

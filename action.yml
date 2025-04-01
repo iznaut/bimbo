@@ -6,10 +6,6 @@ branding:
   color: 'purple'
 
 inputs:
-  bimbo-path:
-    description: 'the path to your Bimbo project'
-    required: false
-    default: './'
   dev-mode:
     description: 'skip git clone, use local code'
     required: false
@@ -37,10 +33,10 @@ runs:
         if [ ${{ inputs.dev-mode }} == 'false' ]; then
           echo "using cloned Bimbo"
           bun install --cwd="./bimbo"
-          bun ./bimbo/main.js --path ${{ inputs.bimbo-path }} --build-only
+          bun ./bimbo/main.js --path ../ --build-only
         else
           echo "using local Bimbo"
           bun install
-          bun main.js --path ${{ inputs.bimbo-path }} --build-only
+          bun main.js --path ./example-project --build-only
         fi
       shell: bash

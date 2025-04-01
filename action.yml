@@ -33,11 +33,10 @@ runs:
 
     - name: Build website
       run: |
-        ls ./bimbo 
         if [ ! ${{ inputs.dev-mode }} ]; then
-          bun install --cwd ./bimbo
+          bun install --cwd="./bimbo"
         else
-          bun install --cwd ./
+          bun install --cwd="./"
         fi
         if [ -n "${{ inputs.bimbo-path }}" ]; then
           bun main.js --path ${{ inputs.bimbo-path }} --build-only

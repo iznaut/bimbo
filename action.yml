@@ -20,10 +20,10 @@ runs:
   steps:
     - name: Clone Bimbo
       run: |
-        if [ ${{ inputs.dev-mode }} ]; then
+        if [ ${{ inputs.dev-mode }} == 'true' ]; then
           echo "we have Bimbo at home, skipping git clone"
         else
-          LATEST_RELEASE=$(curl --silent "https://api.github.com/repos/$1/releases/latest" | jq -r .tag_name)
+          LATEST_RELEASE=$(curl --silent "https://api.github.com/repos/iznaut/bimbo/releases/latest" | jq -r .tag_name)
           git clone --depth 1 https://github.com/iznaut/bimbo.git --branch "${LATEST_RELEASE}"
         fi
       shell: bash

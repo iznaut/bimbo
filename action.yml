@@ -33,6 +33,7 @@ runs:
 
     - name: Build website
       run: |
+        pwd 
         if [ ! ${{ inputs.dev-mode }} ]; then
           bun install --cwd ./bimbo
         else

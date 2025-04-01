@@ -25,6 +25,7 @@ runs:
           echo "we have Bimbo at home, skipping git clone"
         else
           LATEST_RELEASE=$(curl --silent "https://api.github.com/repos/iznaut/bimbo/releases/latest" | jq -r .tag_name)
+          echo "cloning release ${LATEST_RELEASE}"
           git clone --depth 1 https://github.com/iznaut/bimbo.git --branch "${LATEST_RELEASE}"
         fi
       shell: bash
@@ -34,11 +35,15 @@ runs:
 
     - name: Build website
       run: |
+        ls
+        ls ./bimbo
         if [ ! ${{ inputs.dev-mode }} ]; then
+          echo "using cloned Bimbo"
           bun install --cwd="./bimbo"
+          bun ./bimbo/main.js --path ${{ inputs.bimbo-path }} --build-only
         else
+          echo "using local Bimbo"
           bun install
+          bun main.js --path ${{ inputs.bimbo-path }} --build-only
         fi
-
-        bun main.js --path ${{ inputs.bimbo-path }} --build-only
       shell: bash

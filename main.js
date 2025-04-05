@@ -281,7 +281,7 @@ function updateMetadata(filepath, data) {
 	}
 
 	if (path.parse(page.headerImage).root == '/') {
-		page.headerImage = path.join(data.site.url, page.headerImage)
+		page.headerImage = new URL(page.headerImage, data.site.url).href
 	}
 
 	if (page.includeInRSS) {

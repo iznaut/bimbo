@@ -15,6 +15,7 @@ import extract from 'extract-zip'
 import { Feed } from 'feed'
 import * as cheerio from 'cheerio'
 import * as feather from 'feather-icons'
+import { sendBlueskyPostWithEmbed } from './bluesky'
 
 const paths = {
 	"content": "content",
@@ -157,8 +158,8 @@ async function build() {
 	const allPaths = await fs.promises.readdir(paths.content, { recursive: true })
 	let mdPaths = allPaths.filter((item) => { return path.extname(item) == '.md' })
 
-	mdPaths.forEach((item) => {
-		data = updateMetadata(path.join(paths.content, item), data)
+	mdPaths.forEach(async (item) => {
+		data = await updateMetadata(path.join(paths.content, item), data)
 	})
 
 	data.site.navPages = _.chain(data.pages)
@@ -225,10 +226,10 @@ function getContentDefaults(dir) {
 	}
 }
 
-function updateMetadata(filepath, data) {
-	let frontMatter = fm(
-		fs.readFileSync(filepath, "utf-8")
-	)
+async function updateMetadata(filepath, data) {
+	const originalMd = fs.readFileSync(filepath, "utf-8")
+
+	let frontMatter = fm(originalMd)
 
 	const md = markdownit({
 		html: true
@@ -265,8 +266,6 @@ function updateMetadata(filepath, data) {
 		page.url = page.redirect
 	}
 
-	data.pages.push(page)
-
 	const $ = cheerio.load(page.content)
 
 	if (!page.description) {
@@ -293,6 +292,30 @@ function updateMetadata(filepath, data) {
 			content: page.content
 		})
 	}
+
+	if (page.bskyPostId == 'tbd') {
+		const headerImg = fs.readFileSync('static/images/header.png');
+
+		await sendBlueskyPostWithEmbed(
+			`new post: ${page.title}`,
+			new URL(page.url, data.site.url).href,
+			page.title,
+			page.description,
+			new Blob([headerImg]),
+		).then((postData) => {
+			page.bskyPostId = postData.id
+
+			fs.writeFileSync(
+				filepath,
+				originalMd.replace('bskyPostId: tbd', `bskyPostId: ${page.bskyPostId}`)
+			)
+
+			console.log('Successfully posted to Bluesky!')
+			console.log(`https://bsky.app/profile/${postData.handle}/post/${postData.id}`)
+		})
+	}
+
+	data.pages.push(page)
 
 	return data
 }

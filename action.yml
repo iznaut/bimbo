@@ -7,17 +7,20 @@ branding:
 
 inputs:
   dev-mode:
-    description: 'skip git clone, use local code'
+    description: 'use [local] code or [bleeding-edge] (clone from main branch)'
     required: false
-    default: 'false'
+    default: 'false' # false | local | bleeding-edge
 
 runs:
   using: 'composite'
   steps:
     - name: Clone Bimbo
       run: |
-        if [ ${{ inputs.dev-mode }} == 'true' ]; then
+        if [ ${{ inputs.dev-mode }} == 'local' ]; then
           echo "we have Bimbo at home, skipping git clone"
+        elif [ ${{ inputs.dev-mode }} == 'bleeding-edge' ]; then
+          echo "cloning main branch"
+          git clone --depth 1 https://github.com/iznaut/bimbo.git
         else
           LATEST_RELEASE=$(curl --silent "https://api.github.com/repos/iznaut/bimbo/releases/latest" | jq -r .tag_name)
           echo "cloning release ${LATEST_RELEASE}"

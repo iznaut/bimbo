@@ -11,10 +11,9 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Bimbo Build
-        uses: ./ # iznaut/bimbo@v1 (or whatever the latest version is)
+        uses: iznaut/bimbo@main
         with:
           bimbo-path: './example-project'
-          dev-mode: true
 
       - name: Deploy
         uses: deploy2nekoweb/deploy2nekoweb@v4

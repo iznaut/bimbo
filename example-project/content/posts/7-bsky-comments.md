@@ -2,6 +2,7 @@
 title: comments with Bluesky
 date: 2025-02-07
 draft: false
+comments: true
 bskyPostId: 3lipmiop62k2e
 ---
 

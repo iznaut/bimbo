@@ -48,6 +48,8 @@ const defaultYaml = {
 
 let rssFeed
 
+const buildOnly = process.argv.includes('--build-only') || process.argv.includes('--deploy')
+
 let startPath = path.dirname(process.argv[1])
 
 // if running from binary, use exec path
@@ -67,8 +69,8 @@ else {
 
 let watchData
 
-if (process.argv.includes('--build-only')) {
-	build()
+if (buildOnly) {
+	await build()
 }
 else {
 	watch()
@@ -293,7 +295,7 @@ async function updateMetadata(filepath, data) {
 		})
 	}
 
-	if (page.bskyPostId == 'tbd') {
+	if (page.bskyPostId == 'tbd' && process.argv.includes('--deploy')) {
 		const headerImg = fs.readFileSync('static/images/header.png');
 
 		await sendBlueskyPostWithEmbed(

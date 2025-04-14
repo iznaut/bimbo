@@ -36,10 +36,16 @@ runs:
         if [ ${{ inputs.dev-mode }} == 'false' ]; then
           echo "using cloned Bimbo"
           bun install --cwd="./bimbo"
-          bun ./bimbo/main.js --path ../ --build-only
+          bun ./bimbo/main.js --path ../ --deploy
         else
           echo "using local Bimbo"
           bun install
-          bun main.js --path ./example-project --build-only
+          bun main.js --path ./example-project --deploy
         fi
       shell: bash
+
+    - name: Commit and push changes
+      uses: devops-infra/action-commit-push@master
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        commit_message: Update content metadata

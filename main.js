@@ -69,6 +69,8 @@ else {
 
 let watchData
 
+log(`current working directory: ${process.cwd()}`)
+
 if (buildOnly) {
 	await build()
 }
@@ -99,7 +101,9 @@ async function init() {
 
 async function build() {
 	if (!fs.existsSync(yamlFilename)) {
-		await init()
+		log('failed to find bimbo.yml file, aborting...')
+		return
+		// await init()
 	}
 
 	// load site config data
@@ -206,13 +210,13 @@ async function build() {
 		}
 	}
 	catch (err) {
-		console.log('no Bluesky User ID set, skipping integrations...')
+		log('no Bluesky User ID set, skipping integrations...')
 		console.log(err)
 	}
 
 	process.watchData = data
 
-	console.log("💅 Bimbo build completed")
+	log("💅 Bimbo build completed!")
 }
 
 function getContentDefaults(dir) {
@@ -255,7 +259,7 @@ async function updateMetadata(filepath, data) {
 	}
 
 	if (page.draft) {
-		console.log(`skipping ${filepath} (draft)`)
+		log(`skipping ${filepath} (draft)`)
 		return data
 	}
 
@@ -312,8 +316,8 @@ async function updateMetadata(filepath, data) {
 				originalMd.replace('bskyPostId: tbd', `bskyPostId: ${page.bskyPostId}`)
 			)
 
-			console.log('Successfully posted to Bluesky!')
-			console.log(`https://bsky.app/profile/${postData.handle}/post/${postData.id}`)
+			log('Successfully posted to Bluesky!')
+			log(`https://bsky.app/profile/${postData.handle}/post/${postData.id}`)
 		})
 	}
 
@@ -364,9 +368,13 @@ async function watch() {
 	})
 
 	live.watcher.on('change', async function (e) {
-		console.log('rebuilding...')
+		log('rebuilding...')
 		await build()
 	})
+}
+
+function log(msg) {
+	console.log(`💖BIMBO💖 logger: ${msg}`)
 }
 
 // function upload() {

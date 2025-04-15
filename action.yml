@@ -5,6 +5,9 @@ branding:
   icon: 'shopping-cart'
   color: 'purple'
 
+permissions:
+  contents: write
+
 inputs:
   bimbo-path:
     description: 'the path to your Bimbo project'

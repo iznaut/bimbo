@@ -4,7 +4,6 @@ on:
     paths:
       - example-project/**
 env:
-  GITHUB_TOKEN: ${{ github.token }}
   BLUESKY_USERNAME: ${{ secrets.BLUESKY_USERNAME }} 
   BLUESKY_PASSWORD: ${{ secrets.BLUESKY_PASSWORD }} 
 

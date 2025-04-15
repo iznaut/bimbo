@@ -302,23 +302,23 @@ async function updateMetadata(filepath, data) {
 	if (page.bskyPostId == 'tbd' && process.argv.includes('--deploy')) {
 		const headerImg = fs.readFileSync('static/images/header.png');
 
-		await sendBlueskyPostWithEmbed(
+		const postData = await sendBlueskyPostWithEmbed(
 			`new post: ${page.title}`,
 			new URL(page.url, data.site.url).href,
 			page.title,
 			page.description,
 			new Blob([headerImg]),
-		).then((postData) => {
-			page.bskyPostId = postData.id
+		)
 
-			fs.writeFileSync(
-				filepath,
-				originalMd.replace('bskyPostId: tbd', `bskyPostId: ${page.bskyPostId}`)
-			)
+		page.bskyPostId = postData.id
 
-			log('Successfully posted to Bluesky!')
-			log(`https://bsky.app/profile/${postData.handle}/post/${postData.id}`)
-		})
+		fs.writeFileSync(
+			filepath,
+			originalMd.replace('bskyPostId: tbd', `bskyPostId: ${page.bskyPostId}`)
+		)
+
+		log('Successfully posted to Bluesky!')
+		log(`https://bsky.app/profile/${postData.handle}/post/${postData.id}`)
 	}
 
 	data.pages.push(page)

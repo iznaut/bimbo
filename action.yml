@@ -45,7 +45,6 @@ runs:
       shell: bash
 
     - name: Commit and push changes
-      uses: devops-infra/action-commit-push@master
+      uses: stefanzweifel/git-auto-commit-action@v5
       with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        commit_message: Update content metadata
+        commit_message: Update content metadata post-build

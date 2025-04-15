@@ -6,6 +6,10 @@ branding:
   color: 'purple'
 
 inputs:
+  bimbo-path:
+    description: 'the path to your Bimbo project'
+    required: false
+    default: './'
   dev-mode:
     description: 'use [local] code or [bleeding-edge] (clone from main branch)'
     required: false

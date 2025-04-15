@@ -14,6 +14,7 @@ jobs:
         uses: iznaut/bimbo@main
         with:
           bimbo-path: './example-project'
+          dev-mode: 'local'
 
       - name: Deploy
         uses: deploy2nekoweb/deploy2nekoweb@v4

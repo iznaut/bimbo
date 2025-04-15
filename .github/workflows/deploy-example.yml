@@ -3,6 +3,10 @@ on:
   push:
     paths:
       - example-project/**
+env:
+  BLUESKY_USERNAME: ${{ secrets.BLUESKY_USERNAME }} 
+  BLUESKY_PASSWORD: ${{ secrets.BLUESKY_PASSWORD }} 
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest

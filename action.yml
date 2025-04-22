@@ -37,14 +37,14 @@ runs:
 
     - name: Build website
       run: |
-        if [ ${{ inputs.dev-mode }} == 'false' ]; then
-          echo "using cloned Bimbo"
-          bun install --cwd="./bimbo"
-          bun ./bimbo/main.js --path ../ --deploy
-        else
+        if [ ${{ inputs.dev-mode }} == 'local' ]; then
           echo "using local Bimbo"
           bun install
           bun main.js --path ./example-project --deploy
+        else
+          echo "using cloned Bimbo"
+          bun install --cwd="./bimbo"
+          bun ./bimbo/main.js --path ../ --deploy
         fi
       shell: bash
 

@@ -68,6 +68,7 @@ else {
 }
 
 let watchData
+let pagesToUpdate = {}
 
 log(`current working directory: ${process.cwd()}`)
 
@@ -164,9 +165,39 @@ async function build() {
 	const allPaths = await fs.promises.readdir(paths.content, { recursive: true })
 	let mdPaths = allPaths.filter((item) => { return path.extname(item) == '.md' })
 
-	mdPaths.forEach(async (item) => {
-		data = await updateMetadata(path.join(paths.content, item), data)
+	mdPaths.forEach((item) => {
+		data = updateMetadata(path.join(paths.content, item), data)
 	})
+
+	if (_.size(pagesToUpdate)) {
+		const postsData = await Promise.all(
+			_.values(pagesToUpdate).map(
+				postObj => sendBlueskyPostWithEmbed(...postObj)
+			)
+		)
+
+		let index = 0
+
+		_.each(pagesToUpdate, (postData, filepath) => {
+			const pageIndex = _.findIndex(data.pages, (page) => {
+				return page.path == filepath
+			})
+
+			const page = data.pages[pageIndex]
+
+			data.pages[pageIndex].bskyPostId = postsData[index].id
+
+			fs.writeFileSync(
+				page.path,
+				page.md.replace('bskyPostId: tbd', `bskyPostId: ${postsData[index].id}`)
+			)
+
+			log('Successfully posted to Bluesky!')
+			log(`https://bsky.app/profile/${postsData[index].handle}/post/${postsData[index].id}`)
+
+			index++
+		})
+	}
 
 	data.site.navPages = _.chain(data.pages)
 		.pick((v) => { return v.navIndex })
@@ -232,7 +263,7 @@ function getContentDefaults(dir) {
 	}
 }
 
-async function updateMetadata(filepath, data) {
+function updateMetadata(filepath, data) {
 	const originalMd = fs.readFileSync(filepath, "utf-8")
 
 	let frontMatter = fm(originalMd)
@@ -252,7 +283,8 @@ async function updateMetadata(filepath, data) {
 	let page = {
 		'path': filepath,
 		'url': filepath.replace(paths.content, '').replace('.md', '.html'),
-		'content': md.render(frontMatter.body)
+		'content': md.render(frontMatter.body),
+		'md': originalMd
 	}
 	for (let key in frontMatter.attributes) {
 		page[key] = frontMatter.attributes[key]
@@ -302,23 +334,15 @@ async function updateMetadata(filepath, data) {
 	if (page.bskyPostId == 'tbd' && process.argv.includes('--deploy')) {
 		const headerImg = fs.readFileSync('static/images/header.png');
 
-		const postData = await sendBlueskyPostWithEmbed(
+		const bskyPost =[
 			`new post: ${page.title}`,
 			new URL(page.url, data.site.url).href,
 			page.title,
 			page.description,
 			new Blob([headerImg]),
-		)
+		]
 
-		page.bskyPostId = postData.id
-
-		fs.writeFileSync(
-			filepath,
-			originalMd.replace('bskyPostId: tbd', `bskyPostId: ${page.bskyPostId}`)
-		)
-
-		log('Successfully posted to Bluesky!')
-		log(`https://bsky.app/profile/${postData.handle}/post/${postData.id}`)
+		pagesToUpdate[filepath] = bskyPost
 	}
 
 	data.pages.push(page)

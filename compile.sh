@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/zsh
 
 TEST_TARGET_DIR="./test"
 
@@ -13,8 +13,8 @@ targets[mac]="bun-darwin-arm64"
 targets[mac-intel]="bun-darwin-x64"
 targets[linux]="bun-linux-x64"
 
-for key in "${!targets[@]}"; do
-    bun build $MAIN_JS --compile --minify --sourcemap --bytecode --target=${targets[${key}]} --outfile $BIN_DIR/$OUTFILE_PREFIX-$key
+for key value in ${(kv)targets}; do
+    bun build $MAIN_JS --compile --minify --sourcemap --bytecode --target=${value} --outfile $BIN_DIR/$OUTFILE_PREFIX-${key}
 done
 
 # build only for current OS

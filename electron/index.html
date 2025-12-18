@@ -1,0 +1,46 @@
+<style>
+    body {
+        margin: 0;
+        background: transparent;
+    }
+</style>
+
+<div style="text-align: center;">
+    <button id="startButton" onclick="startWatch()" disabled>Start Server</button>
+    <button id="projectPath" onclick="changeProjectDir()">Set Project Path</button>
+</div>
+
+<img src="./izzy.png" style="width: 110%">
+
+<script>
+    const dialogConfig = {
+        title: 'Select your Bimbo project directory',
+        buttonLabel: 'Select',
+        properties: ['openDirectory']
+    }
+
+    let started = false
+
+    
+    function changeProjectDir() {
+        electron.openDialog('showOpenDialog', dialogConfig)
+            .then(isValidPath => {
+                document.getElementById('startButton').disabled = !isValidPath
+            })
+    }
+
+    function startWatch() {
+        if (!started) {
+            electron.startWatch()
+                .then(result => result)
+            
+            document.getElementById('startButton').innerText = "Stop Server"
+            started = true
+        }
+        else {
+            electron.quit()
+        }
+    }
+
+    electron.log(data => console.log(data[0]))
+</script>

@@ -6,6 +6,7 @@ import * as yaml from 'yaml'
 import markdownit from 'markdown-it'
 import markdownItFootnote from 'markdown-it-footnote'
 import markdownItHighlightjs from 'markdown-it-highlightjs'
+import { attrs } from "@mdit/plugin-attrs"
 import fm from 'front-matter'
 import Handlebars from "handlebars"
 import moment from 'moment'
@@ -15,11 +16,14 @@ import extract from 'extract-zip'
 import { Feed } from 'feed'
 import * as cheerio from 'cheerio'
 import * as feather from 'feather-icons'
-import { sendBlueskyPostWithEmbed } from './bluesky'
+import { sendBlueskyPostWithEmbed } from './bluesky.ts'
+
+let mainWindow
 
 const paths = {
 	"content": "content",
 	"posts": "content/posts",
+	"data": "data",
 	"templates": "templates",
 	"partials": "templates/partials",
 	"static": "static",
@@ -48,23 +52,21 @@ const defaultYaml = {
 
 let rssFeed
 
-const buildOnly = process.argv.includes('--build-only') || process.argv.includes('--deploy')
+const buildOnly = process.argv.includes('build') || process.argv.includes('deploy')
 
-let startPath = path.dirname(process.argv[1])
+let startPath = ""
 
-// if running from binary, use exec path
-if (startPath == '/$bunfs/root') {
-	startPath = path.dirname(process.execPath)
-}
+// // if running from binary, use exec path
+// if (startPath.includes('/bin')) {
+// 	startPath = process.cwd()
+// }
 
 const pathArgIndex = _.indexOf(process.argv, '--path') + 1
 
+// process.chdir(startPath)
+
 if (pathArgIndex) {
-	process.chdir(startPath)
-	process.chdir(process.argv[pathArgIndex])
-}
-else {
-	process.chdir(path.dirname(startPath))
+	process.chdir(process.argv[process.argv.length - 1])
 }
 
 let watchData
@@ -72,12 +74,69 @@ let pagesToUpdate = {}
 
 log(`current working directory: ${process.cwd()}`)
 
-if (buildOnly) {
-	await build()
+// if (buildOnly) {
+// 	build()
+// }
+// else {
+// 	watch()
+// }
+
+
+import pkg from 'electron';
+const { app, BrowserWindow, ipcMain, dialog, screen } = pkg;
+
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const createWindow = () => {
+	let opts = {
+		title: "bimbo", 
+		width: 320,
+		height: 350,
+		frame: false,
+		alwaysOnTop: true,
+		transparent: true,
+		webPreferences: {
+			preload: path.join(__dirname, 'preload.js')
+		}
+	}
+
+	let display = screen.getPrimaryDisplay()
+	let width = display.bounds.width
+	let height = display.bounds.height
+
+	opts.x = width
+	opts.y = height
+
+	mainWindow = new BrowserWindow(opts)
+	
+	mainWindow.loadFile('electron/index.html')
+
+	mainWindow.webContents.openDevTools({ mode: 'detach' })
 }
-else {
-	watch()
-}
+
+app.whenReady().then(() => {
+	createWindow()
+	
+	ipcMain.handle('dialog', async (event, method, params) => {       
+		let dirHandle = await dialog[method](params);
+		let newPath = dirHandle.filePaths[0]
+		startPath = newPath
+		process.chdir(startPath)
+		return fs.existsSync('bimbo.yaml')
+	});
+
+	ipcMain.handle('start-watch', async () => {
+		watch()
+		return true
+	})
+
+	ipcMain.handle('quit', async () => {
+		app.quit()
+	})
+})
 
 async function init() {
 	if (fs.existsSync(exampleZipPath)) {
@@ -162,8 +221,19 @@ async function build() {
 		}
 	})
 
-	const allPaths = await fs.promises.readdir(paths.content, { recursive: true })
-	let mdPaths = allPaths.filter((item) => { return path.extname(item) == '.md' })
+	data.site.userDefined = {}
+
+	const dataFilepaths = await fs.promises.readdir(paths.data, { recursive: true })
+
+	_.each(dataFilepaths, (filepath) => {
+		const jsonData = fs.readFileSync(path.join(paths.data, filepath), "utf-8")
+		const dataName = path.basename(filepath, '.json')
+
+		data.site.userDefined[dataName] = JSON.parse(jsonData)
+	})
+
+	const contentFilepaths = await fs.promises.readdir(paths.content, { recursive: true })
+	let mdPaths = contentFilepaths.filter((item) => { return path.extname(item) == '.md' })
 
 	mdPaths.forEach((item) => {
 		data = updateMetadata(path.join(paths.content, item), data)
@@ -222,7 +292,7 @@ async function build() {
 	generatePages(data)
 
 	// copy static pages
-	fs.cp(paths.static, paths.build, { recursive: true }, (err) => { console.log(err) })
+	fs.cp(paths.static, paths.build, { recursive: true }, (err) => { if (err) { console.log(err) } })
 
 	fs.writeFileSync(
 		path.join(paths.build, 'feed.xml'),
@@ -273,6 +343,7 @@ function updateMetadata(filepath, data) {
 	})
 		.use(markdownItFootnote)
 		.use(markdownItHighlightjs)
+		.use(attrs)
 
 	frontMatter.attributes = {
 		...data.contentDefaults, // global defaults
@@ -358,8 +429,16 @@ function generatePages(data) {
 
 		page.site = data.site
 
+		let templatePath = path.join(paths.templates, page.template)
+
 		// get html template
-		let htmlOutput = fs.readFileSync(path.join(paths.templates, page.template), "utf-8")
+		if (!fs.existsSync(templatePath)) {
+			console.warn("couldn't find template, using default")
+			page.template = 'default.html'
+			templatePath = path.join(paths.templates, 'default.html')
+		}
+
+		let htmlOutput = fs.readFileSync(templatePath, "utf-8")
 
 		// compile html template
 		let htmlTemplate = Handlebars.compile(htmlOutput)
@@ -399,6 +478,11 @@ async function watch() {
 
 function log(msg) {
 	console.log(`💖BIMBO💖 logger: ${msg}`)
+	if (mainWindow) {
+
+		mainWindow.webContents.send('bimbo-log', `💖BIMBO💖 logger: ${msg}`);
+	}
+
 }
 
 // function upload() {

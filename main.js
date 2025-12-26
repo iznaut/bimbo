@@ -54,7 +54,7 @@ let rssFeed
 
 const buildOnly = process.argv.includes('build') || process.argv.includes('deploy')
 
-let startPath = ""
+let startPath = "./website"
 
 // // if running from binary, use exec path
 // if (startPath.includes('/bin')) {
@@ -63,7 +63,7 @@ let startPath = ""
 
 const pathArgIndex = _.indexOf(process.argv, '--path') + 1
 
-// process.chdir(startPath)
+process.chdir(startPath)
 
 if (pathArgIndex) {
 	process.chdir(process.argv[process.argv.length - 1])
@@ -119,6 +119,7 @@ const createWindow = () => {
 
 app.whenReady().then(() => {
 	createWindow()
+	console.log(startPath)
 	
 	ipcMain.handle('dialog', async (event, method, params) => {       
 		let dirHandle = await dialog[method](params);

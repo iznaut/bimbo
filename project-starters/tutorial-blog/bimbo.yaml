@@ -12,7 +12,7 @@ site:
   integrations:
     bskyUserId: sofkq7uzgyczeyl24wxuc47o
 
-contentDefaults:              # these get applied to any .md files with no `~default.yml` file in their folder
+contentDefaults:              # these get applied to any .md files with no `~default.yaml` file in their folder
   title: cool untitled page   # you can set all of these items per .md file. these are fallbacks
   template: default.html      # be sure to include `{{{content}}}` in your template if you want stuff to appear
   draft: false                # draft content is ignored on build and won't be published

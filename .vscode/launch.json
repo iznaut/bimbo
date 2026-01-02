@@ -7,8 +7,9 @@
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electron",
-            "type": "node"
+            "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electronmon",
+            "type": "node",
+            "args": ["--trace-warnings"]
         },
         {
             "name": "Launch Program",

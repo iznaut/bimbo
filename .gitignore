@@ -133,5 +133,6 @@ public/
 bin/
 test/
 website/
+build/
 
 .DS_Store

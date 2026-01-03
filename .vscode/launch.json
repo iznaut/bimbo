@@ -2,7 +2,7 @@
     "configurations": [
         {
             "name": "Launch Electron App",
-            "program": "${workspaceFolder}/main.js",
+            "program": "${workspaceFolder}/src/main.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -10,16 +10,6 @@
             "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electronmon",
             "type": "node",
             "args": ["--trace-warnings"]
-        },
-        {
-            "name": "Launch Program",
-            "program": "${workspaceFolder}/main.js",
-            "request": "launch",
-            "args": ["--path", "./example-project"],
-            "skipFiles": [
-                "<node_internals>/**"
-            ],
-            "type": "node"
         }
     ]
 }

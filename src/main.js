@@ -1,0 +1,652 @@
+#!/usr/bin/env node
+
+import * as fs from 'node:fs'
+import * as path from 'node:path'
+import { exec } from 'node:child_process'
+import * as yaml from 'yaml'
+import markdownit from 'markdown-it'
+import markdownItFootnote from 'markdown-it-footnote'
+import markdownItHighlightjs from 'markdown-it-highlightjs'
+import { attrs } from "@mdit/plugin-attrs"
+import fm from 'front-matter'
+import Handlebars from "handlebars"
+import moment from 'moment'
+import _ from 'lodash' // TODO
+import { Feed } from 'feed'
+import * as cheerio from 'cheerio'
+import * as feather from 'feather-icons'
+import { sendBlueskyPostWithEmbed } from './bluesky.ts'
+import { fileURLToPath } from 'url'
+import { createServer } from 'vite'
+import chokidar from 'chokidar'
+import { Conf } from 'electron-conf/main'
+
+import pkg from 'electron';
+const { app, BrowserWindow, dialog, screen, Menu, shell, globalShortcut } = pkg;
+
+import { NeocitiesAPIClient } from 'async-neocities'
+import NekowebAPI from '@indiefellas/nekoweb-api'
+
+let win
+
+function isDev() {
+	return !app.getAppPath().includes('app.asar')
+}
+
+const startersPath = path.join(isDev() ? '' : process.resourcesPath, 'project-starters')
+
+const conf = new Conf()
+
+conf.defaultValues = {
+	projects: [],
+	activeIndex: -1,
+	editor: 'codium'
+}
+
+let projectsMeta
+let activeProjectMeta
+let paths
+
+let rssFeed
+
+let server
+let watcher
+
+loadProject(conf.get('activeIndex'))
+
+let pagesToUpdate = {}
+
+const localUrl = 'http://localhost:6969'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
+let showDebugMenu = false
+
+function createWindow () {
+	let opts = {
+		title: "bimbo", 
+		width: 320,
+		height: 350,
+		frame: false,
+		alwaysOnTop: true,
+		transparent: true,
+		webPreferences: {
+			preload: path.join(__dirname, 'preload.js')
+		}
+	}
+
+	let display = screen.getPrimaryDisplay()
+	let width = display.bounds.width
+	let height = display.bounds.height
+
+	opts.x = width
+	opts.y = height
+
+	win = new BrowserWindow(opts)
+
+	function createMenu() {
+		const projectMenuItems = [
+			{
+				label: `🆕 create new project`,
+				type: 'submenu',
+				submenu: Menu.buildFromTemplate(
+					fs.readdirSync(startersPath, {withFileTypes: true})
+						.filter(dirent => dirent.isDirectory())
+						.map((dirent) => {
+							return {
+								label: dirent.name,
+								click: function () {
+									let pickedPaths = dialog.showOpenDialogSync({
+										properties: ['openDirectory']
+									})
+
+									if (!pickedPaths) { return }
+
+									initProjectStarter(pickedPaths[0], dirent.name)
+								}
+						}
+					})
+				)
+			},
+			{
+				label: `🆒 import existing project`,
+				click: function() {
+					let pickedPaths = dialog.showOpenDialogSync({
+						filters: [{name: 'bimbo project file', extensions: ['yaml']}],
+						properties: ['openFile']
+					})
+
+					if (!pickedPaths) { return }
+
+					console.log(pickedPaths)
+
+					let projects = conf.get('projects')
+					projects.push(path.dirname(pickedPaths[0]))
+					conf.set('projects', projects)
+					const newIndex = projects.length - 1
+					
+					loadProject(newIndex)
+				}
+			},
+		]
+
+		if (conf.get('activeIndex') == -1) {
+			return Menu.buildFromTemplate([
+				...projectMenuItems,
+				{ type: 'separator' },
+				{ label: showDebugMenu ? 'gottem' : 'quit bimbo', click: function() {
+					app.quit()
+				}}
+			])
+		}
+
+		const projMeta = activeProjectMeta
+		const deployMeta = projMeta.data.deployment
+
+		return Menu.buildFromTemplate([
+			{
+				id: 'title',
+				label: projMeta.data.site.title,
+				type: 'submenu',
+				submenu: Menu.buildFromTemplate(
+					[
+						...projectsMeta.map((meta, index) => {
+							return {
+								label: meta.data.site.title,
+								type: 'radio',
+								checked: index == conf.get('activeIndex'),
+								click: () => {
+									loadProject(index)
+								}
+							}
+						}),
+						{ type: 'separator' },
+						...projectMenuItems
+					]
+				)
+			},
+			{ label: `🔗 preview in browser`, click: function() {
+				shell.openExternal(localUrl)
+			} },
+			{ type: 'separator' },
+			{ label: `👩‍💻 edit in VSCodium`, click: function() {
+				exec(`${conf.get('editor')} ${projMeta.rootPath}`)
+			} },
+			{ label: `📂 open project folder`, click: function() {
+				shell.openPath(projMeta.rootPath)
+			} },
+			{ type: 'separator' },
+			{
+				id: 'deploy',
+				label: !!deployMeta ?
+					`🌐 deploy to ${deployMeta.provider}` : 'deployment not configured',
+				enabled: !!deployMeta,
+				click: function() {
+					let clickedId = dialog.showMessageBoxSync({
+						message: `are you sure you want to deploy ${projMeta.data.site.title} to ${deployMeta.provider}?`,
+						type: 'warning',
+						buttons: ['yeah!!', 'not yet...'],
+						defaultId: 1,
+						cancelId: 1,
+						title: 'confirm deployment'
+					})
+
+					if (clickedId == 0) {
+						deploy()
+					}
+					else {
+						console.log('deploy canceled')
+					}
+				}
+			},
+			{ type: 'separator' },
+			{ label: 'quit bimbo', click: function() {
+				app.quit()
+			}}
+		])
+	}
+
+	win.webContents.on('context-menu', (_event, _params) => {
+		let menu = createMenu()
+
+		menu.popup()
+	})
+	
+	win.loadFile('index.html')
+
+	globalShortcut.register('CommandOrControl+Alt+R', () => {
+		conf.clear()
+		dialog.showMessageBox({ message: 'bimbo config has been reset to defaults' })
+	})
+
+	// mainWindow.webContents.openDevTools({ mode: 'detach' })
+}
+
+app.whenReady().then(createWindow)
+
+async function initProjectStarter(copyPath, starterName) {
+	const newProjPath = path.join(copyPath, starterName)
+	fs.cpSync(path.join(startersPath, starterName), newProjPath, {recursive: true})
+	fs.cpSync(path.join(startersPath, '.gitignore'), path.join(newProjPath, '.gitignore'))
+
+	let projects = conf.get('projects')
+	projects.push(newProjPath)
+	conf.set('projects', projects)
+	const newIndex = projects.length - 1
+
+	loadProject(newIndex)
+}
+
+async function build() {
+	// load site config data
+	let data = activeProjectMeta.data
+	data.pages = []
+
+	// register Handlebars partials
+	if (fs.existsSync(paths.partials)) {
+		const partials = fs.readdirSync(paths.partials);
+	
+		partials.forEach(function (filename) {
+			var matches = /^([^.]+).hbs$/.exec(filename);
+			if (!matches) {
+				return;
+			}
+			var name = matches[1];
+			var template = fs.readFileSync(path.join(paths.partials, filename), 'utf8');
+			Handlebars.registerPartial(name, template);
+		})
+	}
+
+	// TODO make separate js for handlebars helpers
+	Handlebars.registerHelper('formatDate', function (date) {
+		return moment(date).utc().format(data.site.dateFormat)
+	})
+
+	Handlebars.registerHelper('getIcon', function (name, options) {
+		let icon = feather.icons[name]
+		icon.attrs = { ...icon.attrs, ...options.hash }
+		return icon.toSvg()
+	})
+
+	Handlebars.registerHelper('useFirstValid', function () {
+		const valid = _.filter(arguments, (arg) => {
+			return _.isString(arg)
+		})
+
+		return valid[0]
+	})
+
+	if (fs.existsSync(paths.build)) {
+		fs.rmSync(paths.build, { recursive: true, force: true })
+	}
+	fs.mkdirSync(paths.build)
+
+	rssFeed = new Feed({
+		title: data.site.title,
+		description: data.site.description,
+		id: data.site.authorUrl,
+		link: data.site.url,
+		author: {
+			name: data.site.authorName,
+			email: data.site.authorEmail,
+			link: data.site.authorUrl
+		}
+	})
+
+	data.site.userDefined = {}
+
+	if (fs.existsSync(paths.data)) {
+		const dataFilepaths = await fs.promises.readdir(paths.data, { recursive: true })
+	
+		_.each(dataFilepaths, (filepath) => {
+			const jsonData = fs.readFileSync(path.join(paths.data, filepath), "utf-8")
+			const dataName = path.basename(filepath, '.json')
+	
+			data.site.userDefined[dataName] = JSON.parse(jsonData)
+		})
+	}
+
+	if (fs.existsSync(paths.content)) {
+		const contentFilepaths = await fs.promises.readdir(paths.content, { recursive: true })
+		let mdPaths = contentFilepaths.filter((item) => { return path.extname(item) == '.md' })
+	
+		mdPaths.forEach((item) => {
+			data = updateMetadata(path.join(paths.content, item), data)
+		})
+	
+		if (_.size(pagesToUpdate)) {
+			const postsData = await Promise.all(
+				_.values(pagesToUpdate).map(
+					postObj => sendBlueskyPostWithEmbed(...postObj)
+				)
+			)
+	
+			let index = 0
+	
+			_.each(pagesToUpdate, (postData, filepath) => {
+				const pageIndex = _.findIndex(data.pages, (page) => {
+					return page.path == filepath
+				})
+	
+				const page = data.pages[pageIndex]
+	
+				data.pages[pageIndex].bskyPostId = postsData[index].id
+	
+				fs.writeFileSync(
+					page.path,
+					page.md.replace('bskyPostId: tbd', `bskyPostId: ${postsData[index].id}`)
+				)
+	
+				log('Successfully posted to Bluesky!')
+				log(`https://bsky.app/profile/${postsData[index].handle}/post/${postsData[index].id}`)
+	
+				index++
+			})
+		}
+	
+		data.site.navPages = _.chain(data.pages)
+			.pick((v) => { return v.navIndex })
+			.sortBy((v) => { return v.navIndex })
+			.value()
+	
+		data.site.blogPosts = _.chain(data.pages)
+			.filter((v) => { return path.dirname(v.path) == paths.posts })
+			.sortBy((v) => { return v.date * (data.site.sortPostsAscending ? 1 : -1) })
+			.value()
+	
+		// include prev/next context for posts
+		_.each(data.site.blogPosts, (v, i) => {
+			if (i - 1 > -1) {
+				data.site.blogPosts[i].postNext = data.site.blogPosts[i - 1]
+			}
+			if (i + 1 < data.site.blogPosts.length) {
+				data.site.blogPosts[i].postPrev = data.site.blogPosts[i + 1]
+			}
+		})
+	
+		generatePages(data)
+	}
+
+	// copy static pages
+	fs.cp(paths.static, paths.build, { recursive: true }, (err) => { if (err) { console.log(err) } })
+
+	fs.writeFileSync(
+		path.join(paths.build, 'feed.xml'),
+		rssFeed.rss2()
+	);
+
+	try {
+		if (data.site.integrations?.bskyUserId) {
+			const wellKnownPath = path.join(paths.build, '.well-known')
+	
+			fs.mkdirSync(wellKnownPath)
+			fs.writeFileSync(
+				path.join(wellKnownPath, 'atproto-did'),
+				`did:plc:${data.site.integrations.bskyUserId}`
+			)
+		}
+	}
+	catch (err) {
+		log('no Bluesky User ID set, skipping integrations...')
+		console.log(err)
+	}
+
+	process.watchData = data
+
+	log("site build completed 💅")
+}
+
+function getContentDefaults(dir) {
+	const defaultFilepath = path.join(dir, '~default.yaml')
+
+	if (fs.existsSync(defaultFilepath)) {
+		return yaml.parse(
+			fs.readFileSync(defaultFilepath, "utf-8")
+		)
+	}
+	else {
+		return {}
+	}
+}
+
+function updateMetadata(filepath, data) {
+	const originalMd = fs.readFileSync(filepath, "utf-8")
+
+	let frontMatter = fm(originalMd)
+
+	const md = markdownit({
+		html: true
+	})
+		.use(markdownItFootnote)
+		.use(markdownItHighlightjs)
+		.use(attrs)
+
+	frontMatter.attributes = {
+		...data.contentDefaults, // global defaults
+		...getContentDefaults(path.dirname(filepath)), // local defaults
+		...frontMatter.attributes
+	}
+
+	let page = {
+		'path': filepath,
+		'url': filepath.replace(paths.content, '').replace('.md', '.html'),
+		'content': md.render(frontMatter.body),
+		'md': originalMd
+	}
+	for (let key in frontMatter.attributes) {
+		page[key] = frontMatter.attributes[key]
+	}
+
+	if (page.draft) {
+		log(`skipping ${filepath} (draft)`)
+		return data
+	}
+
+	// use filename as title if not defined 
+	if (!page.title) {
+		page.title = path.basename(filepath, '.md')
+	}
+
+	if (page.redirect) {
+		page.url = page.redirect
+	}
+
+	const $ = cheerio.load(page.content)
+
+	if (!page.description) {
+		// TODO make this smarter
+		page.description = $('p').html()
+	}
+
+	let firstImgUrl = $('img').prop('src')
+
+	if (!page.headerImage) {
+		page.headerImage = firstImgUrl || data.site.headerImage
+	}
+
+	if (page.headerImage && path.parse(page.headerImage).root == '/') {
+		page.headerImage = new URL(page.headerImage, data.site.url).href
+	}
+
+	if (page.includeInRSS) {
+		rssFeed.addItem({
+			title: page.title,
+			description: page.description,
+			link: page.url,
+			date: page.date,
+			content: page.content
+		})
+	}
+
+	if (page.bskyPostId == 'tbd' && process.argv.includes('--deploy')) {
+		const headerImg = fs.readFileSync('static/images/header.png');
+
+		const bskyPost =[
+			`new post: ${page.title}`,
+			new URL(page.url, data.site.url).href,
+			page.title,
+			page.description,
+			new Blob([headerImg]),
+		]
+
+		pagesToUpdate[filepath] = bskyPost
+	}
+
+	data.pages.push(page)
+
+	return data
+}
+
+function generatePages(data) {
+	_.each(data.pages, (page) => {
+		if (page.redirect) {
+			return
+		}
+
+		page.site = data.site
+
+		let templatePath = path.join(paths.templates, page.template)
+
+		// get html template
+		if (!fs.existsSync(templatePath)) {
+			console.warn("couldn't find template, using default")
+			page.template = 'default.html'
+			templatePath = path.join(paths.templates, 'default.html')
+		}
+
+		let htmlOutput = fs.readFileSync(templatePath, "utf-8")
+
+		// compile html template
+		let htmlTemplate = Handlebars.compile(htmlOutput)
+		htmlOutput = htmlTemplate(page)
+
+		let outputPath = page.url
+		let outputDir = path.dirname(outputPath)
+
+		if (!fs.existsSync(outputDir)) {
+			fs.mkdirSync(path.join(paths.build, outputDir), { recursive: true })
+		}
+
+		fs.writeFileSync(
+			path.join(paths.build, outputPath),
+			htmlOutput
+		);
+
+		return outputPath
+	})
+}
+
+async function watch() {
+	if (watcher) {
+		await watcher.close()
+	}
+
+	watcher = chokidar.watch(activeProjectMeta.rootPath, {
+		ignored: (filePath) => {
+			return paths.build == filePath || ['.git', '.gitignore', '.DS_Store'].includes(path.basename(filePath))
+		},
+		ignoreInitial: true
+	}).on('all', (event, path) => {
+		console.log(event, path)
+		build()
+	})
+
+	if (server) {
+		server.close()
+	}
+
+	server = await createServer({
+		configFile: false,
+		root: paths.build,
+		publicDir: false,
+		logLevel: 'silent',
+		server: {
+			port: 6969,
+			strictPort: true
+		}
+	})
+	await server.listen()
+	log(`monitoring ${activeProjectMeta.rootPath} for changes`)
+
+	build()
+}
+
+function log(msg) {
+	console.log(`bimbo: ${msg}`)
+	if (win) {
+
+		win.webContents.send('bimbo-log', `💖BIMBO💖 logger: ${msg}`);
+	}
+
+}
+
+async function loadProject(index) {
+	if (index == -1) {
+		return
+	}
+
+	projectsMeta = conf.get('projects').map((projRootPath) => {
+		const projSecrets = fs.existsSync('bimbo-secrets.yaml') ? yaml.parse(
+			fs.readFileSync(path.join(projRootPath, 'bimbo-secrets.yaml'), "utf-8")
+		) : {}
+		let projData = yaml.parse(
+			fs.readFileSync(path.join(projRootPath, 'bimbo.yaml'), "utf-8")
+		)
+
+		return {
+			rootPath: projRootPath,
+			data: _.merge(projData, projSecrets)
+		}
+	})
+
+	activeProjectMeta = projectsMeta[index]
+
+	paths = {
+		"content": path.join(activeProjectMeta.rootPath, "content"),
+		"posts": path.join(activeProjectMeta.rootPath, "content/posts"),
+		"data": path.join(activeProjectMeta.rootPath, "data"),
+		"templates": path.join(activeProjectMeta.rootPath, "templates"),
+		"partials": path.join(activeProjectMeta.rootPath, "templates/partials"),
+		"static": path.join(activeProjectMeta.rootPath, "static"),
+		"build": path.join(activeProjectMeta.rootPath, "_site")
+	}
+
+	conf.set('activeIndex', index)
+	
+	watch()
+}
+
+function deploy() {
+	switch (activeProjectMeta.deployment.provider) {
+		case 'nekoweb':
+			deployToNekoweb()
+			break;
+		case 'neocities':
+			deployToNeocities()
+			break;
+		default:
+			console.log('deployment failed - unknown provider')
+	}
+}
+
+async function deployToNeocities() {
+	const client = new NeocitiesAPIClient(activeProjectMeta.deployment.apiKey)
+
+	await client.deploy({
+		directory: paths.build,
+		cleanup: true, // Delete orphaned files
+		includeUnsupportedFiles: false // Upload unsupported files. Paid neocities feature
+	})
+}
+
+async function deployToNekoweb() {
+	let nekoweb = new NekowebAPI({
+		apiKey: activeProjectConfig.deployment.apiKey,
+	})
+
+	console.log(activeProjectConfig.deployment)
+
+	let response = await nekoweb.getSiteInfo('windfuck.ing')
+	console.log(response)
+}

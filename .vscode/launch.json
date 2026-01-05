@@ -2,14 +2,14 @@
     "configurations": [
         {
             "name": "Launch Electron App",
-            "program": "${workspaceFolder}/src/main.js",
+            "program": "${workspaceFolder}/main.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
             ],
             "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electronmon",
             "type": "node",
-            "args": ["--trace-warnings"]
+            "args": ["--trace-warnings", "--dev"]
         }
     ]
 }

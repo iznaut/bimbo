@@ -30,10 +30,10 @@ import NekowebAPI from '@indiefellas/nekoweb-api'
 let win
 
 function isDev() {
-	return !app.getAppPath().includes('app.asar')
+	return process.argv.includes('--dev')
 }
 
-const startersPath = path.join(isDev() ? '' : process.resourcesPath, 'project-starters')
+const startersPath = path.join((isDev() ? '' : process.resourcesPath), 'project-starters')
 
 const conf = new Conf()
 
@@ -221,6 +221,9 @@ function createWindow () {
 	})
 
 	// mainWindow.webContents.openDevTools({ mode: 'detach' })
+
+	// dialog.showMessageBox({message:startersPath})
+
 }
 
 app.whenReady().then(createWindow)
@@ -354,6 +357,17 @@ async function build() {
 			.filter((v) => { return path.dirname(v.path) == paths.posts })
 			.sortBy((v) => { return v.date * (data.site.sortPostsAscending ? 1 : -1) })
 			.value()
+
+		data.site.snippets = _.chain(data.pages)
+			.filter((v) => { return path.dirname(v.path) == paths.snippets })
+			.map((v) => {
+				const key = path.basename(v.path, '.md')
+				return [key, v.content]
+			})
+			.fromPairs()
+			.value()
+
+		console.log(data)
 	
 		// include prev/next context for posts
 		_.each(data.site.blogPosts, (v, i) => {
@@ -605,6 +619,7 @@ async function loadProject(index) {
 	paths = {
 		"content": path.join(activeProjectMeta.rootPath, "content"),
 		"posts": path.join(activeProjectMeta.rootPath, "content/posts"),
+		"snippets": path.join(activeProjectMeta.rootPath, "content/snippets"),
 		"data": path.join(activeProjectMeta.rootPath, "data"),
 		"templates": path.join(activeProjectMeta.rootPath, "templates"),
 		"partials": path.join(activeProjectMeta.rootPath, "templates/partials"),

@@ -220,6 +220,11 @@ function createWindow () {
 		dialog.showMessageBox({ message: 'bimbo config has been reset to defaults' })
 	})
 
+	globalShortcut.register('CommandOrControl+Alt+W', () => {
+		const winPosition = win.getPosition()
+		win.setPosition(winPosition[0] - 100, winPosition[1] - 100)
+	})
+
 	// mainWindow.webContents.openDevTools({ mode: 'detach' })
 
 	// dialog.showMessageBox({message:startersPath})
@@ -303,10 +308,18 @@ async function build() {
 		const dataFilepaths = await fs.promises.readdir(paths.data, { recursive: true })
 	
 		_.each(dataFilepaths, (filepath) => {
-			const jsonData = fs.readFileSync(path.join(paths.data, filepath), "utf-8")
-			const dataName = path.basename(filepath, '.json')
-	
-			data.site.userDefined[dataName] = JSON.parse(jsonData)
+			const rawData = fs.readFileSync(path.join(paths.data, filepath), "utf-8")
+			const dataName = path.basename(filepath, path.extname(filepath))
+
+			if (path.extname(filepath) == '.json') {
+				data.site.userDefined[dataName] = JSON.parse(rawData)
+			}
+			if (path.extname(filepath) == '.yaml') {
+				data.site.userDefined[dataName] = yaml.parse(rawData)
+			}
+			if (path.extname(filepath) == '.txt') {
+				data.site.userDefined[dataName] = rawData.split('\n')
+			}
 		})
 	}
 
@@ -601,8 +614,10 @@ async function loadProject(index) {
 	}
 
 	projectsMeta = conf.get('projects').map((projRootPath) => {
-		const projSecrets = fs.existsSync('bimbo-secrets.yaml') ? yaml.parse(
-			fs.readFileSync(path.join(projRootPath, 'bimbo-secrets.yaml'), "utf-8")
+		const secretsPath = path.join(projRootPath, 'bimbo-secrets.yaml')
+
+		const projSecrets = fs.existsSync(secretsPath) ? yaml.parse(
+			fs.readFileSync(secretsPath, "utf-8")
 		) : {}
 		let projData = yaml.parse(
 			fs.readFileSync(path.join(projRootPath, 'bimbo.yaml'), "utf-8")
@@ -633,7 +648,8 @@ async function loadProject(index) {
 }
 
 function deploy() {
-	switch (activeProjectMeta.deployment.provider) {
+	console.log(activeProjectMeta)
+	switch (activeProjectMeta.data.deployment.provider) {
 		case 'nekoweb':
 			deployToNekoweb()
 			break;
@@ -645,8 +661,11 @@ function deploy() {
 	}
 }
 
+// TODO - success/fail handling for deploys
+// way to get API key?
+
 async function deployToNeocities() {
-	const client = new NeocitiesAPIClient(activeProjectMeta.deployment.apiKey)
+	const client = new NeocitiesAPIClient(activeProjectMeta.data.deployment.apiKey)
 
 	await client.deploy({
 		directory: paths.build,
@@ -657,10 +676,10 @@ async function deployToNeocities() {
 
 async function deployToNekoweb() {
 	let nekoweb = new NekowebAPI({
-		apiKey: activeProjectConfig.deployment.apiKey,
+		apiKey: activeProjectConfig.data.deployment.apiKey,
 	})
 
-	console.log(activeProjectConfig.deployment)
+	console.log(activeProjectConfig.data.deployment)
 
 	let response = await nekoweb.getSiteInfo('windfuck.ing')
 	console.log(response)

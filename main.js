@@ -22,10 +22,13 @@ import chokidar from 'chokidar'
 import { Conf } from 'electron-conf/main'
 
 import pkg from 'electron';
-const { app, BrowserWindow, dialog, screen, Menu, shell, globalShortcut } = pkg;
+const { app, BrowserWindow, dialog, screen, Menu, shell, globalShortcut, Tray, nativeImage } = pkg;
 
 import { NeocitiesAPIClient } from 'async-neocities'
 import NekowebAPI from '@indiefellas/nekoweb-api'
+
+let tray
+const icon = nativeImage.createFromPath('icon.png')
 
 let win
 
@@ -35,13 +38,13 @@ function isDev() {
 
 const startersPath = path.join((isDev() ? '' : process.resourcesPath), 'project-starters')
 
-const conf = new Conf()
-
-conf.defaultValues = {
-	projects: [],
-	activeIndex: -1,
-	editor: 'codium'
-}
+const conf = new Conf({
+	defaults: {
+		projects: [],
+		activeIndex: -1,
+		editor: 'codium'
+	}
+})
 
 let projectsMeta
 let activeProjectMeta
@@ -85,128 +88,6 @@ function createWindow () {
 
 	win = new BrowserWindow(opts)
 
-	function createMenu() {
-		const projectMenuItems = [
-			{
-				label: `🆕 create new project`,
-				type: 'submenu',
-				submenu: Menu.buildFromTemplate(
-					fs.readdirSync(startersPath, {withFileTypes: true})
-						.filter(dirent => dirent.isDirectory())
-						.map((dirent) => {
-							return {
-								label: dirent.name,
-								click: function () {
-									let pickedPaths = dialog.showOpenDialogSync({
-										properties: ['openDirectory']
-									})
-
-									if (!pickedPaths) { return }
-
-									initProjectStarter(pickedPaths[0], dirent.name)
-								}
-						}
-					})
-				)
-			},
-			{
-				label: `🆒 import existing project`,
-				click: function() {
-					let pickedPaths = dialog.showOpenDialogSync({
-						filters: [{name: 'bimbo project file', extensions: ['yaml']}],
-						properties: ['openFile']
-					})
-
-					if (!pickedPaths) { return }
-
-					console.log(pickedPaths)
-
-					let projects = conf.get('projects')
-					projects.push(path.dirname(pickedPaths[0]))
-					conf.set('projects', projects)
-					const newIndex = projects.length - 1
-					
-					loadProject(newIndex)
-				}
-			},
-		]
-
-		if (conf.get('activeIndex') == -1) {
-			return Menu.buildFromTemplate([
-				...projectMenuItems,
-				{ type: 'separator' },
-				{ label: showDebugMenu ? 'gottem' : 'quit bimbo', click: function() {
-					app.quit()
-				}}
-			])
-		}
-
-		const projMeta = activeProjectMeta
-		const deployMeta = projMeta.data.deployment
-
-		return Menu.buildFromTemplate([
-			{
-				id: 'title',
-				label: projMeta.data.site.title,
-				type: 'submenu',
-				submenu: Menu.buildFromTemplate(
-					[
-						...projectsMeta.map((meta, index) => {
-							return {
-								label: meta.data.site.title,
-								type: 'radio',
-								checked: index == conf.get('activeIndex'),
-								click: () => {
-									loadProject(index)
-								}
-							}
-						}),
-						{ type: 'separator' },
-						...projectMenuItems
-					]
-				)
-			},
-			{ label: `🔗 preview in browser`, click: function() {
-				shell.openExternal(localUrl)
-			} },
-			{ type: 'separator' },
-			{ label: `👩‍💻 edit in VSCodium`, click: function() {
-				exec(`${conf.get('editor')} ${projMeta.rootPath}`)
-			} },
-			{ label: `📂 open project folder`, click: function() {
-				shell.openPath(projMeta.rootPath)
-			} },
-			{ type: 'separator' },
-			{
-				id: 'deploy',
-				label: !!deployMeta ?
-					`🌐 deploy to ${deployMeta.provider}` : 'deployment not configured',
-				enabled: !!deployMeta,
-				click: function() {
-					let clickedId = dialog.showMessageBoxSync({
-						message: `are you sure you want to deploy ${projMeta.data.site.title} to ${deployMeta.provider}?`,
-						type: 'warning',
-						buttons: ['yeah!!', 'not yet...'],
-						defaultId: 1,
-						cancelId: 1,
-						title: 'confirm deployment'
-					})
-
-					if (clickedId == 0) {
-						deploy()
-					}
-					else {
-						console.log('deploy canceled')
-					}
-				}
-			},
-			{ type: 'separator' },
-			{ label: 'quit bimbo', click: function() {
-				app.quit()
-			}}
-		])
-	}
-
 	win.webContents.on('context-menu', (_event, _params) => {
 		let menu = createMenu()
 
@@ -214,11 +95,6 @@ function createWindow () {
 	})
 	
 	win.loadFile('index.html')
-
-	globalShortcut.register('CommandOrControl+Alt+R', () => {
-		conf.clear()
-		dialog.showMessageBox({ message: 'bimbo config has been reset to defaults' })
-	})
 
 	globalShortcut.register('CommandOrControl+Alt+W', () => {
 		const winPosition = win.getPosition()
@@ -228,10 +104,149 @@ function createWindow () {
 	// mainWindow.webContents.openDevTools({ mode: 'detach' })
 
 	// dialog.showMessageBox({message:startersPath})
-
 }
 
-app.whenReady().then(createWindow)
+function createTray() {
+	tray = new Tray(icon)
+	tray.setContextMenu(createMenu())
+
+	tray.setToolTip('bimbo beta')
+	tray.setTitle('bimbo beta')
+}
+
+function createMenu() {
+	const projectMenuItems = [
+		{
+			label: `🆕 create new project`,
+			type: 'submenu',
+			submenu: Menu.buildFromTemplate(
+				fs.readdirSync(startersPath, {withFileTypes: true})
+					.filter(dirent => dirent.isDirectory())
+					.map((dirent) => {
+						return {
+							label: dirent.name,
+							click: function () {
+								let pickedPaths = dialog.showOpenDialogSync({
+									properties: ['openDirectory']
+								})
+
+								if (!pickedPaths) { return }
+
+								initProjectStarter(pickedPaths[0], dirent.name)
+							}
+					}
+				})
+			)
+		},
+		{
+			label: `🆒 import existing project`,
+			click: function() {
+				let pickedPaths = dialog.showOpenDialogSync({
+					filters: [{name: 'bimbo project file', extensions: ['yaml']}],
+					properties: ['openFile']
+				})
+
+				if (!pickedPaths) { return }
+
+				console.log(pickedPaths)
+
+				let projects = conf.get('projects')
+				projects.push(path.dirname(pickedPaths[0]))
+				conf.set('projects', projects)
+				const newIndex = projects.length - 1
+				
+				loadProject(newIndex)
+			}
+		},
+	]
+
+	if (conf.get('activeIndex') == -1) {
+		return Menu.buildFromTemplate([
+			...projectMenuItems,
+			{ type: 'separator' },
+			{ label: showDebugMenu ? 'gottem' : 'quit bimbo', click: function() {
+				app.quit()
+			}}
+		])
+	}
+
+	const projMeta = activeProjectMeta
+	const deployMeta = projMeta.data.deployment
+
+	return Menu.buildFromTemplate([
+		{
+			id: 'title',
+			label: projMeta.data.site.title,
+			type: 'submenu',
+			submenu: Menu.buildFromTemplate(
+				[
+					...projectsMeta.map((meta, index) => {
+						return {
+							label: meta.data.site.title,
+							type: 'radio',
+							checked: index == conf.get('activeIndex'),
+							click: () => {
+								loadProject(index)
+							}
+						}
+					}),
+					{ type: 'separator' },
+					...projectMenuItems
+				]
+			)
+		},
+		{ label: `🔗 preview in browser`, click: function() {
+			shell.openExternal(localUrl)
+		} },
+		{ type: 'separator' },
+		{ label: `👩‍💻 edit in VSCodium`, click: function() {
+			exec(`${conf.get('editor')} ${projMeta.rootPath}`)
+		} },
+		{ label: `📂 open project folder`, click: function() {
+			shell.openPath(projMeta.rootPath)
+		} },
+		{ type: 'separator' },
+		{
+			id: 'deploy',
+			label: !!deployMeta ?
+				`🌐 deploy to ${deployMeta.provider}` : 'deployment not configured',
+			enabled: !!deployMeta,
+			click: function() {
+				let clickedId = dialog.showMessageBoxSync({
+					message: `are you sure you want to deploy ${projMeta.data.site.title} to ${deployMeta.provider}?`,
+					type: 'warning',
+					buttons: ['yeah!!', 'not yet...'],
+					defaultId: 1,
+					cancelId: 1,
+					title: 'confirm deployment'
+				})
+
+				if (clickedId == 0) {
+					deploy()
+				}
+				else {
+					console.log('deploy canceled')
+				}
+			}
+		},
+		{ type: 'separator' },
+		{ label: 'quit bimbo', click: function() {
+			app.quit()
+		}}
+	])
+}
+
+app.whenReady().then(() => {
+	app.dock.hide()
+
+	createTray()
+
+	globalShortcut.register('CommandOrControl+Alt+R', () => {
+		conf.clear()
+		tray.setContextMenu(createMenu())
+		dialog.showMessageBox({ message: 'bimbo config has been reset to defaults' })
+	})
+})
 
 async function initProjectStarter(copyPath, starterName) {
 	const newProjPath = path.join(copyPath, starterName)
@@ -645,6 +660,11 @@ async function loadProject(index) {
 	conf.set('activeIndex', index)
 	
 	watch()
+
+	if (tray) {
+		tray.setContextMenu(createMenu())
+	}
+
 }
 
 function deploy() {

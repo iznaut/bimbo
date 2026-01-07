@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { platform } from 'node:os'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { exec } from 'node:child_process'
@@ -237,7 +238,9 @@ function createMenu() {
 }
 
 app.whenReady().then(() => {
-	app.dock.hide()
+	if (platform() === "darwin") {
+		app.dock.hide()
+	}
 
 	createTray()
 

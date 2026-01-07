@@ -377,7 +377,7 @@ async function build() {
 		}
 	
 		data.site.navPages = _.chain(data.pages)
-			.pick((v) => { return v.navIndex })
+			.pickBy((v) => { return v.navIndex })
 			.sortBy((v) => { return v.navIndex })
 			.value()
 	
@@ -704,3 +704,7 @@ async function deployToNekoweb() {
 	let response = await nekoweb.getSiteInfo('windfuck.ing')
 	console.log(response)
 }
+
+// import deploy from './deploy.js'
+
+// deploy(activeProjectMeta)

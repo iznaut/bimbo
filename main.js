@@ -23,7 +23,7 @@ import chokidar from 'chokidar'
 import { Conf } from 'electron-conf/main'
 
 import pkg from 'electron';
-const { app, BrowserWindow, dialog, screen, Menu, shell, globalShortcut, Tray, nativeImage } = pkg;
+const { app, BrowserWindow, dialog, screen, Menu, shell, globalShortcut, Tray, nativeImage, Notification } = pkg;
 
 import { NeocitiesAPIClient } from 'async-neocities'
 import NekowebAPI from '@indiefellas/nekoweb-api'
@@ -246,9 +246,15 @@ app.whenReady().then(() => {
 
 	globalShortcut.register('CommandOrControl+Alt+R', () => {
 		conf.clear()
+		loadProject(-1)
 		tray.setContextMenu(createMenu())
 		dialog.showMessageBox({ message: 'bimbo config has been reset to defaults' })
 	})
+
+	new Notification({
+		title: 'bimbo',
+		body: !!activeProjectMeta ? `loaded project: ${activeProjectMeta.data.site.title}` : 'no project loaded!'
+	}).show()
 })
 
 async function initProjectStarter(copyPath, starterName) {
@@ -628,6 +634,13 @@ function log(msg) {
 
 async function loadProject(index) {
 	if (index == -1) {
+		if (app.isReady()) {
+			new Notification({
+				title: 'bimbo',
+				body: 'no project loaded!'
+			}).show()
+		}
+
 		return
 	}
 
@@ -668,6 +681,12 @@ async function loadProject(index) {
 		tray.setContextMenu(createMenu())
 	}
 
+	if (app.isReady()) {
+		new Notification({
+			title: 'bimbo',
+			body: `loaded project: ${activeProjectMeta.data.site.title}`
+		}).show()
+	}
 }
 
 function deploy() {

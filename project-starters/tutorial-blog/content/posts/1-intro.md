@@ -1,6 +1,6 @@
 ---
 title: intro to bimbo
-date: 2025-02-01
+date: 2026-01-01
 draft: false
 ---
 
@@ -14,21 +14,21 @@ i mean, yeah? kinda. not as easy as i would like tho. there's no shortage of pat
 
 so i made a _new_ path.
 
-a path for Bimbos, _by_ Bimbos.
+a path for bimbos, _by_ bimbos.
 
 # static site generators
 
-Bimbo is a "static site generator" - a tool that can help you build a website without having to do a lot of busy work (e.g. writing bespoke HTML for every page). there is no shortage of tools like this (and honestly, most of them are probably better than mine[^1]), but they tend to assume you already know a lot about web development and have time to read a ton of documentation to use them
+bimbo is a "static site generator" - a tool that can help you build a website without having to do a lot of busy work (e.g. writing bespoke HTML for every page). there is no shortage of tools like this (and honestly, most of them are probably better than mine[^1]), but they tend to assume you already know a lot about web development and have time to read a ton of documentation to use them
 
 i somehow find myself in a weird space where i don't have enough time to learn any of these existing tools, but _did_ have time to make my own. go figure.
 
-the goal of Bimbo is to be simple enough that you don't have to hold very much knowledge in your head to use it. you'll edit some files, let Bimbo do its thing, and in seconds you'll have a complete website ready to be uploaded to a hosting service.
+the goal of bimbo is to be simple enough that you don't have to hold very much knowledge in your head to use it. you'll edit some files, let bimbo do its thing, and in seconds you'll have a complete website ready to be uploaded to a hosting service.
 
 # files?
 
 yes, _files_. you will need to edit some text files for this.
 
-Bimbo is not a visual editor but it _does_ come with its own web server that reloads automatically when you make changes.
+bimbo is not a visual editor but it _does_ come with its own web server that reloads automatically when you make changes.
 
 i promise it's not _that_ bad.
 

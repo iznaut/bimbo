@@ -8,4 +8,4 @@ i wanted a blog. so i tried some Static Site Generator tools and they all seemed
 
 she makes her own dumb tool.
 
-welcome to Bimbo.
+welcome to bimbo.

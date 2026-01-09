@@ -570,7 +570,17 @@ function generatePages(data) {
 
 		// compile html template
 		let htmlTemplate = Handlebars.compile(htmlOutput)
+
+		try {
 		htmlOutput = htmlTemplate(page)
+		}
+		catch(error) {
+			console.error(`failed to compile ${page.template}`)
+			let encodedError = error.message.replace(/[\u00A0-\u9999<>\&]/gim, function(i) {
+				return '&#' + i.charCodeAt(0) + ';'
+			})
+			htmlOutput = ('<pre>' + encodedError + '</pre>')
+		}
 
 		let outputPath = page.url
 		let outputDir = path.dirname(outputPath)

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+    <body>
+        <div>
+            a Neocities API key was not found for this project. you can retrieve it by using the form below.
+        </div>
+        <form action="#" id="authForm" onsubmit="sendForm(event)">
+            <div>
+                <label for="username">username:</label>
+                <input type="text" name="username" id="username">
+            </div>
+            <div>
+                <label for="password">password:</label>
+                <input type="password" name="password" id="password">
+            </div>
+            <input id="submit" type="submit" value="submit">
+            <div>
+                this data is only sent to neocities.org. please refer to the <a href="https://neocities.org/api">Neocities API documentation</a> for more information.
+            </div>
+        </form>
+    </body>
+    <script>
+        function sendForm(event) {
+            event.preventDefault() // stop the form from submitting
+            let username = document.getElementById("username").value
+            let password = document.getElementById("password").value
+            window.electron.formSubmission(username, password)
+            window.close()
+        }
+    </script>
+</html>

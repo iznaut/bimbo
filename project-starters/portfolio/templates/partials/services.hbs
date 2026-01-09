@@ -1,0 +1,13 @@
+<div class="services-row">
+    {{#each site.userDefined.services}}
+    <div
+        class="service-card"
+        data-aos="fade-up"
+        data-aos-duration="1000"
+        data-aos-delay="50"
+    >
+        <img class="service-card-img" src="/img/services/0{{@index}}.svg" alt="" />
+        <h3 class="service-card-title">{{this}}</h3>
+    </div>
+    {{/each}}
+</div>

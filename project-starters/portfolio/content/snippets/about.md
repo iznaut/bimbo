@@ -1,0 +1,1 @@
+Hello, I'm Guy Coolperson. I love creating content out of anything and everything. This portfolio page is a shrine to everything that I create, but it is also, itself, a creation. Please enjoy your stay and consume responsibly.

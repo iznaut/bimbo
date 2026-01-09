@@ -1,0 +1,20 @@
+<div class="projects-row">
+    {{#each site.userDefined.projects}}
+        <div
+            class="project-box"
+            data-aos="fade-zoom-in"
+            data-aos-easing="ease-in-out"
+            data-aos-duration="1000"
+        >
+            <a href="#!">
+                <img class="project-img" src="img/works/0{{@index}}.jpg" alt="" />
+                <div class="project-mask">
+                    <div class="project-caption">
+                        <h5 class="white">{{this.title}}</h5>
+                        <p class="white">{{this.subtitle}}</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+    {{/each}}
+</div>

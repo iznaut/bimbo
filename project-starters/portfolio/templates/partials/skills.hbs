@@ -1,0 +1,16 @@
+<div
+    class="about-skills"
+    data-aos="fade-up"
+    data-aos-duration="1000"
+    data-aos-delay="100"
+>
+    {{#each site.userDefined.skills}}
+        <div class="skill">
+            <div class="skill-title">{{this.[0]}}</div>
+            <div class="skill-percent">{{this.[1]}}%</div>
+            <div class="skill-bar__progress">
+                <div class="skill-bar__fill" data-progress="{{this.[1]}}"></div>
+            </div>
+        </div>
+    {{/each}}
+</div>

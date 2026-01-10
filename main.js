@@ -28,6 +28,10 @@ const { app, ipcMain, BrowserWindow, dialog, Menu, shell, globalShortcut, Tray, 
 import { NeocitiesAPIClient } from 'async-neocities'
 import NekowebAPI from '@indiefellas/nekoweb-api'
 
+const BASE_NAME = 'bimbo'
+const CONFIG_FILENAME = BASE_NAME + '.yaml'
+const SECRETS_FILENAME = BASE_NAME + '-secrets.yaml'
+
 let tray
 const icon = nativeImage.createFromDataURL('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABJElEQVR4AayRsWrCUBSGT24plCyVPkJL6dZ2cVfIWrv2bUzWPolrOwfi7qJOiujsqIsIwej9LrmXaEwQ9MKfnPOfcz5ObpRceW4LmH0GrcVHkMzfgxDZ5ap86m4DBp6+/OSx47d0oYvwkMok2e/lyJf8OEDj2+8+vN1Lo+OLjvOyGJBNCm98kyqerLj628h2msrqX78nKXatmKHBAAiQgehhQOSXyABeh3HfNl86bGcMgGHPEweRilO4m8i2OMDzKG7XQRi2F/wyjsMSAGPniSOTW9m/Qw4kG/wkxMhtQJJ/VwnCvSx/17SgSDV7bQJ0BMBgvUyJa8Dj0zazFC+6a/bc+tRKAEw20SBPx2wTcT94p8O6LmcBFJCGhIi4SrWAqqGifwAAAP//2exw9QAAAAZJREFUAwBmLW4hL61AdQAAAABJRU5ErkJggg==')
 
@@ -55,6 +59,8 @@ let rssFeed
 
 let server
 let watcher
+
+validateProjects()
 
 loadProject(conf.get('activeIndex'))
 
@@ -209,7 +215,7 @@ app.whenReady().then(() => {
 		})
 
 		if (apiKeyResponse.result == 'success') {
-			const secretsPath = path.join(activeProjectMeta.rootPath, 'bimbo-secrets.yaml') // TODO dedupe
+			const secretsPath = path.join(activeProjectMeta.rootPath, SECRETS_FILENAME) // TODO dedupe
 			if (!fs.existsSync(secretsPath)) {
 				fs.writeFileSync(secretsPath)
 			}
@@ -595,7 +601,7 @@ async function watch() {
 		console.log(event, changedPath)
 		build()
 
-		if (['bimbo.yaml', 'bimbo-secrets.yaml'].includes(path.basename(changedPath))) {
+		if ([CONFIG_FILENAME, SECRETS_FILENAME].includes(path.basename(changedPath))) {
 			loadProject(conf.get('activeIndex'))
 		}
 	})
@@ -642,13 +648,13 @@ async function loadProject(index) {
 	}
 
 	projectsMeta = conf.get('projects').map((projRootPath) => {
-		const secretsPath = path.join(projRootPath, 'bimbo-secrets.yaml')
+		const secretsPath = path.join(projRootPath, SECRETS_FILENAME)
 
 		const projSecrets = fs.existsSync(secretsPath) ? yaml.parse(
 			fs.readFileSync(secretsPath, "utf-8")
 		) : {}
 		let projData = yaml.parse(
-			fs.readFileSync(path.join(projRootPath, 'bimbo.yaml'), "utf-8")
+			fs.readFileSync(path.join(projRootPath, CONFIG_FILENAME), "utf-8")
 		)
 
 		return {
@@ -683,6 +689,24 @@ async function loadProject(index) {
 			title: 'bimbo',
 			body: `loaded project: ${activeProjectMeta.data.site.title}`
 		}).show()
+	}
+}
+
+function projectExists(projRootPath) {
+	const configFilepath = path.join(projRootPath, CONFIG_FILENAME)
+
+	return fs.existsSync(configFilepath)
+}
+
+function validateProjects() {
+	const projects = conf.get('projects').filter((projRootPath) => {
+		projectExists(projRootPath)
+	})
+
+	conf.set('projects', projects)
+
+	if (projects.length == 0) {
+		conf.set('activeIndex', -1)
 	}
 }
 

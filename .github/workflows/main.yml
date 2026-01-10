@@ -1,0 +1,33 @@
+name: build
+
+permissions:
+  contents: write
+  
+on:
+  push:
+    branches:
+      - main
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Install Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 24
+      - name: npm install
+        run: npm install 
+      - name: electron packager
+        run: npx @electron/packager . --extra-resource project-starters/ --ignore project-starters/ --overwrite --out build/
+        

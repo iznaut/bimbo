@@ -1,16 +1,12 @@
 site:
-  title: bimbo blog
-  description: a static site generator for dumb girls
-  url: https://bimbo.nekoweb.org/
-  headerImage: /images/header.png
-  authorName: izzy kestrel
-  authorUrl: https://iznaut.com/
-  authorEmail: contact@iznaut.com
+  title: my cool blog
+  description: where i go to post
+  url: cool.blog
+  authorName: cool person
+  authorUrl: https://coolperson.com/
+  authorEmail: contact@coolperson.com
   dateFormat: YYYY-MM-DD
   sortPostsAscending: true
-  codeTheme: tokyo-night-dark
-  integrations:
-    bskyUserId: sofkq7uzgyczeyl24wxuc47o
 
 contentDefaults:              # these get applied to any .md files with no `~default.yaml` file in their folder
   title: cool untitled page   # you can set all of these items per .md file. these are fallbacks

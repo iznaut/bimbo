@@ -231,7 +231,7 @@ export async function watch() {
 
 	watcher = chokidar.watch(projects.getActive().rootPath, {
 		ignored: (filePath) => {
-			return getJoinedPath(PATHS.OUTPUT) == filePath || ['.git', '.gitignore', '.DS_Store'].includes(path.basename(filePath))
+			return getJoinedPath(PATHS.OUTPUT) == path.normalize(filePath) || ['.git', '.gitignore', '.DS_Store'].includes(path.basename(filePath))
 		},
 		ignoreInitial: true
 	}).on('all', (event, changedPath) => {

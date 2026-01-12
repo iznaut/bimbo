@@ -32,5 +32,5 @@ jobs:
         run: npx @electron/packager . --extra-resource project-starters/ --ignore project-starters/ --overwrite --out build/
       - uses: actions/upload-artifact@v4
         with:
-          name: builds
+          name: ${{ matrix.os }}-build
           path: build

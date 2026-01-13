@@ -41,7 +41,7 @@ const PATHS = {
 }
 
 function getJoinedPath(pathConst) {
-    return path.join(projects.getActive().rootPath, pathConst)
+    return path.normalize(path.join(projects.getActive().rootPath, pathConst))
 }
 
 async function build() {

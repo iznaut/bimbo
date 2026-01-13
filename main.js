@@ -25,8 +25,6 @@ const icon = nativeImage.createFromDataURL('data:image/png;base64,iVBORw0KGgoAAA
 let tray = null
 global.win = null
 
-
-
 const startersPath = path.join((isDev() ? '' : process.resourcesPath), 'project-starters')
 
 const localUrl = 'http://localhost:6969'
@@ -59,6 +57,10 @@ app.whenReady().then(() => {
 
 	// start watching last active project
 	projects.setActive()
+
+	if (conf.get('activeIndex') == -1) {
+		shell.openExternal('https://bimbo.nekoweb.org/posts/2-getting-started.html')
+	}
 })
 
 function createWindow() {

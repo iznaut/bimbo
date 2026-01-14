@@ -65,4 +65,4 @@ jobs:
           itchUsername: ${{env.ITCH_USERNAME}}
           itchGameId: ${{ env.ITCH_GAME_ID }}
           buildChannel: ${{ matrix.channel }}
-          # buildNumber: ${{ needs.version.outputs.version_hash }}
+          buildNumberFile: ./version

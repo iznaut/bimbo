@@ -38,16 +38,30 @@ jobs:
         run: npm install 
       - name: electron packager
         run: npx @electron/packager . --extra-resource project-starters/ --ignore project-starters/ --out build/
-      # - uses: actions/upload-artifact@v4
-      #   with:
-      #     name: ${{ matrix.os }}-build
-      #     path: build
-      - name: Deploy to itch.io
-        uses: KikimoraGames/itch-publish@v0.0.3
+      - uses: actions/upload-artifact@v4
         with:
-            butlerApiKey: ${{ secrets.BUTLER_API_KEY }}
-            gameData: ./build/
-            itchUsername: ${{ env.ITCH_USERNAME }}
-            itchGameId: ${{ env.ITCH_GAME_ID }}
-            buildChannel: ${{ matrix.os.channel }}-beta
-            # buildNumber: ${{ needs.version.outputs.version_hash }}
+          name: ${{ matrix.os.channel }}
+          path: build
+  deploy:
+    name: Upload to Itch
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        channel:
+          - macos
+          - linux
+          - windows
+    steps:
+      - uses: actions/download-artifact@v2.0.8
+        with:
+          name: ${{ matrix.channel }}
+          path: build/${{ matrix.channel }}
+      - uses: KikimoraGames/itch-publish@v0.0.3
+        with:
+          butlerApiKey: ${{secrets.BUTLER_API_KEY}}
+          gameData: ./build/${{ matrix.channel }}
+          itchUsername: ${{env.ITCH_USERNAME}}
+          itchGameId: ${{ env.ITCH_GAME_ID }}
+          buildChannel: ${{ matrix.channel }}
+          # buildNumber: ${{ needs.version.outputs.version_hash }}

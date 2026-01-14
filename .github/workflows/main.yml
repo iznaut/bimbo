@@ -8,16 +8,24 @@ on:
     branches:
       - main
 
+env:
+  ITCH_USERNAME: iznaut
+  ITCH_GAME_ID: bimbo
+
 defaults:
   run:
     shell: bash
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.os.runner }}
     strategy:
       matrix:
-        os: [macos-latest, macos-15-intel, ubuntu-latest, windows-latest]
+        os: [
+          { runner: 'macos-latest', channel: 'macos' },
+          { runner: 'ubuntu-latest', channel: 'linux' },
+          { runner: 'windows-latest', channel: 'windows' }
+        ]
 
     steps:
       - uses: actions/checkout@v3
@@ -29,8 +37,17 @@ jobs:
       - name: npm install
         run: npm install 
       - name: electron packager
-        run: npx @electron/packager . --extra-resource project-starters/ --ignore project-starters/ --overwrite --out build/
-      - uses: actions/upload-artifact@v4
+        run: npx @electron/packager . --extra-resource project-starters/ --ignore project-starters/ --out build/
+      # - uses: actions/upload-artifact@v4
+      #   with:
+      #     name: ${{ matrix.os }}-build
+      #     path: build
+      - name: Deploy to itch.io
+        uses: KikimoraGames/itch-publish@v0.0.3
         with:
-          name: ${{ matrix.os }}-build
-          path: build
+            butlerApiKey: ${{ secrets.BUTLER_API_KEY }}
+            gameData: ./build/
+            itchUsername: ${{ env.ITCH_USERNAME }}
+            itchGameId: ${{ env.ITCH_GAME_ID }}
+            buildChannel: ${{ matrix.os.channel }}-beta
+            # buildNumber: ${{ needs.version.outputs.version_hash }}

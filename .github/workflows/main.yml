@@ -44,6 +44,7 @@ jobs:
           path: build
   deploy:
     name: Upload to Itch
+    needs: build
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true

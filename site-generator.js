@@ -224,12 +224,21 @@ async function build() {
 	log("site build completed 💅")
 }
 
-export async function watch() {
+export async function watch(kill = false) {
+	if (kill) {
+		watcher.close()
+		server.close()
+		return
+	}
+
+
 	if (watcher) {
 		await watcher.close()
 	}
 
-	watcher = chokidar.watch(projects.getActive().rootPath, {
+	let watchPath = projects.getActive().rootPath
+
+	watcher = chokidar.watch(watchPath, {
 		ignored: (filePath) => {
 			return getJoinedPath(PATHS.OUTPUT) == path.normalize(filePath) || ['.git', '.gitignore', '.DS_Store'].includes(path.basename(filePath))
 		},

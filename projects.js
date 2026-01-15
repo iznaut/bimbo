@@ -53,9 +53,7 @@ export default {
             conf.set('activeIndex', index)
         }
 
-        if (index != -1) {
-            watch()
-        }
+        watch(index != -1)
 
         new Notification({
             title: 'bimbo',

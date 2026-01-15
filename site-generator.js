@@ -226,11 +226,10 @@ async function build() {
 
 export async function watch(kill = false) {
 	if (kill) {
-		watcher.close()
-		server.close()
+		if (watcher) { watcher.close() }
+		if (server) { server.close() }
 		return
 	}
-
 
 	if (watcher) {
 		await watcher.close()

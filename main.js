@@ -4,8 +4,11 @@ import * as path from 'node:path'
 import { exec } from 'node:child_process'
 import _ from 'lodash'
 import { fileURLToPath } from 'url'
+import prompt from 'electron-prompt'
+import * as yaml from 'yaml'
 
 import { conf, isDev } from './utils.js'
+import config from './config.js'
 import projects from './projects.js'
 import { deploy } from './deploy.js'
 
@@ -93,14 +96,38 @@ function updateTrayMenu() {
 					.map((dirent) => {
 						return {
 							label: dirent.name,
-							click: function () {
+							click: async function () {
+								const title = await prompt({
+									title: 'create new bimbo project',
+									buttonLabels: {
+										ok: 'let\'s go',
+										cancel: 'nevermind'
+									},
+									label: 'title:',
+									value: dirent.name,
+									type: 'input'
+								})
+								// .then((r) => {
+								// 	if(r === null) {
+								// 		console.log('user cancelled');
+								// 	} else {
+								// 		console.log('result', r);
+								// 	}
+								// })
+								.catch(console.error);
+
+								if (!title) { return }
+
 								let pickedPaths = dialog.showOpenDialogSync({
 									properties: ['openDirectory']
 								})
 
 								if (!pickedPaths) { return }
 
-								initProjectStarter(pickedPaths[0], dirent.name)
+								initProjectStarter(
+									path.join(pickedPaths[0], title),
+									dirent.name
+								)
 							}
 					}
 				})
@@ -186,10 +213,15 @@ function updateTrayMenu() {
 	tray.setContextMenu(menu)
 }
 
-async function initProjectStarter(copyPath, starterName) {
-	const newProjPath = path.join(copyPath, starterName)
+async function initProjectStarter(newProjPath, starterName) {
 	fs.cpSync(path.join(startersPath, starterName), newProjPath, {recursive: true})
 	fs.cpSync(path.join(startersPath, '.gitignore'), path.join(newProjPath, '.gitignore'))
+
+	let configFilepath = path.join(newProjPath, config.CONFIG_FILENAME)
+
+	let newConfig = yaml.parse(fs.readFileSync(configFilepath, 'utf-8'))
+	newConfig.site.title = path.basename(newProjPath)
+	fs.writeFileSync(configFilepath, yaml.stringify(newConfig))
 
 	projects.add(newProjPath)
 	projects.setActive(projects.getAll().length - 1)

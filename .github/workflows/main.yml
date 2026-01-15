@@ -25,6 +25,7 @@ jobs:
       matrix:
         os: [
           { runner: 'macos-latest', channel: 'macos' },
+          { runner: 'macos-15-intel', channel: 'macos-intel' },
           { runner: 'ubuntu-latest', channel: 'linux' },
           { runner: 'windows-latest', channel: 'windows' }
         ]
@@ -53,6 +54,7 @@ jobs:
       matrix:
         channel:
           - macos
+          - macos-intel
           - linux
           - windows
     steps:

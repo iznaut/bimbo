@@ -224,51 +224,47 @@ async function build() {
 	log("site build completed 💅")
 }
 
-export async function watch(kill = false) {
-	if (kill) {
-		if (watcher) { watcher.close() }
-		if (server) { server.close() }
-		return
-	}
-
+export async function watch() {
 	if (watcher) {
 		await watcher.close()
 	}
 
-	let watchPath = projects.getActive().rootPath
+	let activeProject = projects.getActive()
 
-	watcher = chokidar.watch(watchPath, {
-		ignored: (filePath) => {
-			return getJoinedPath(PATHS.OUTPUT) == path.normalize(filePath) || ['.git', '.gitignore', '.DS_Store'].includes(path.basename(filePath))
-		},
-		ignoreInitial: true
-	}).on('all', (event, changedPath) => {
-		console.log(event, changedPath)
+	if (activeProject) {
+		watcher = chokidar.watch(activeProject.rootPath, {
+			ignored: (filePath) => {
+				return getJoinedPath(PATHS.OUTPUT) == path.normalize(filePath) || ['.git', '.gitignore', '.DS_Store'].includes(path.basename(filePath))
+			},
+			ignoreInitial: true
+		}).on('all', (event, changedPath) => {
+			logger.info(event, changedPath)
+			build()
+	
+			if ([config.CONFIG_FILENAME, config.SECRETS_FILENAME].includes(path.basename(changedPath))) {
+				loadProject(conf.get('activeIndex'))
+			}
+		})
+	
+		if (server) {
+			server.close()
+		}
+	
+		server = await createServer({
+			configFile: false,
+			root: getJoinedPath(PATHS.OUTPUT),
+			publicDir: false,
+			logLevel: 'silent',
+			server: {
+				port: 6969,
+				strictPort: true
+			}
+		})
+		await server.listen()
+		logger.info(`monitoring ${activeProject.rootPath} for changes`)
+	
 		build()
-
-		if ([config.CONFIG_FILENAME, config.SECRETS_FILENAME].includes(path.basename(changedPath))) {
-			loadProject(conf.get('activeIndex'))
-		}
-	})
-
-	if (server) {
-		server.close()
 	}
-
-	server = await createServer({
-		configFile: false,
-		root: getJoinedPath(PATHS.OUTPUT),
-		publicDir: false,
-		logLevel: 'silent',
-		server: {
-			port: 6969,
-			strictPort: true
-		}
-	})
-	await server.listen()
-	log(`monitoring ${projects.getActive().rootPath} for changes`)
-
-	build()
 }
 
 function getContentDefaults(dir) {

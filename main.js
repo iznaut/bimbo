@@ -6,6 +6,7 @@ import _ from 'lodash'
 import { fileURLToPath } from 'url'
 import prompt from 'electron-prompt'
 import * as yaml from 'yaml'
+import winston from 'winston'
 
 import { conf, isDev, logger } from './utils.js'
 import config from './config.js'
@@ -38,6 +39,24 @@ const __dirname = path.dirname(__filename)
 let showDebugMenu = false
 
 app.whenReady().then(() => {
+	function getAppRoot() {
+		if (isDev()) {
+			return './'
+		}
+
+		if ( process.platform === 'win32' ) {
+			return path.join( app.getAppPath(), '/../../../' );
+		}  else {
+			return path.join( app.getAppPath(), '/../../../../' );
+		}
+	}
+
+	logger.add(new winston.transports.File({
+		filename: path.join(getAppRoot(), 'bimbo.log'),
+		handleRejections: true,
+		humanReadableUnhandledException: true
+	}))
+
 	logger.info('app ready!')
 
 	if (platform() === "darwin") {

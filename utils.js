@@ -5,17 +5,13 @@ export const logger = winston.createLogger({
 	level: 'info',
 	format: winston.format.json(),
 	transports: [
-		new winston.transports.File({
-			filename: 'bimbo.log',
-			handleRejections: true,
-			humanReadableUnhandledException: true
+		new winston.transports.Console({
+			format: winston.format.simple(),
 		}),
 	],
 })
 
-logger.add(new winston.transports.Console({
-	format: winston.format.simple(),
-}))
+
 
 export const conf = new Conf({
 	defaults: {

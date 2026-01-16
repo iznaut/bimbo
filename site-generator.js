@@ -236,7 +236,7 @@ export async function watch() {
 			},
 			ignoreInitial: true
 		}).on('all', (event, changedPath) => {
-			logger.info(event, changedPath)
+			logger.info(`${event}: ${changedPath}`)
 			build()
 	
 			if ([config.CONFIG_FILENAME, config.SECRETS_FILENAME].includes(path.basename(changedPath))) {

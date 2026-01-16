@@ -52,11 +52,11 @@ export function deploy(activeProjectMeta) {
 			deployToNeocities()
 			break;
 		default:
-			console.log('deployment failed - unknown provider')
+			logger.info('deployment failed - unknown provider')
 	}
 		}
 		else {
-			console.log('deploy canceled')
+			logger.info('deploy canceled')
 		}
 	}
 }
@@ -80,5 +80,5 @@ async function deployToNekoweb() {
 	})
 
 	let response = await nekoweb.getSiteInfo('windfuck.ing')
-	console.log(response) // TODO
+	logger.info(response) // TODO
 }

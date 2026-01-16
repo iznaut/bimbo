@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url'
 import prompt from 'electron-prompt'
 import * as yaml from 'yaml'
 
-import { conf, isDev } from './utils.js'
+import { conf, isDev, logger } from './utils.js'
 import config from './config.js'
 import projects from './projects.js'
 import { deploy } from './deploy.js'
@@ -38,7 +38,10 @@ const __dirname = path.dirname(__filename)
 let showDebugMenu = false
 
 app.whenReady().then(() => {
+	logger.info('app ready!')
+
 	if (platform() === "darwin") {
+		logger.info('macos platform, hiding dock icon')
 		app.dock.hide()
 	}
 
@@ -49,10 +52,12 @@ app.whenReady().then(() => {
 	tray.setTitle('bimbo beta')
 
 	globalShortcut.register('CommandOrControl+Alt+R', () => {
+		logger.info('attempting config clear')
 		conf.clear()
 		projects.setActive(-1)
 		updateTrayMenu()
 		dialog.showMessageBox({ message: 'bimbo config has been reset to defaults' })
+		logger.info('config cleared')
 	})
 
 	// having this listener active will prevent the app from quitting.
@@ -109,9 +114,9 @@ function updateTrayMenu() {
 								})
 								// .then((r) => {
 								// 	if(r === null) {
-								// 		console.log('user cancelled');
+								// 		console.logger.info('user cancelled');
 								// 	} else {
-								// 		console.log('result', r);
+								// 		console.logger.info('result', r);
 								// 	}
 								// })
 								.catch(console.error);

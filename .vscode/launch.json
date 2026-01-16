@@ -9,7 +9,8 @@
             ],
             "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electronmon",
             "type": "node",
-            "args": ["--trace-warnings", "--dev"]
+            "args": ["--trace-warnings", "--dev"],
+            "outputCapture": "std"
         }
     ]
 }

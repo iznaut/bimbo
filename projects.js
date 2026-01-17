@@ -4,13 +4,18 @@ import _ from 'lodash'
 import { Notification } from 'electron'
 import * as yaml from 'yaml'
 
-import { conf } from './utils.js'
+import { conf, logger } from './utils.js'
 import config from './config.js'
 import { watch } from './site-generator.js'
 
 export default {
     getAll(pathsOnly = false) {
-        let projects = conf.get('projects').map((projRootPath) => {
+        // remove invalid paths
+        const projectPaths = conf.get('projects').filter((rootPath) => {
+            return this.exists(rootPath)
+        })
+        
+        let projects = projectPaths.map((projRootPath) => {
             const secretsPath = path.join(projRootPath, config.SECRETS_FILENAME)
     
             const projSecrets = fs.existsSync(secretsPath) ? yaml.parse(
@@ -24,11 +29,6 @@ export default {
                 rootPath: projRootPath,
                 data: _.merge(projData, projSecrets)
             }
-        })
-
-        // remove invalid paths
-        projects.filter((proj) => {
-            return this.exists(proj.rootPath)
         })
 
         // if no valid projects
@@ -56,18 +56,39 @@ export default {
         watch()
 
         new Notification({
-            title: 'bimbo',
+            title: config.BASE_NAME,
             body: index == -1 ? 'no project loaded!' : `loaded project: ${this.getActive().data.site.title}`
         }).show()
     },
-    add(configFilepath) {
+    add(newProjRootPath) {
         let current = this.getAll(true)
-        current.push(configFilepath)
+
+        if (current.includes(newProjRootPath)) {
+            new Notification({
+                title: config.BASE_NAME,
+                body: 'project already imported: ' + newProjRootPath
+            }).show()
+
+            return
+        }
+
+        current.push(newProjRootPath)
         conf.set('projects', current)
     },
     exists(projRootPath) {
-        const configFilepath = path.join(projRootPath, config.CONFIG_FILENAME)
+        const fileExists = fs.existsSync(
+            path.join(projRootPath, config.CONFIG_FILENAME)
+        )
 
-        return fs.existsSync(configFilepath)
+        if (!fileExists) {
+            logger.warn('unable to find project, removing from list: ' + projRootPath)
+
+            new Notification({
+                title: config.BASE_NAME,
+                body: `failed to load project: ${projRootPath}`
+            }).show()
+        }
+
+        return fileExists
     }
 }

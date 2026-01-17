@@ -15,7 +15,6 @@ import { deploy } from './deploy.js'
 
 import {
 	app,
-	BrowserWindow,
 	dialog,
 	Menu,
 	shell,
@@ -32,9 +31,6 @@ global.win = null
 const startersPath = path.join((isDev() ? '' : process.resourcesPath), 'project-starters')
 
 const localUrl = 'http://localhost:6969'
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
 
 let showDebugMenu = false
 
@@ -89,22 +85,6 @@ app.whenReady().then(() => {
 		shell.openExternal('https://bimbo.nekoweb.org/posts/2-getting-started.html')
 	}
 })
-
-function createWindow() {
-	let opts = {
-		title: "generate API key - bimbo", 
-		width: 300,
-		height: 300,
-		alwaysOnTop: true,
-		webPreferences: {
-			preload: path.join(__dirname, 'preload.js')
-		}
-	}
-
-	win = new BrowserWindow(opts)
-	
-	win.loadFile('auth.html')
-}
 
 function updateTrayMenu() {
 	let menu = null

@@ -11,8 +11,6 @@ export const logger = winston.createLogger({
 	],
 })
 
-
-
 export const conf = new Conf({
 	defaults: {
 		projects: [],

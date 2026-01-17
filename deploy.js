@@ -1,4 +1,4 @@
-import { ipcMain, dialog, Notification } from 'electron'
+import { ipcMain, dialog, Notification, BrowserWindow } from 'electron'
 import { NeocitiesAPIClient } from 'async-neocities'
 import NekowebAPI from '@indiefellas/nekoweb-api'
 import { Client } from "basic-ftp"
@@ -24,7 +24,7 @@ ipcMain.handle('form', async function (_event, username, password) {
 		secretsData['deployment']['apiKey'] = apiKeyResponse.api_key
 		fs.writeFileSync(secretsPath, yaml.stringify(secretsData))
 		
-		loadProject(conf.get('activeIndex'))
+		projects.setActive()
 
 		deploy()
 	}
@@ -35,7 +35,20 @@ export async function deploy() {
 	const deployMeta = activeProjectMeta.data.deployment
 
 	if (deployMeta.provider == 'neocities' && !deployMeta.apiKey) {
-		createWindow()
+		const __filename = fileURLToPath(import.meta.url)
+		const __dirname = path.dirname(__filename)
+
+		win = new BrowserWindow({
+			title: "generate API key - bimbo",
+			width: 300,
+			height: 300,
+			alwaysOnTop: true,
+			webPreferences: {
+				preload: path.join(__dirname, 'preload.js')
+			}
+		})
+
+		win.loadFile('auth.html')
 	}
 	else {
 		let clickedId = dialog.showMessageBoxSync({
@@ -86,7 +99,7 @@ async function deployToNeocities(deployMeta) {
 	const client = new NeocitiesAPIClient(deployMeta.apiKey)
 
 	await client.deploy({
-		directory: paths.build,
+		directory: path.join(projects.getActive().rootPath, '_site'),
 		cleanup: true, // Delete orphaned files
 		includeUnsupportedFiles: false // Upload unsupported files. Paid neocities feature
 	})
@@ -98,7 +111,7 @@ async function deployToNekoweb(deployMeta) {
 	})
 
 	let response = await nekoweb.getSiteInfo('windfuck.ing')
-	logger.info(response) // TODO
+	console.log(response) // TODO
 }
 
 async function deployViaFtp(deployMeta, projectRootPath) {

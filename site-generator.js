@@ -244,7 +244,7 @@ export async function watch() {
 			build()
 	
 			if ([config.CONFIG_FILENAME, config.SECRETS_FILENAME].includes(path.basename(changedPath))) {
-				loadProject(conf.get('activeIndex'))
+				projects.setActive()
 			}
 		})
 	

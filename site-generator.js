@@ -232,7 +232,11 @@ export async function watch() {
 	if (activeProject) {
 		watcher = chokidar.watch(activeProject.rootPath, {
 			ignored: (filePath) => {
-				return getJoinedPath(PATHS.OUTPUT) == path.normalize(filePath) || ['.git', '.gitignore', '.DS_Store', '.vscode/settings.json'].includes(path.basename(filePath))
+				return (
+					getJoinedPath(PATHS.OUTPUT) == path.normalize(filePath)
+					|| ['.git', '.gitignore', '.DS_Store'].includes(path.basename(filePath))
+					|| filePath.includes('.vscode/settings.json') // TODO read this (and .gitignore) from config const
+				)
 			},
 			ignoreInitial: true
 		}).on('all', (event, changedPath) => {

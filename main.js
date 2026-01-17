@@ -239,8 +239,18 @@ function updateTrayMenu() {
 
 async function initProjectStarter(newProjPath, starterName) {
 	fs.cpSync(path.join(startersPath, starterName), newProjPath, {recursive: true})
-	fs.cpSync(path.join(startersPath, '.gitignore'), path.join(newProjPath, '.gitignore'))
-	fs.cpSync(path.join(startersPath, 'settings.json'), path.join(newProjPath, '.vscode/settings.json'))
+
+	_.each(config.EXTRA_INIT_FILES, (data) => {
+		if (data.json) {
+			data.text = JSON.stringify(data.json, null, true)
+		}
+
+		if (data.filePath.includes('.vscode')) {
+			fs.mkdirSync(path.join(newProjPath, '.vscode'))
+		}
+
+		fs.writeFileSync(path.join(newProjPath, data.filePath), data.text)
+	})
 
 	let configFilepath = path.join(newProjPath, config.CONFIG_FILENAME)
 

@@ -1,9 +1,12 @@
-import { ipcMain, dialog } from 'electron'
+import { ipcMain, dialog, Notification } from 'electron'
 import { NeocitiesAPIClient } from 'async-neocities'
 import NekowebAPI from '@indiefellas/nekoweb-api'
+import { Client } from "basic-ftp"
+import * as path from 'node:path'
 
-import { conf } from './utils.js'
+import { conf, logger } from './utils.js'
 import projects from './projects.js'
+import config from './config.js'
 
 ipcMain.handle('form', async function (_event, username, password) {
 	const apiKeyResponse = await NeocitiesAPIClient.getKey({
@@ -27,7 +30,8 @@ ipcMain.handle('form', async function (_event, username, password) {
 	}
 })
 
-export function deploy(activeProjectMeta) {
+export async function deploy() {
+	const activeProjectMeta = projects.getActive()
 	const deployMeta = activeProjectMeta.data.deployment
 
 	if (deployMeta.provider == 'neocities' && !deployMeta.apiKey) {
@@ -35,7 +39,7 @@ export function deploy(activeProjectMeta) {
 	}
 	else {
 		let clickedId = dialog.showMessageBoxSync({
-			message: `are you sure you want to deploy ${activeProjectMeta.data.site.title} to ${activeProjectMeta.data.deployment.provider}?`,
+			message: `are you sure you want to deploy ${activeProjectMeta.data.site.title} to ${deployMeta.provider}?`,
 			type: 'warning',
 			buttons: ['yeah!!', 'not yet...'],
 			defaultId: 1,
@@ -44,16 +48,30 @@ export function deploy(activeProjectMeta) {
 		})
 
 		if (clickedId == 0) {
-			switch (activeProjectMeta.data.deployment.provider) {
-		case 'nekoweb':
-			deployToNekoweb()
-			break;
-		case 'neocities':
-			deployToNeocities()
-			break;
-		default:
-			logger.info('deployment failed - unknown provider')
-	}
+			new Notification({
+				title: config.BASE_NAME,
+				body: `starting deployment to ${deployMeta.provider}`
+			}).show()
+
+			switch (deployMeta.provider) {
+				case 'nekoweb':
+					await deployToNekoweb(deployMeta)
+					break;
+				case 'neocities':
+					await deployToNeocities(deployMeta)
+					break;
+				case 'ftp':
+					await deployViaFtp(deployMeta, activeProjectMeta.rootPath)
+					break;
+				default:
+					logger.info('deployment failed - unknown provider')
+					return
+			}
+
+			new Notification({
+				title: config.BASE_NAME,
+				body: `deployment completed successfully`
+			}).show()
 		}
 		else {
 			logger.info('deploy canceled')
@@ -64,8 +82,8 @@ export function deploy(activeProjectMeta) {
 // TODO - success/fail handling for deploys
 // way to get API key?
 
-async function deployToNeocities() {
-	const client = new NeocitiesAPIClient(activeProjectMeta.data.deployment.apiKey)
+async function deployToNeocities(deployMeta) {
+	const client = new NeocitiesAPIClient(deployMeta.apiKey)
 
 	await client.deploy({
 		directory: paths.build,
@@ -74,11 +92,40 @@ async function deployToNeocities() {
 	})
 }
 
-async function deployToNekoweb() {
+async function deployToNekoweb(deployMeta) {
 	let nekoweb = new NekowebAPI({
-		apiKey: activeProjectConfig.data.deployment.apiKey,
+		apiKey: deployMeta.apiKey,
 	})
 
 	let response = await nekoweb.getSiteInfo('windfuck.ing')
 	logger.info(response) // TODO
+}
+
+async function deployViaFtp(deployMeta, projectRootPath) {
+    const client = new Client()
+    // client.ftp.verbose = true
+    try {
+		
+		// client.trackProgress(info => {
+		// 	console.log("File", info.name)
+		// 	console.log("Type", info.type)
+		// 	console.log("Transferred", info.bytes)
+		// 	console.log("Transferred Overall", info.bytesOverall)
+		// })
+
+        await client.access({
+            host: deployMeta.host,
+			port: deployMeta.port,
+            user: deployMeta.user,
+            password: deployMeta.password
+        })
+
+		await client.ensureDir(deployMeta.siteRoot)
+		await client.clearWorkingDir()
+		await client.uploadFromDir(path.join(projectRootPath, '_site'))
+    }
+    catch(err) {
+		logger.error(err)
+    }
+    client.close()
 }

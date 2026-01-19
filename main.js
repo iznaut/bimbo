@@ -78,11 +78,12 @@ app.whenReady().then(() => {
 	// having this listener active will prevent the app from quitting.
 	app.on('window-all-closed', () => {})
 
-	// start watching last active project
-	projects.setActive()
-
 	if (conf.get('activeIndex') == -1) {
 		shell.openExternal('https://bimbo.nekoweb.org/posts/2-getting-started.html')
+	}
+	else {
+		// start watching last active project
+		projects.setActive()
 	}
 })
 

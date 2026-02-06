@@ -342,13 +342,18 @@ function updateMetadata(filepath, data) {
 	}
 
 	if (page.includeInRSS) {
-		rssFeed.addItem({
-			title: page.title,
-			description: page.description,
-			link: page.url,
-			date: page.date,
-			content: page.content
-		})
+		try {
+			rssFeed.addItem({
+				title: page.title,
+				description: page.description,
+				link: page.url,
+				date: page.date,
+				content: page.content
+			})
+		} catch (err) {
+			logger.info('failed to add RSS post...')
+			logger.info(err)
+		}
 	}
 
 	if (page.bskyPostId == 'tbd' && process.argv.includes('--deploy')) {

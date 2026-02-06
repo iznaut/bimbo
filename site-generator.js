@@ -338,17 +338,22 @@ function updateMetadata(filepath, data) {
 	}
 
 	if (page.headerImage && path.parse(page.headerImage).root == '/') {
-		page.headerImage = new URL(page.headerImage, data.site.url).href
+		page.headerImage = new URL(page.headerImage, 'https://' + data.site.url).href
 	}
 
 	if (page.includeInRSS) {
-		rssFeed.addItem({
-			title: page.title,
-			description: page.description,
-			link: page.url,
-			date: page.date,
-			content: page.content
-		})
+		try {
+			rssFeed.addItem({
+				title: page.title,
+				description: page.description,
+				link: page.url,
+				date: page.date,
+				content: page.content
+			})
+		} catch (err) {
+			logger.info('failed to add RSS post...')
+			logger.info(err)
+		}
 	}
 
 	if (page.bskyPostId == 'tbd' && process.argv.includes('--deploy')) {
@@ -356,7 +361,7 @@ function updateMetadata(filepath, data) {
 
 		const bskyPost =[
 			`new post: ${page.title}`,
-			new URL(page.url, data.site.url).href,
+			new URL(page.url, 'https://' + data.site.url).href,
 			page.title,
 			page.description,
 			new Blob([headerImg]),

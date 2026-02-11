@@ -31,6 +31,8 @@ export default {
             }
         })
 
+        conf.set('projects', projectPaths)
+
         // if no valid projects
         if (projects.length == 0) {
             conf.set('activeIndex', -1)

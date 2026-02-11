@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <link href="/css/style.css" rel="stylesheet">
+        <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0'>
+        <link rel="shortcut icon" href="/images/favicon.png" type="image/webp">
+        <link rel="apple-touch-icon" sizes="180x180" href="images/favicon.png">
+        <link rel="icon" href="/images/favicon.png" type="image/webp">
+        <title>{{site.title}}</title>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+    </head>
+    <body>
+        <!-- Snowfall Background Animation -->
+        <section class="animated-background">
+            <div id="stars1"></div>
+            <div id="stars2"></div>
+            <div id="stars3"></div>
+        </section>
+        <!-- End of Snowfall Background Animation -->
+
+        <div class="min-h-full flex-h-center" id="background_div">
+            <input type="hidden" value="https://bio.link" id="app-url">
+                <input type="hidden" value="null" id="is-featured">
+                    <canvas id="bg-canvas" class="background-overlay"></canvas>
+                </input>
+            </input>
+
+            <div class="mt-48 page-full-wrap relative">
+                <input type="hidden" value="creator-page" id="page-type">
+                <img class="display-image m-auto" data-src="/images/logo.png" src="/images/logo.png" alt="{{site.title}} logo"/>
+                <h2 class="page-title page-text-color page-text-font mt-16 text-center">{{site.title}}</h2>
+
+                <div class="mt-24">
+                    {{#each site.links}}
+                        {{> link}}
+                    {{/each}}
+                </div>
+            </div>
+        </div>
+    </body>
+
+    <!-- A different snowfall -->
+    <!-- <script src="/js/snowfall.js"></script> -->
+</html>

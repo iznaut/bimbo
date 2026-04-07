@@ -1,8 +1,9 @@
 import { ipcMain, dialog, Notification, BrowserWindow } from 'electron'
 import { NeocitiesAPIClient } from 'async-neocities'
 import NekowebAPI from '@indiefellas/nekoweb-api'
-import { Client } from "basic-ftp"
+import SftpClient from 'ssh2-sftp-client'
 import * as path from 'node:path'
+import * as fs from 'node:fs'
 
 import { conf, logger } from './utils.js'
 import projects from './projects.js'
@@ -115,30 +116,21 @@ async function deployToNekoweb(deployMeta) {
 }
 
 async function deployViaFtp(deployMeta, projectRootPath) {
-    const client = new Client()
-    // client.ftp.verbose = true
-    try {
-		
-		// client.trackProgress(info => {
-		// 	console.log("File", info.name)
-		// 	console.log("Type", info.type)
-		// 	console.log("Transferred", info.bytes)
-		// 	console.log("Transferred Overall", info.bytesOverall)
-		// })
-
-        await client.access({
-            host: deployMeta.host,
-			port: deployMeta.port,
-            user: deployMeta.user,
-            password: deployMeta.password
-        })
-
-		await client.ensureDir(deployMeta.siteRoot)
-		await client.clearWorkingDir()
-		await client.uploadFromDir(path.join(projectRootPath, '_site'))
-    }
-    catch(err) {
-		logger.error(err)
-    }
-    client.close()
+	const client = new SftpClient()
+	try {
+		const connectConfig = {
+			host: deployMeta.host,
+			username: deployMeta.username
+		}
+		if(deployMeta.port) connectConfig.port = deployMeta.port
+		if(deployMeta.password) connectConfig.password = deployMeta.password
+		if(deployMeta.privateKey) connectConfig.privateKey = fs.readFileSync(deployMeta.keyPath)
+		await client.connect(connectConfig)
+		await client.rmdir(deployMeta.siteRoot, true).catch(() => {}) // Fail silently if dir doesn't exist
+		await client.uploadDir(path.join(projectRootPath, '_site'), deployMeta.siteRoot)
+	}
+	catch(err) {
+		logger.error(err.message)
+	}
+	client.end()
 }

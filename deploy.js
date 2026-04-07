@@ -124,7 +124,7 @@ async function deployViaFtp(deployMeta, projectRootPath) {
 		}
 		if(deployMeta.port) connectConfig.port = deployMeta.port
 		if(deployMeta.password) connectConfig.password = deployMeta.password
-		if(deployMeta.privateKey) connectConfig.privateKey = fs.readFileSync(deployMeta.keyPath)
+		if(deployMeta.keyPath) connectConfig.privateKey = fs.readFileSync(deployMeta.keyPath)
 		await client.connect(connectConfig)
 		await client.rmdir(deployMeta.siteRoot, true).catch(() => {}) // Fail silently if dir doesn't exist
 		await client.uploadDir(path.join(projectRootPath, '_site'), deployMeta.siteRoot)

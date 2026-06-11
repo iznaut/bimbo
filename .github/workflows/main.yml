@@ -31,17 +31,17 @@ jobs:
         ]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6.0.3
       
       - name: Install Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v6.4.0
         with:
           node-version: 24
       - name: npm install
         run: npm install 
       - name: electron packager
         run: npx @electron/packager . --extra-resource project-starters/ --ignore project-starters/ --out build/
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7.0.1
         with:
           name: ${{ matrix.os.channel }}
           path: build
@@ -58,9 +58,9 @@ jobs:
           - linux
           - windows
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6.0.3
 
-      - uses: actions/download-artifact@v5
+      - uses: actions/upload-artifact@v7.0.1
         with:
           name: ${{ matrix.channel }}
           path: build/${{ matrix.channel }}

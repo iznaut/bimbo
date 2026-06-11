@@ -3,25 +3,37 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { exec } from 'node:child_process'
 import _ from 'lodash'
-import { fileURLToPath } from 'url'
 import prompt from 'electron-prompt'
 import * as yaml from 'yaml'
 import winston from 'winston'
+import Handlebars from 'handlebars'
+import { compareVersions } from 'compare-versions'
+import tiny from 'tiny-json-http'
+import { fileURLToPath } from 'url'
 
-import { conf, isDev, logger } from './utils.js'
+import { conf, isDev, logger, openBrowserPreview } from './utils.js'
 import config from './config.js'
 import projects from './projects.js'
-import { deploy } from './deploy.js'
+import { deploy, presets } from './deploy.js'
 
 import {
 	app,
 	dialog,
+	Notification,
 	Menu,
 	shell,
 	globalShortcut,
 	Tray,
 	nativeImage,
+	BrowserWindow,
 } from 'electron'
+
+const IS_PLUS_MODE = false
+
+const CURRENT_VERSION = fs.readFileSync('version', "utf-8").trim()
+let latestVersion
+
+getLatestVersion()
 
 const icon = nativeImage.createFromDataURL('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABJElEQVR4AayRsWrCUBSGT24plCyVPkJL6dZ2cVfIWrv2bUzWPolrOwfi7qJOiujsqIsIwej9LrmXaEwQ9MKfnPOfcz5ObpRceW4LmH0GrcVHkMzfgxDZ5ap86m4DBp6+/OSx47d0oYvwkMok2e/lyJf8OEDj2+8+vN1Lo+OLjvOyGJBNCm98kyqerLj628h2msrqX78nKXatmKHBAAiQgehhQOSXyABeh3HfNl86bGcMgGHPEweRilO4m8i2OMDzKG7XQRi2F/wyjsMSAGPniSOTW9m/Qw4kG/wkxMhtQJJ/VwnCvSx/17SgSDV7bQJ0BMBgvUyJa8Dj0zazFC+6a/bc+tRKAEw20SBPx2wTcT94p8O6LmcBFJCGhIi4SrWAqqGifwAAAP//2exw9QAAAAZJREFUAwBmLW4hL61AdQAAAABJRU5ErkJggg==')
 
@@ -30,8 +42,7 @@ global.win = null
 
 const startersPath = path.join((isDev() ? '' : process.resourcesPath), 'project-starters')
 
-const localUrl = 'http://localhost:6969'
-
+// TODO what is this lol
 let showDebugMenu = false
 
 app.whenReady().then(() => {
@@ -63,9 +74,6 @@ app.whenReady().then(() => {
 	tray = new Tray(icon)
 	updateTrayMenu()
 
-	tray.setToolTip('bimbo beta')
-	tray.setTitle('bimbo beta')
-
 	globalShortcut.register('CommandOrControl+Alt+R', () => {
 		logger.info('attempting config clear')
 		conf.clear()
@@ -85,6 +93,13 @@ app.whenReady().then(() => {
 		// start watching last active project
 		projects.setActive()
 	}
+
+	let displayTitle = conf.get('options.showProjectTitleInMenubar') ? projects.getActive().data.site.title : ''
+
+	tray.setToolTip(displayTitle)
+	tray.setTitle(displayTitle)
+
+	isUpdateAvailable(true)
 })
 
 function updateTrayMenu() {
@@ -182,6 +197,11 @@ function updateTrayMenu() {
 								click: () => {
 									projects.setActive(index)
 									updateTrayMenu()
+
+									// TODO dedupe
+									let displayTitle = conf.get('options.showProjectTitleInMenubar') ? projects.getActive().data.site.title : ''
+									tray.setToolTip(displayTitle)
+									tray.setTitle(displayTitle)
 								}
 							}
 						}),
@@ -191,7 +211,7 @@ function updateTrayMenu() {
 				)
 			},
 			{ label: `🔗 preview in browser`, click: function() {
-				shell.openExternal(localUrl)
+				openBrowserPreview()
 			} },
 			{ type: 'separator' },
 			{ label: `👩‍💻 edit in VSCodium`, click: function() {
@@ -231,6 +251,58 @@ function updateTrayMenu() {
 				}
 			},
 			{ type: 'separator' },
+			{ label: `🔗 visit bimbo Discord`, click: function() {
+				shell.openExternal('https://discord.gg/hkAMG3Kru8')
+			} },
+			{ type: 'separator' },
+			{
+				label: '🚨 NEW UPDATE AVAILABLE!!!',
+				visible: isUpdateAvailable(true),
+				click: () => {
+					shell.openExternal('https://iznaut.itch.io/bimbo')
+				}
+			},
+			{
+				label: 'check for updates',
+				visible: !isUpdateAvailable(true),
+				click: async () => {
+					await getLatestVersion()
+					updateTrayMenu()
+				},
+			},
+			{
+				id: 'options',
+				label: 'options',
+				type: 'submenu',
+				submenu: Menu.buildFromTemplate(
+					[
+						{
+							label: 'show active project title in menubar',
+							type: 'checkbox',
+							checked: conf.get('options.showProjectTitleInMenubar'),
+							click: () => {
+								conf.set('options.showProjectTitleInMenubar', !conf.get('options.showProjectTitleInMenubar'))
+								updateTrayMenu()
+
+								// TODO dedupe
+								let displayTitle = conf.get('options.showProjectTitleInMenubar') ? projects.getActive().data.site.title : ''
+
+								tray.setToolTip(displayTitle)
+								tray.setTitle(displayTitle)
+							}
+						},
+						{
+							label: 'open site preview on app/project load',
+							type: 'checkbox',
+							checked: conf.get('options.autoOpenPreview'),
+							click: () => {
+								conf.set('options.autoOpenPreview', !conf.get('options.autoOpenPreview'))
+								updateTrayMenu()
+							}
+						},
+					]
+				)
+			},
 			{ label: 'quit bimbo', click: function() {
 				app.quit()
 			}}

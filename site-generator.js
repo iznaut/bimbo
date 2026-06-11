@@ -16,7 +16,7 @@ import { sendBlueskyPostWithEmbed } from './bluesky.ts'
 import { createServer } from 'vite'
 import chokidar from 'chokidar'
 
-import { conf, logger } from './utils.js'
+import { conf, logger, openBrowserPreview } from './utils.js'
 import projects from './projects.js'
 import config from './config.js'
 
@@ -220,6 +220,10 @@ async function build() {
 	process.watchData = data
 
 	logger.debug("site build completed 💅")
+
+	if (conf.get('options.openPreviewOnChange')) {
+		openBrowserPreview()
+	}
 }
 
 export async function watch() {

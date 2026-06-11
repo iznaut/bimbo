@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet" href="bulma.css">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+    </head>
+    <body>
+        <section class="section">
+            <div class="container">
+                <h1 class="title">
+                    one-click deployment with <a href="https://neocities.org">Neocities</a>
+                </h1>
+                <div class="block">
+                    please enter your Neocities username and password to generate an API key:
+                </div>
+                <div class="block">
+                    <form action="#" id="authForm" onsubmit="sendForm(event)">
+                        <div class="field">
+                            <div class="control">
+                                <input class="input" placeholder="Neocities username" type="text" name="username" id="username">
+                            </div>
+                        </div>
+                        <div class="field">
+                            <div class="control">
+                                <input class="input" placeholder="Neocities password" type="text" name="password" id="password">
+                            </div>
+                        </div>
+                        <div class="block">
+                            your API key will be stored locally for deployment use, but your credentials are only sent to <a href="https://neocities.org">Neocities</a>. your password will not be saved. please refer to the <a href="https://neocities.org/api">Neocities API documentation</a> for more information.
+                        </div>
+                        <div class="field is-grouped">
+                            <div class="control">
+                                <button class="button is-link">Submit</button>
+                            </div>
+                            <div class="control">
+                                <button class="button is-link is-light">Cancel</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </section>
+    </body>
+    <script>
+        function sendForm(event) {
+            event.preventDefault() // stop the form from submitting
+            let username = document.getElementById("username").value
+            let password = document.getElementById("password").value
+            if (username && password) {
+                window.electron.formSubmission({
+                    provider: 'neocities',
+                    username: username,
+                    password: password
+                })
+            }
+            window.close()
+        }
+
+        document.body.addEventListener('click', event => {
+            if (event.target.tagName.toLowerCase() === 'a' && event.target.protocol != 'file:') {
+                event.preventDefault()
+                window.electron.openExternalUrl(event.target.href)
+            }
+        })
+    </script>
+</html>

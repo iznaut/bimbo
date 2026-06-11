@@ -4,5 +4,6 @@ electron.contextBridge.exposeInMainWorld('electron', {
 	openDialog: (method, config) => electron.ipcRenderer.invoke('dialog', method, config),
 	log: (callback) => electron.ipcRenderer.on('bimbo-log', (e, ...args) => callback(args)),
 	quit: () => electron.ipcRenderer.invoke('quit'),
-	formSubmission: (username, password) => electron.ipcRenderer.invoke('form', username, password)
+	formSubmission: (username, password) => electron.ipcRenderer.invoke('form', username, password),
+	openExternalUrl: (url) => electron.ipcRenderer.invoke('openExternalUrl', url),
 });

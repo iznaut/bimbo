@@ -203,10 +203,32 @@ function updateTrayMenu() {
 			{ type: 'separator' },
 			{
 				id: 'deploy',
-				label: !!deployMeta ?
-					`🌐 deploy to ${deployMeta.provider}` : 'deployment not configured',
-				enabled: !!deployMeta,
+				label: !!deployMeta ? `🌐 deploy to ${deployMeta.provider}` : 'deployment not configured',
+				visible: !!deployMeta && Object.keys(presets).length > 0,
 				click: deploy,
+			},
+			{
+				label: 'set up deployment',
+				type: 'submenu',
+				enabled: Object.keys(presets).length > 0,
+				visible: !deployMeta,
+				submenu: Menu.buildFromTemplate(
+					Object.keys(presets).map(key => {
+						return {
+							label: key,
+							click: (label) => {
+								initDeploymentPreset(label)
+							}
+						}
+					})
+				)
+			},
+			{
+				label: `👀 get bimbo+ for one-click deploy!`,
+				visible: Object.keys(presets).length == 0,
+				click: function() {
+					shell.openExternal('https://iznaut.itch.io/bimbo')
+				}
 			},
 			{ type: 'separator' },
 			{ label: 'quit bimbo', click: function() {
@@ -242,4 +264,46 @@ async function initProjectStarter(newProjPath, starterName) {
 	projects.add(newProjPath)
 	projects.setActive(projects.getAll().length - 1)
 	updateTrayMenu()
+}
+
+async function initDeploymentPreset(menuItem) {
+	let presetName = menuItem.label
+	updateTrayMenu()
+	// deploy()
+
+	const __filename = fileURLToPath(import.meta.url)
+	const __dirname = path.dirname(__filename)
+
+	win = new BrowserWindow({
+		title: "set up deployment - bimbo",
+		useContentSize: true,
+		alwaysOnTop: true,
+		webPreferences: {
+			preload: path.join(__dirname, 'preload.js')
+		}
+	})
+
+	win.loadFile(`deploy-popups/${presetName}.html`)
+}
+
+async function getLatestVersion() {
+	latestVersion = isDev() ?
+		fs.readFileSync('version-devtest', "utf-8").trim()
+		: (await tiny.get({url: "https://raw.githubusercontent.com/iznaut/bimbo/refs/heads/main/version"})).body
+}
+
+function isUpdateAvailable(noNotification = false) {
+	let isNewVersion = compareVersions(latestVersion, CURRENT_VERSION)
+
+	// don't show "no updates" notification on startup
+	if (!isNewVersion && noNotification) {
+		return isNewVersion
+	}
+
+	new Notification({
+		title: config.BASE_NAME,
+		body: isNewVersion ? `version ${latestVersion} available on itch.io` : 'no updates available'
+	}).show()
+
+	return isNewVersion
 }

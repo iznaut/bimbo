@@ -1,55 +1,100 @@
-import { ipcMain, dialog, Notification, BrowserWindow } from 'electron'
+import { ipcMain, dialog, Notification, BrowserWindow, shell } from 'electron'
 import { NeocitiesAPIClient } from 'async-neocities'
 import NekowebAPI from '@indiefellas/nekoweb-api'
 import SftpClient from 'ssh2-sftp-client'
 import * as path from 'node:path'
 import * as fs from 'node:fs'
+import { fileURLToPath } from 'url'
+import * as yaml from 'yaml'
 
 import { conf, logger } from './utils.js'
 import projects from './projects.js'
 import config from './config.js'
 
-ipcMain.handle('form', async function (_event, username, password) {
-	const apiKeyResponse = await NeocitiesAPIClient.getKey({
-		siteName: username,
-		ownerPassword: password
-	})
-
-	if (apiKeyResponse.result == 'success') {
-		const secretsPath = path.join(projects.getActive().rootPath, SECRETS_FILENAME) // TODO dedupe
-		if (!fs.existsSync(secretsPath)) {
-			fs.writeFileSync(secretsPath)
-		}
-
-		const secretsData = yaml.parse(fs.readFileSync(secretsPath, "utf-8"))
-		secretsData['deployment']['apiKey'] = apiKeyResponse.api_key
-		fs.writeFileSync(secretsPath, yaml.stringify(secretsData))
-		
-		projects.setActive()
-
-		deploy()
+export const presets = {
+	nekoweb: {
+		apiKey: "",
+		domain: ""
+	},
+	neocities: {
+		apiKey: ""
+	},
+	other: {
+		host: "",
+		port: 22,
+		siteRoot: "",
+		username: "",
+		keyPath: ""
 	}
+}
+
+ipcMain.handle('openExternalUrl', async function (_event, url) {
+	shell.openExternal(url)
+})
+
+ipcMain.handle('form', async function (_event, newDeployMeta) {
+	switch (newDeployMeta.provider) {
+		case 'nekoweb':
+			break;
+		case 'neocities':
+			const apiKeyResponse = await NeocitiesAPIClient.getKey({
+				siteName: username,
+				ownerPassword: password
+			})
+
+			if (apiKeyResponse.result == 'success') {
+				newDeployMeta = {
+					provider: 'neocities',
+					apiKey: apiKeyResponse.api_key
+				}
+
+			}
+			else {
+				dialog.showMessageBoxSync({
+					message: 'unable to authenticate with neocities, please check your credentials and try again',
+					type: 'error',
+					title: 'something went wrong'
+				})
+
+				return
+			}
+			break;
+		default:
+			// TODO SFTP stuff
+			break;
+	}
+
+	const secretsPath = path.join(projects.getActive().rootPath, config.SECRETS_FILENAME) // TODO dedupe
+	if (!fs.existsSync(secretsPath)) {
+		fs.writeFileSync(secretsPath, yaml.stringify({}))
+	}
+	const secretsData = yaml.parse(fs.readFileSync(secretsPath, "utf-8"))
+	secretsData.deployment = newDeployMeta
+	fs.writeFileSync(secretsPath, yaml.stringify(secretsData))
+
+	projects.setActive()
+
+	deploy()
 })
 
 export async function deploy() {
 	const activeProjectMeta = projects.getActive()
 	const deployMeta = activeProjectMeta.data.deployment
 
-	if (deployMeta.provider == 'neocities' && !deployMeta.apiKey) {
+	if (!deployMeta) {
 		const __filename = fileURLToPath(import.meta.url)
 		const __dirname = path.dirname(__filename)
 
 		win = new BrowserWindow({
-			title: "generate API key - bimbo",
-			width: 300,
-			height: 300,
+			title: "set up deployment - bimbo",
+			useContentSize: true,
 			alwaysOnTop: true,
 			webPreferences: {
 				preload: path.join(__dirname, 'preload.js')
 			}
 		})
 
-		win.loadFile('auth.html')
+		win.loadFile(`deploy-popups/${deployMeta.provider}.html`)
 	}
 	else {
 		let clickedId = dialog.showMessageBoxSync({
@@ -74,12 +119,9 @@ export async function deploy() {
 				case 'neocities':
 					await deployToNeocities(deployMeta)
 					break;
-				case 'ftp':
-					await deployViaFtp(deployMeta, activeProjectMeta.rootPath)
-					break;
 				default:
-					logger.info('deployment failed - unknown provider')
-					return
+					await deployViaSftp(deployMeta, activeProjectMeta.rootPath)
+					break;
 			}
 
 			new Notification({
@@ -94,7 +136,6 @@ export async function deploy() {
 }
 
 // TODO - success/fail handling for deploys
-// way to get API key?
 
 async function deployToNeocities(deployMeta) {
 	const client = new NeocitiesAPIClient(deployMeta.apiKey)
@@ -111,11 +152,12 @@ async function deployToNekoweb(deployMeta) {
 		apiKey: deployMeta.apiKey,
 	})
 
-	let response = await nekoweb.getSiteInfo('windfuck.ing')
+	await nekoweb.getSiteInfo(deployMeta.domain)
+	let response = await nekoweb.upload(path.join('/', deployMeta.domain))
 	console.log(response) // TODO
 }
 
-async function deployViaFtp(deployMeta, projectRootPath) {
+async function deployViaSftp(deployMeta, projectRootPath) {
 	const client = new SftpClient()
 	try {
 		const connectConfig = {
@@ -124,8 +166,9 @@ async function deployViaFtp(deployMeta, projectRootPath) {
 		}
 		if(deployMeta.port) connectConfig.port = deployMeta.port
 		if(deployMeta.password) connectConfig.password = deployMeta.password
-		if(deployMeta.keyPath) connectConfig.privateKey = fs.readFileSync(deployMeta.keyPath)
+		if(deployMeta.keyPath) connectConfig.privateKey = fs.readFileSync(deployMeta.keyPath, "utf-8")
 		await client.connect(connectConfig)
+		console.log(connectConfig)
 		await client.rmdir(deployMeta.siteRoot, true).catch(() => {}) // Fail silently if dir doesn't exist
 		await client.uploadDir(path.join(projectRootPath, '_site'), deployMeta.siteRoot)
 	}

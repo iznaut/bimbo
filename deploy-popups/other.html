@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet" href="bulma.css">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+    </head>
+    <body>
+        <section class="section">
+            <div class="container">
+                <h1 class="title">
+                    one-click deployment via SFTP
+                </h1>
+                <div class="block">
+                    most web hosting providers support SFTP (Secure File Transfer Protocol) as an option for uploading files. if your provider supports SFTP, you can configure deployment here.
+                </div>
+                <div class="block">
+                    if you're using a provider that supports file uploads via an API (Application Programming Interface), please email me at <a href="mailto:bimbo@iznaut.com">bimbo@iznaut.com</a> and i'll look into adding Official Support for it in the future!
+                </div>
+                <div class="block">
+                    <form action="#" id="authForm" onsubmit="sendForm(event)">
+                        <div class="field">
+                            <div class="control">
+                                <input class="input" placeholder="provider name" type="text" name="provider" id="provider">
+                                <p class="help">provider name can be anything - just determines how the menu item appears (e.g. "deploy to My Cool Webhost")</p>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <div class="control">
+                                <input class="input" placeholder="host" type="text" name="host" id="host">
+                                <p class="help">an URL-like address to your provider (e.g. sftp.mycoolwebhost.com)</p>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <div class="control">
+                                <input class="input" placeholder="port" type="text" name="port" id="port" value="22">
+                                <p class="help">port 22 is default for SFTP. don't change this unless your provider uses a different number</p>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <div class="control">
+                                <input class="input" placeholder="root path" type="text" name="siteRoot" id="siteRoot">
+                                <p class="help">path to your site's root directory on the hosting server (e.g. /home/public)</p>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <div class="control">
+                                <input class="input" placeholder="username" type="text" name="username" id="username">
+                                <p class="help">your SFTP-enabled username (may or may not be different than what you use to login your host's web interface)</p>
+                            </div>
+                        </div>
+                        <div class="block">
+                            <div class="control">
+                                <label class="checkbox">
+                                <input type="checkbox"> use SSH key</label>
+                                <p class="help">if disabled, you will be prompted for your SFTP password before each deployment</p>
+                            </div>
+                        </div>
+                        <div class="field is-grouped">
+                            <div class="control">
+                                <button class="button is-link">Submit</button>
+                            </div>
+                            <div class="control">
+                                <button class="button is-link is-light">Cancel</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </section>
+    </body>
+    <script>
+        function sendForm(event) {
+            event.preventDefault() // stop the form from submitting
+            let provider = document.getElementById("provider").value
+            let host = document.getElementById("host").value
+            let port = document.getElementById("port").value
+            let username = document.getElementById("username").value
+            let password = document.getElementById("password").value
+            let keyPath = document.getElementById("keyPath").value
+            if (host && port && username && (password || keyPath)) {
+                window.electron.formSubmission({
+                    provider: provider,
+                    host: host,
+                    port: port,
+                    username: username,
+                    password: password,
+                    keyPath: keyPath
+                })
+            }
+            window.close()
+        }
+
+        document.body.addEventListener('click', event => {
+            if (event.target.tagName.toLowerCase() === 'a' && event.target.protocol != 'file:') {
+                event.preventDefault()
+                window.electron.openExternalUrl(event.target.href)
+            }
+        })
+    </script>
+</html>

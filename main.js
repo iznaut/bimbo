@@ -30,7 +30,7 @@ import {
 
 const IS_PLUS_MODE = false
 
-const CURRENT_VERSION = fs.readFileSync('version', "utf-8").trim()
+const CURRENT_VERSION = "0.9.5-beta"
 let latestVersion
 
 getLatestVersion()

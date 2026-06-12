@@ -94,7 +94,9 @@ app.whenReady().then(() => {
 		projects.setActive()
 	}
 
-	let displayTitle = conf.get('options.showProjectTitleInMenubar') ? projects.getActive().data.site.title : ''
+	if (projects.getActive()) {
+		let displayTitle = conf.get('options.showProjectTitleInMenubar') ? projects.getActive().data.site.title : ''
+	}
 
 	tray.setToolTip(displayTitle)
 	tray.setTitle(displayTitle)

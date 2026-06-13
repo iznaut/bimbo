@@ -79,6 +79,8 @@ app.whenReady().then(() => {
 		conf.clear()
 		projects.setActive(-1)
 		updateTrayMenu()
+		tray.setToolTip('no project loaded')
+		tray.setTitle('no project loaded')
 		dialog.showMessageBox({ message: 'bimbo config has been reset to defaults' })
 		logger.info('config cleared')
 	})
@@ -94,8 +96,10 @@ app.whenReady().then(() => {
 		projects.setActive()
 	}
 
+	let displayTitle = 'no project loaded'
+
 	if (projects.getActive()) {
-		let displayTitle = conf.get('options.showProjectTitleInMenubar') ? projects.getActive().data.site.title : ''
+		displayTitle = conf.get('options.showProjectTitleInMenubar') ? projects.getActive().data.site.title : ''
 	}
 
 	tray.setToolTip(displayTitle)

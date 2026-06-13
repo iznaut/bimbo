@@ -106,8 +106,8 @@ app.whenReady().then(() => {
 	tray.setTitle(displayTitle)
 
 	getLatestVersion().then(() => {
-		updateTrayMenu()
-		if(!versionIsCurrent && !versionCheckError) {
+		if(!versionIsCurrent) {
+			updateTrayMenu()
 			notifyUpdateAvailability()
 		}
 	})

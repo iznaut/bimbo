@@ -32,8 +32,8 @@ const IS_PLUS_MODE = false
 
 const CURRENT_VERSION = "0.9.5-beta"
 let latestVersion
-
-getLatestVersion()
+let versionIsCurrent = true
+let versionCheckError = false
 
 const icon = nativeImage.createFromDataURL('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABJElEQVR4AayRsWrCUBSGT24plCyVPkJL6dZ2cVfIWrv2bUzWPolrOwfi7qJOiujsqIsIwej9LrmXaEwQ9MKfnPOfcz5ObpRceW4LmH0GrcVHkMzfgxDZ5ap86m4DBp6+/OSx47d0oYvwkMok2e/lyJf8OEDj2+8+vN1Lo+OLjvOyGJBNCm98kyqerLj628h2msrqX78nKXatmKHBAAiQgehhQOSXyABeh3HfNl86bGcMgGHPEweRilO4m8i2OMDzKG7XQRi2F/wyjsMSAGPniSOTW9m/Qw4kG/wkxMhtQJJ/VwnCvSx/17SgSDV7bQJ0BMBgvUyJa8Dj0zazFC+6a/bc+tRKAEw20SBPx2wTcT94p8O6LmcBFJCGhIi4SrWAqqGifwAAAP//2exw9QAAAAZJREFUAwBmLW4hL61AdQAAAABJRU5ErkJggg==')
 
@@ -105,7 +105,12 @@ app.whenReady().then(() => {
 	tray.setToolTip(displayTitle)
 	tray.setTitle(displayTitle)
 
-	isUpdateAvailable(true)
+	getLatestVersion().then(() => {
+		if(!versionIsCurrent) {
+			updateTrayMenu()
+			notifyUpdateAvailability()
+		}
+	})
 })
 
 function updateTrayMenu() {
@@ -263,16 +268,17 @@ function updateTrayMenu() {
 			{ type: 'separator' },
 			{
 				label: '🚨 NEW UPDATE AVAILABLE!!!',
-				visible: isUpdateAvailable(true),
+				visible: !versionIsCurrent,
 				click: () => {
 					shell.openExternal('https://iznaut.itch.io/bimbo')
 				}
 			},
 			{
 				label: 'check for updates',
-				visible: !isUpdateAvailable(true),
+				visible: versionIsCurrent,
 				click: async () => {
 					await getLatestVersion()
+					notifyUpdateAvailability()
 					updateTrayMenu()
 				},
 			},
@@ -365,23 +371,27 @@ async function initDeploymentPreset(menuItem) {
 }
 
 async function getLatestVersion() {
-	latestVersion = isDev() ?
-		fs.readFileSync('version-devtest', "utf-8").trim()
-		: (await tiny.get({url: "https://raw.githubusercontent.com/iznaut/bimbo/refs/heads/main/version"})).body
+	if(isDev()) {
+		latestVersion = fs.readFileSync('version-devtest', "utf-8").trim()
+	} else {
+		try {
+			latestVersion = (await tiny.get({url: "https://raw.githubusercontent.com/iznaut/bimbo/refs/heads/main/version"})).body
+		} catch(e) {
+			logger.info(`Error getting latest version: ${e}`)
+			versionCheckError = true
+		}
+	}
+	if(latestVersion) {
+		versionCheckError = false
+		const versionComparison = compareVersions(latestVersion, CURRENT_VERSION)
+		versionIsCurrent = versionComparison === 0
+	}
 }
 
-function isUpdateAvailable(noNotification = false) {
-	let isNewVersion = compareVersions(latestVersion, CURRENT_VERSION)
-
-	// don't show "no updates" notification on startup
-	if (!isNewVersion && noNotification) {
-		return isNewVersion
-	}
-
-	new Notification({
-		title: config.BASE_NAME,
-		body: isNewVersion ? `version ${latestVersion} available on itch.io` : 'no updates available'
-	}).show()
-
-	return isNewVersion
+function notifyUpdateAvailability() {
+	const message = 
+		versionCheckError ? 'update check failed' : 
+		versionIsCurrent ? 'no updates available' : 
+		`version ${latestVersion} available on itch.io`
+	new Notification({ title: config.BASE_NAME, body: message }).show()
 }

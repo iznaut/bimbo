@@ -6,6 +6,7 @@ import * as path from 'node:path'
 import * as fs from 'node:fs'
 import { fileURLToPath } from 'url'
 import * as yaml from 'yaml'
+import { setTimeout } from "timers/promises";
 
 import { conf, logger } from './utils.js'
 import projects from './projects.js'
@@ -38,11 +39,13 @@ ipcMain.handle('form', async function (_event, newDeployMeta) {
 			break;
 		case 'neocities':
 			const apiKeyResponse = await NeocitiesAPIClient.getKey({
-				siteName: username,
-				ownerPassword: password
+				siteName: newDeployMeta.username,
+				ownerPassword: newDeployMeta.password
 			})
 
 			if (apiKeyResponse.result == 'success') {
+				logger.info('neocities auth successful')
+
 				newDeployMeta = {
 					provider: 'neocities',
 					apiKey: apiKeyResponse.api_key
@@ -50,6 +53,8 @@ ipcMain.handle('form', async function (_event, newDeployMeta) {
 
 			}
 			else {
+				logger.info('neocities auth failed')
+
 				dialog.showMessageBoxSync({
 					message: 'unable to authenticate with neocities, please check your credentials and try again',
 					type: 'error',
@@ -65,6 +70,7 @@ ipcMain.handle('form', async function (_event, newDeployMeta) {
 	}
 
 	const secretsPath = path.join(projects.getActive().rootPath, config.SECRETS_FILENAME) // TODO dedupe
+	logger.info(secretsPath)
 	if (!fs.existsSync(secretsPath)) {
 		fs.writeFileSync(secretsPath, yaml.stringify({}))
 	}
@@ -74,7 +80,14 @@ ipcMain.handle('form', async function (_event, newDeployMeta) {
 
 	projects.setActive()
 
-	deploy()
+	await setTimeout(1000) // HACK to get around build not finishing in time for deploy
+
+	try {
+		deploy()
+	}
+	catch(err) {
+		logger.error(err)
+	}
 })
 
 export async function deploy() {

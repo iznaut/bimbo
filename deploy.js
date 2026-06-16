@@ -6,6 +6,7 @@ import * as path from 'node:path'
 import * as fs from 'node:fs'
 import { fileURLToPath } from 'url'
 import * as yaml from 'yaml'
+import { setTimeout } from "timers/promises";
 
 import { conf, logger } from './utils.js'
 import projects from './projects.js'
@@ -43,7 +44,7 @@ ipcMain.handle('form', async function (_event, newDeployMeta) {
 			})
 
 			if (apiKeyResponse.result == 'success') {
-				logger('neocities auth successful')
+				logger.info('neocities auth successful')
 
 				newDeployMeta = {
 					provider: 'neocities',
@@ -52,7 +53,7 @@ ipcMain.handle('form', async function (_event, newDeployMeta) {
 
 			}
 			else {
-				logger('neocities auth failed')
+				logger.info('neocities auth failed')
 
 				dialog.showMessageBoxSync({
 					message: 'unable to authenticate with neocities, please check your credentials and try again',
@@ -69,7 +70,7 @@ ipcMain.handle('form', async function (_event, newDeployMeta) {
 	}
 
 	const secretsPath = path.join(projects.getActive().rootPath, config.SECRETS_FILENAME) // TODO dedupe
-	logger(secretsPath)
+	logger.info(secretsPath)
 	if (!fs.existsSync(secretsPath)) {
 		fs.writeFileSync(secretsPath, yaml.stringify({}))
 	}
@@ -79,6 +80,7 @@ ipcMain.handle('form', async function (_event, newDeployMeta) {
 
 	projects.setActive()
 
+	await setTimeout(1000) // HACK to get around build not finishing in time for deploy
 	deploy()
 })
 

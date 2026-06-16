@@ -38,11 +38,13 @@ ipcMain.handle('form', async function (_event, newDeployMeta) {
 			break;
 		case 'neocities':
 			const apiKeyResponse = await NeocitiesAPIClient.getKey({
-				siteName: username,
-				ownerPassword: password
+				siteName: newDeployMeta.username,
+				ownerPassword: newDeployMeta.password
 			})
 
 			if (apiKeyResponse.result == 'success') {
+				logger('neocities auth successful')
+
 				newDeployMeta = {
 					provider: 'neocities',
 					apiKey: apiKeyResponse.api_key
@@ -50,6 +52,8 @@ ipcMain.handle('form', async function (_event, newDeployMeta) {
 
 			}
 			else {
+				logger('neocities auth failed')
+
 				dialog.showMessageBoxSync({
 					message: 'unable to authenticate with neocities, please check your credentials and try again',
 					type: 'error',
@@ -65,6 +69,7 @@ ipcMain.handle('form', async function (_event, newDeployMeta) {
 	}
 
 	const secretsPath = path.join(projects.getActive().rootPath, config.SECRETS_FILENAME) // TODO dedupe
+	logger(secretsPath)
 	if (!fs.existsSync(secretsPath)) {
 		fs.writeFileSync(secretsPath, yaml.stringify({}))
 	}

@@ -81,7 +81,13 @@ ipcMain.handle('form', async function (_event, newDeployMeta) {
 	projects.setActive()
 
 	await setTimeout(1000) // HACK to get around build not finishing in time for deploy
-	deploy()
+
+	try {
+		deploy()
+	}
+	catch(err) {
+		logger.error(err)
+	}
 })
 
 export async function deploy() {

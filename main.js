@@ -399,7 +399,7 @@ async function getLatestVersion() {
 		latestVersion = '99.99.99-dev'
 	} else {
 		try {
-			latestVersion = (await tiny.get({url: "https://raw.githubusercontent.com/iznaut/bimbo/refs/heads/main/version"})).body
+			latestVersion = (await tiny.get({url: "https://raw.githubusercontent.com/iznaut/bimbo/refs/heads/main/version"})).body.trim()
 		} catch(e) {
 			logger.info(`Error getting latest version: ${e}`)
 			versionCheckError = true

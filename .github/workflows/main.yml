@@ -38,7 +38,7 @@ jobs:
         with:
           node-version: 22
       - name: npm install
-        run: npm install 
+        uses: bahmutov/npm-install@v1
       - name: electron packager
         run: npx @electron/packager . --extra-resource project-starters/ --ignore project-starters/ --out build/ --overwrite
       - uses: actions/upload-artifact@v7.0.1

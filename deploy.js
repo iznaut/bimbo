@@ -6,6 +6,7 @@ import * as path from 'node:path'
 import * as fs from 'node:fs'
 import { fileURLToPath } from 'url'
 import * as yaml from 'yaml'
+import { zip } from 'zip-a-folder'
 import { setTimeout } from "timers/promises";
 
 import { conf, logger } from './utils.js'
@@ -166,7 +167,11 @@ async function deployToNekoweb(deployMeta) {
 	})
 
 	await nekoweb.getSiteInfo(deployMeta.domain)
-	let response = await nekoweb.upload(path.join('/', deployMeta.domain))
+	await zip(projects.getActive().rootPath, 'upload.zip')
+	let bigfile = await nekoweb.createBigFile()
+	let file = fs.readFileSync('upload.zip')
+	bigfile.append(file)
+	let response = await bigfile.import(path.join('/', deployMeta.domain))
 	console.log(response) // TODO
 }
 
@@ -181,7 +186,6 @@ async function deployViaSftp(deployMeta, projectRootPath) {
 		if(deployMeta.password) connectConfig.password = deployMeta.password
 		if(deployMeta.keyPath) connectConfig.privateKey = fs.readFileSync(deployMeta.keyPath, "utf-8")
 		await client.connect(connectConfig)
-		console.log(connectConfig)
 		await client.rmdir(deployMeta.siteRoot, true).catch(() => {}) // Fail silently if dir doesn't exist
 		await client.uploadDir(path.join(projectRootPath, '_site'), deployMeta.siteRoot)
 	}

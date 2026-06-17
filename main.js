@@ -10,6 +10,7 @@ import Handlebars from 'handlebars'
 import { compareVersions } from 'compare-versions'
 import tiny from 'tiny-json-http'
 import { fileURLToPath } from 'url'
+import { BugSplatNode as BugSplat } from "bugsplat-node";
 
 import { conf, isDev, logger, openBrowserPreview } from './utils.js'
 import config from './config.js'
@@ -26,6 +27,7 @@ import {
 	Tray,
 	nativeImage,
 	BrowserWindow,
+	crashReporter,
 } from 'electron'
 
 const IS_PLUS_MODE = false
@@ -36,6 +38,32 @@ let versionIsCurrent = true
 let versionCheckError = false
 
 logger.info(CURRENT_VERSION)
+
+const bugsplat = new BugSplat('me-iznaut-com', 'bimbo', CURRENT_VERSION)
+
+bugsplat.setDefaultAdditionalFilePaths([path.join(app.getAppPath(), 'bimbo.log')])
+
+crashReporter.start({
+	submitURL: `https://me-iznaut-com.bugsplat.com/post/electron/v2/crash.php`,
+	ignoreSystemCrashHandler: true,
+	uploadToServer: true,
+	rateLimit: false,
+	globalExtra: {
+		product: 'bimbo',
+		version: CURRENT_VERSION,
+		key: "en-US",
+		// email: "fred@bugsplat.com",
+		// comments: "BugSplat rocks!",
+	},
+})
+
+// Recommended: Post to BugSplat when unhandledRejections and uncaughtExceptions occur
+const javaScriptErrorHandler = async (error) => {
+	await bugsplat.post(error)
+	app.quit()
+}
+process.on("unhandledRejection", javaScriptErrorHandler)
+process.on("uncaughtException", javaScriptErrorHandler)
 
 const icon = nativeImage.createFromDataURL('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABJElEQVR4AayRsWrCUBSGT24plCyVPkJL6dZ2cVfIWrv2bUzWPolrOwfi7qJOiujsqIsIwej9LrmXaEwQ9MKfnPOfcz5ObpRceW4LmH0GrcVHkMzfgxDZ5ap86m4DBp6+/OSx47d0oYvwkMok2e/lyJf8OEDj2+8+vN1Lo+OLjvOyGJBNCm98kyqerLj628h2msrqX78nKXatmKHBAAiQgehhQOSXyABeh3HfNl86bGcMgGHPEweRilO4m8i2OMDzKG7XQRi2F/wyjsMSAGPniSOTW9m/Qw4kG/wkxMhtQJJ/VwnCvSx/17SgSDV7bQJ0BMBgvUyJa8Dj0zazFC+6a/bc+tRKAEw20SBPx2wTcT94p8O6LmcBFJCGhIi4SrWAqqGifwAAAP//2exw9QAAAAZJREFUAwBmLW4hL61AdQAAAABJRU5ErkJggg==')
 
@@ -140,13 +168,6 @@ function updateTrayMenu() {
 									value: dirent.name,
 									type: 'input'
 								})
-								// .then((r) => {
-								// 	if(r === null) {
-								// 		console.logger.info('user cancelled');
-								// 	} else {
-								// 		console.logger.info('result', r);
-								// 	}
-								// })
 								.catch(console.error);
 
 								if (!title) { return }
@@ -249,6 +270,7 @@ function updateTrayMenu() {
 					Object.keys(presets).map(key => {
 						return {
 							label: key,
+							enabled: key != 'nekoweb', // TODO reenable 
 							click: (label) => {
 								initDeploymentPreset(label)
 							}
@@ -374,7 +396,7 @@ async function initDeploymentPreset(menuItem) {
 
 async function getLatestVersion() {
 	if(isDev()) {
-		latestVersion = fs.readFileSync('version-devtest', "utf-8").trim()
+		latestVersion = '99.99.99-dev'
 	} else {
 		try {
 			latestVersion = (await tiny.get({url: "https://raw.githubusercontent.com/iznaut/bimbo/refs/heads/main/version"})).body

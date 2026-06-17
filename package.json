@@ -13,6 +13,7 @@
     "@indiefellas/nekoweb-api": "^2.2.0",
     "@mdit/plugin-attrs": "^0.16.7",
     "async-neocities": "^4.1.2",
+    "bugsplat-node": "^4.0.0",
     "cheerio": "^1.0.0",
     "chokidar": "^5.0.0",
     "compare-versions": "^6.1.1",
@@ -35,7 +36,8 @@
     "tiny-json-http": "^7.5.1",
     "vite": "^7.3.0",
     "winston": "^3.19.0",
-    "yaml": "^2.7.0"
+    "yaml": "^2.7.0",
+    "zip-a-folder": "^6.1.1"
   },
   "devDependencies": {
     "@electron/packager": "^18.4.4",

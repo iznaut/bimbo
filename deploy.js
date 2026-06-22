@@ -121,44 +121,55 @@ export async function deploy() {
 		})
 
 		if (clickedId == 0) {
+			let startMsg = `starting deployment to ${deployMeta.provider}`
+
 			new Notification({
 				title: config.BASE_NAME,
-				body: `starting deployment to ${deployMeta.provider}`
+				body: startMsg
 			}).show()
+
+			let success = false
+
+			logger.info(startMsg)
 
 			switch (deployMeta.provider) {
 				case 'nekoweb':
-					await deployToNekoweb(deployMeta)
+					success = await deployToNekoweb(deployMeta)
 					break;
 				case 'neocities':
-					await deployToNeocities(deployMeta)
+					success = await deployToNeocities(deployMeta)
+					console.log(success)
 					break;
 				default:
-					await deployViaSftp(deployMeta, activeProjectMeta.rootPath)
+					success = await deployViaSftp(deployMeta, activeProjectMeta.rootPath)
 					break;
 			}
 
+			let resultMsg = success ? `deployment completed successfully` : 'deployment failed'
+
+			logger.info(resultMsg)
+
 			new Notification({
 				title: config.BASE_NAME,
-				body: `deployment completed successfully`
+				body: resultMsg
 			}).show()
 		}
 		else {
-			logger.info('deploy canceled')
+			logger.info('deployment canceled')
 		}
 	}
 }
 
-// TODO - success/fail handling for deploys
-
 async function deployToNeocities(deployMeta) {
 	const client = new NeocitiesAPIClient(deployMeta.apiKey)
 
-	await client.deploy({
+	let result = await client.deploy({
 		directory: path.join(projects.getActive().rootPath, '_site'),
 		cleanup: true, // Delete orphaned files
-		includeUnsupportedFiles: false // Upload unsupported files. Paid neocities feature
+		includeUnsupportedFiles: false // TODO - atproto-did unsupported, paid feature
 	})
+
+	return result.results[0].body.result == 'success'
 }
 
 async function deployToNekoweb(deployMeta) {
@@ -166,13 +177,18 @@ async function deployToNekoweb(deployMeta) {
 		apiKey: deployMeta.apiKey,
 	})
 
+	let sitePath = path.join(projects.getActive().rootPath, '_site')
+	let zipPath = path.join(projects.getActive().rootPath, 'upload.zip')
+
 	await nekoweb.getSiteInfo(deployMeta.domain)
-	await zip(projects.getActive().rootPath, 'upload.zip')
+	await zip(sitePath, zipPath) // can we get as buffer?
 	let bigfile = await nekoweb.createBigFile()
-	let file = fs.readFileSync('upload.zip')
-	bigfile.append(file)
+	let file = fs.readFileSync(zipPath) // TODO - save this in project folder 
+	await bigfile.append(file)
 	let response = await bigfile.import(path.join('/', deployMeta.domain))
-	console.log(response) // TODO
+
+	fs.rmSync(zipPath)
+	return response == "Imported"
 }
 
 async function deployViaSftp(deployMeta, projectRootPath) {

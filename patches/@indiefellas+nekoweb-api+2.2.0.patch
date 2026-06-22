@@ -1,0 +1,12 @@
+diff --git a/node_modules/@indiefellas/nekoweb-api/dist/index.js b/node_modules/@indiefellas/nekoweb-api/dist/index.js
+index f834238..550a92b 100755
+--- a/node_modules/@indiefellas/nekoweb-api/dist/index.js
++++ b/node_modules/@indiefellas/nekoweb-api/dist/index.js
+@@ -195,7 +195,6 @@ export class BigFile {
+             const start = chunkIndex * chunkSize;
+             const end = Math.min(start + chunkSize, file.length);
+             const chunk = file.slice(start, end);
+-            this.config.logging(LogType.Info, `Uploading chunk ${chunkIndex} (${chunk.length})`);
+             await this.appendChunk(chunk);
+             uploadedBytes += chunk.length;
+         }

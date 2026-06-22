@@ -270,7 +270,6 @@ function updateTrayMenu() {
 					Object.keys(presets).map(key => {
 						return {
 							label: key,
-							enabled: key != 'nekoweb', // TODO reenable 
 							click: (label) => {
 								initDeploymentPreset(label)
 							}

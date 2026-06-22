@@ -6,6 +6,7 @@ import markdownit from 'markdown-it'
 import markdownItFootnote from 'markdown-it-footnote'
 import markdownItHighlightjs from 'markdown-it-highlightjs'
 import { attrs } from "@mdit/plugin-attrs"
+import { imgSize } from "@mdit/plugin-img-size"
 import fm from 'front-matter'
 import Handlebars from "handlebars"
 import moment from 'moment'
@@ -226,6 +227,7 @@ async function build() {
 	}
 }
 
+// TODO move watch into main
 export async function watch() {
 	if (watcher) {
 		await watcher.close()
@@ -297,6 +299,7 @@ function updateMetadata(filepath, data) {
 		.use(markdownItFootnote)
 		.use(markdownItHighlightjs)
 		.use(attrs)
+		.use(imgSize)
 
 	frontMatter.attributes = {
 		...data.contentDefaults, // global defaults

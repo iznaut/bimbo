@@ -12,6 +12,7 @@
     "@atproto/api": "^0.14.20",
     "@indiefellas/nekoweb-api": "^2.2.0",
     "@mdit/plugin-attrs": "^0.16.7",
+    "@mdit/plugin-img-size": "^0.23.2",
     "async-neocities": "^4.1.2",
     "bugsplat": "^9.1.1",
     "bugsplat-node": "^4.0.0",

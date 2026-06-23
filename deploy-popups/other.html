@@ -75,16 +75,12 @@
             let host = document.getElementById("host").value
             let port = document.getElementById("port").value
             let username = document.getElementById("username").value
-            let password = document.getElementById("password").value
-            let keyPath = document.getElementById("keyPath").value
-            if (host && port && username && (password || keyPath)) {
+            if (provider && host && port && username) {
                 window.electron.formSubmission({
                     provider: provider,
                     host: host,
                     port: port,
                     username: username,
-                    password: password,
-                    keyPath: keyPath
                 })
             }
             window.close()

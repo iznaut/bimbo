@@ -42,14 +42,14 @@ import {
 // });
 
 // Windows
-if (process.platform === 'win32') {
-	mainWindow.setIcon(path.join(__dirname, 'assets/windows/icon.ico'));
-}
+// if (process.platform === 'win32') {
+// 	mainWindow.setIcon(path.join(__dirname, 'assets/windows/icon.ico'));
+// }
 
-// Linux
-if (process.platform === 'linux') {
-	mainWindow.setIcon(path.join(__dirname, 'assets/linux/icons/512x512.png'));
-}
+// // Linux
+// if (process.platform === 'linux') {
+// 	mainWindow.setIcon(path.join(__dirname, 'assets/linux/icons/512x512.png'));
+// }
 
 const USER_DATA_PATH = app.getPath("userData")
 const LOG_PATH = path.join(!isDev() ? './' : USER_DATA_PATH, 'bimbo.log')

@@ -1,5 +1,5 @@
 import { dialog } from 'electron'
-import { icon } from './utils.js'
+import { ICON } from './utils.js'
 
 export const IS_PLUS_MODE = false
 

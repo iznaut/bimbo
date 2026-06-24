@@ -48,13 +48,13 @@
                                 <p class="help">your SFTP-enabled username (may or may not be different than what you use to login your host's web interface)</p>
                             </div>
                         </div>
-                        <div class="block">
+                        <!-- <div class="block">
                             <div class="control">
                                 <label class="checkbox">
                                 <input type="checkbox"> use SSH key</label>
                                 <p class="help">if disabled, you will be prompted for your SFTP password before each deployment</p>
                             </div>
-                        </div>
+                        </div> -->
                         <div class="field is-grouped">
                             <div class="control">
                                 <button class="button is-link">Submit</button>
@@ -75,12 +75,14 @@
             let host = document.getElementById("host").value
             let port = document.getElementById("port").value
             let username = document.getElementById("username").value
+            let siteRoot = document.getElementById("siteRoot").value
             if (provider && host && port && username) {
                 window.electron.formSubmission({
                     provider: provider,
                     host: host,
                     port: port,
                     username: username,
+                    siteRoot: siteRoot,
                 })
             }
             window.close()

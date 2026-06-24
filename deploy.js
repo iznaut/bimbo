@@ -9,9 +9,11 @@ import * as yaml from 'yaml'
 import { zip } from 'zip-a-folder'
 import { setTimeout } from "timers/promises";
 
-import { conf, logger } from './utils.js'
+import { conf, logger, ICON } from './utils.js'
 import projects from './projects.js'
 import config from './config.js'
+
+export const IS_PLUS_MODE = true
 
 export const presets = {
 	nekoweb: {
@@ -59,19 +61,22 @@ ipcMain.handle('form', async function (_event, newDeployMeta) {
 				dialog.showMessageBoxSync({
 					message: 'unable to authenticate with neocities, please check your credentials and try again',
 					type: 'error',
-					title: 'something went wrong'
+					title: 'something went wrong',
+					icon: ICON
 				})
 
 				return
 			}
 			break;
+		case 'sftp':
+			deploy(newDeployMeta.password)
+			return
 		default:
-			// TODO SFTP stuff
 			break;
 	}
 
 	const secretsPath = path.join(projects.getActive().rootPath, config.SECRETS_FILENAME) // TODO dedupe
-	logger.info(secretsPath)
+	logger.info(`writing deploy meta to ${secretsPath}`)
 	if (!fs.existsSync(secretsPath)) {
 		fs.writeFileSync(secretsPath, yaml.stringify({}))
 	}
@@ -91,7 +96,7 @@ ipcMain.handle('form', async function (_event, newDeployMeta) {
 	}
 })
 
-export async function deploy() {
+export async function deploy(sftpPassword = null) {
 	const activeProjectMeta = projects.getActive()
 	const deployMeta = activeProjectMeta.data.deployment
 
@@ -110,43 +115,39 @@ export async function deploy() {
 
 		win.loadFile(`deploy-popups/${deployMeta.provider}.html`)
 	}
-	else {
-		let clickedId = dialog.showMessageBoxSync({
-			message: `are you sure you want to deploy ${activeProjectMeta.data.site.title} to ${deployMeta.provider}?`,
-			type: 'warning',
-			buttons: ['yeah!!', 'not yet...'],
-			defaultId: 1,
-			cancelId: 1,
-			title: 'confirm deployment'
+	else if (deployMeta.host && !sftpPassword) {
+		const __filename = fileURLToPath(import.meta.url)
+		const __dirname = path.dirname(__filename)
+
+		win = new BrowserWindow({
+			title: "sftp deployment",
+			useContentSize: true,
+			alwaysOnTop: true,
+			webPreferences: {
+				preload: path.join(__dirname, 'preload.js')
+			}
 		})
 
-		if (clickedId == 0) {
-			let startMsg = `starting deployment to ${deployMeta.provider}`
+		win.loadFile(`deploy-popups/sftp-password.html`)
+	}
+	else {
+		let success = false
+
+		if (sftpPassword) {
+			// TODO dedupe
+			let startMsg = `starting deployment to ${deployMeta.provider} via SFTP`
 
 			new Notification({
 				title: config.BASE_NAME,
 				body: startMsg
 			}).show()
 
-			let success = false
-
 			logger.info(startMsg)
 
-			switch (deployMeta.provider) {
-				case 'nekoweb':
-					success = await deployToNekoweb(deployMeta)
-					break;
-				case 'neocities':
-					success = await deployToNeocities(deployMeta)
-					console.log(success)
-					break;
-				default:
-					success = await deployViaSftp(deployMeta, activeProjectMeta.rootPath)
-					break;
-			}
+			success = await deployViaSftp(deployMeta, activeProjectMeta.rootPath, sftpPassword)
 
 			let resultMsg = success ? `deployment completed successfully` : 'deployment failed'
-
+	
 			logger.info(resultMsg)
 
 			new Notification({
@@ -155,7 +156,49 @@ export async function deploy() {
 			}).show()
 		}
 		else {
-			logger.info('deployment canceled')
+			let clickedId = dialog.showMessageBoxSync({
+				message: `are you sure you want to deploy ${activeProjectMeta.data.site.title} to ${deployMeta.provider}?`,
+				type: 'warning',
+				buttons: ['yeah!!', 'not yet...'],
+				defaultId: 1,
+				cancelId: 1,
+				title: 'confirm deployment',
+				icon: ICON
+			})
+	
+			if (clickedId == 0) {
+				let startMsg = `starting deployment to ${deployMeta.provider}`
+	
+				new Notification({
+					title: config.BASE_NAME,
+					body: startMsg
+				}).show()
+	
+				logger.info(startMsg)
+	
+				switch (deployMeta.provider) {
+					case 'nekoweb':
+						success = await deployToNekoweb(deployMeta)
+						break;
+					case 'neocities':
+						success = await deployToNeocities(deployMeta)
+						break;
+					default:
+						break;
+				}
+	
+				let resultMsg = success ? `deployment completed successfully` : 'deployment failed'
+	
+				logger.info(resultMsg)
+	
+				new Notification({
+					title: config.BASE_NAME,
+					body: resultMsg
+				}).show()
+			}
+			else {
+				logger.info('deployment canceled')
+			}
 		}
 	}
 }
@@ -183,7 +226,7 @@ async function deployToNekoweb(deployMeta) {
 	await nekoweb.getSiteInfo(deployMeta.domain)
 	await zip(sitePath, zipPath) // can we get as buffer?
 	let bigfile = await nekoweb.createBigFile()
-	let file = fs.readFileSync(zipPath) // TODO - save this in project folder 
+	let file = fs.readFileSync(zipPath)
 	await bigfile.append(file)
 	let response = await bigfile.import(path.join('/', deployMeta.domain))
 
@@ -191,7 +234,9 @@ async function deployToNekoweb(deployMeta) {
 	return response == "Imported"
 }
 
-async function deployViaSftp(deployMeta, projectRootPath) {
+async function deployViaSftp(deployMeta, projectRootPath, password = null) {
+	let result = false
+
 	const client = new SftpClient()
 	try {
 		const connectConfig = {
@@ -199,14 +244,17 @@ async function deployViaSftp(deployMeta, projectRootPath) {
 			username: deployMeta.username
 		}
 		if(deployMeta.port) connectConfig.port = deployMeta.port
-		if(deployMeta.password) connectConfig.password = deployMeta.password
+		if(password) connectConfig.password = password
 		if(deployMeta.keyPath) connectConfig.privateKey = fs.readFileSync(deployMeta.keyPath, "utf-8")
 		await client.connect(connectConfig)
 		await client.rmdir(deployMeta.siteRoot, true).catch(() => {}) // Fail silently if dir doesn't exist
-		await client.uploadDir(path.join(projectRootPath, '_site'), deployMeta.siteRoot)
+		result = await client.uploadDir(path.join(projectRootPath, '_site'), deployMeta.siteRoot)
 	}
 	catch(err) {
 		logger.error(err.message)
 	}
 	client.end()
+
+	logger.info(result)
+	return result
 }

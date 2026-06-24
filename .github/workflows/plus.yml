@@ -39,13 +39,11 @@ jobs:
           node-version: 22
       - name: npm install
         uses: bahmutov/npm-install@v1
-      - name: nonplus
-        run: mv deploy-nonplus.js deploy.js
       - name: electron packager
         run: npx @electron/packager . --extra-resource project-starters/ --ignore project-starters/ --out build/ --overwrite
       - uses: actions/upload-artifact@v7.0.1
         with:
-          name: ${{ matrix.os.channel }}
+          name: ${{ matrix.os.channel }}-plus
           path: build
   deploy:
     name: Upload to Itch
@@ -64,13 +62,13 @@ jobs:
 
       - uses: actions/download-artifact@v8
         with:
-          name: ${{ matrix.channel }}
-          path: build/${{ matrix.channel }}
+          name: ${{ matrix.channel }}-plus
+          path: build/${{ matrix.channel }}-plus
       - uses: KikimoraGames/itch-publish@v0.0.3
         with:
           butlerApiKey: ${{secrets.BUTLER_API_KEY}}
-          gameData: ./build/${{ matrix.channel }}
+          gameData: ./build/${{ matrix.channel }}-plus
           itchUsername: ${{env.ITCH_USERNAME}}
           itchGameId: ${{ env.ITCH_GAME_ID }}
-          buildChannel: ${{ matrix.channel }}
+          buildChannel: ${{ matrix.channel }}-plus
           buildNumberFile: ./version

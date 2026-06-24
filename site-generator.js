@@ -220,9 +220,9 @@ async function build() {
 
 	process.watchData = data
 
-	logger.debug("site build completed 💅")
+	logger.info("site build completed 💅")
 
-	if (conf.get('options.openPreviewOnChange')) {
+	if (conf.get('settings.openPreviewOnChange')) {
 		openBrowserPreview()
 	}
 }

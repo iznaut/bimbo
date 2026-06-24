@@ -115,7 +115,7 @@ export async function deploy(sftpPassword = null) {
 
 		win.loadFile(`deploy-popups/${deployMeta.provider}.html`)
 	}
-	else if (deployMeta.host && !sftpPassword) {
+	else if (deployMeta.host && !sftpPassword && !deployMeta.keyPath) {
 		const __filename = fileURLToPath(import.meta.url)
 		const __dirname = path.dirname(__filename)
 
@@ -133,7 +133,7 @@ export async function deploy(sftpPassword = null) {
 	else {
 		let success = false
 
-		if (sftpPassword) {
+		if (sftpPassword || deployMeta.keyPath) {
 			// TODO dedupe
 			let startMsg = `starting deployment to ${deployMeta.provider} via SFTP`
 

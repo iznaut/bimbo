@@ -59,7 +59,9 @@ let latestVersion
 let versionIsCurrent = true
 let versionCheckError = false
 
-logger.info(`bimbo ssg v${CURRENT_VERSION}`)
+let versionString = `bimbo${IS_PLUS_MODE ? '+' : ''} ssg v${CURRENT_VERSION}`
+
+logger.info(versionString)
 
 let bugsplat = null
 
@@ -187,7 +189,7 @@ function updateTrayMenu() {
 
 	menu = Menu.buildFromTemplate([
 		{
-			label: `bimbo+ ssg v${CURRENT_VERSION}`,
+			label: versionString,
 			enabled: false
 		},
 		{

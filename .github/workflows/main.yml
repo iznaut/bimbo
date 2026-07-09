@@ -74,6 +74,10 @@ jobs:
           itchGameId: ${{ env.ITCH_GAME_ID }}
           buildChannel: ${{ matrix.channel }}
           buildNumberFile: ./version
+  notify:
+    name: send update notification to Discord
+    needs: deploy
+    steps:
       - name: get version
         run: echo "version=$(cat ./version)" >> $GITHUB_ENV
       - name: send discord message

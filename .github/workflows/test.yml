@@ -1,5 +1,15 @@
 on:
   workflow_dispatch:
+    inputs:
+      release_name:
+        description: Release title to post
+        required: true
+      release_body:
+        description: Release notes body to post
+        required: true
+      release_html_url:
+        description: Release URL to link in Discord
+        required: false
 
 jobs:
   github-releases-to-discord:

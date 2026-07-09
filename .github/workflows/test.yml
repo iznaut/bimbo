@@ -1,6 +1,5 @@
 on:
-  release:
-    types: [workflow_dispatch]
+  workflow_dispatch:
 
 jobs:
   github-releases-to-discord:

@@ -5,7 +5,7 @@ import { Notification } from 'electron'
 import * as yaml from 'yaml'
 
 import { conf, logger } from './utils.js'
-import config from './config.js'
+import config from './config/config.js'
 import { watch } from './site-generator.js'
 
 export default {
@@ -58,7 +58,7 @@ export default {
         watch()
 
         new Notification({
-            title: config.BASE_NAME,
+            title: config.APP_NAME,
             body: index == -1 ? 'no project loaded!' : `loaded project: ${this.getActive().data.site.title}`
         }).show()
     },
@@ -67,7 +67,7 @@ export default {
 
         if (current.includes(newProjRootPath)) {
             new Notification({
-                title: config.BASE_NAME,
+                title: config.APP_NAME,
                 body: 'project already imported: ' + newProjRootPath
             }).show()
 
@@ -86,11 +86,19 @@ export default {
             logger.warn('unable to find project, removing from list: ' + projRootPath)
 
             new Notification({
-                title: config.BASE_NAME,
+                title: config.APP_NAME,
                 body: `failed to load project: ${projRootPath}`
             }).show()
         }
 
         return fileExists
+    },
+    getActivePath(subpath = ".") {
+        return path.normalize(
+            path.join(
+                this.getActive().rootPath,
+                subpath
+            )
+        )
     }
 }

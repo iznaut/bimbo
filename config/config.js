@@ -1,8 +1,8 @@
 let config = {}
 
-config.BASE_NAME = 'bimbo'
-config.CONFIG_FILENAME = config.BASE_NAME + '.yaml'
-config.SECRETS_FILENAME = config.BASE_NAME + '-secrets.yaml'
+config.APP_NAME = 'bimbo'
+config.CONFIG_FILENAME = config.APP_NAME + '.yaml'
+config.SECRETS_FILENAME = config.APP_NAME + '-secrets.yaml'
 
 config.EXTRA_INIT_FILES = [
     {

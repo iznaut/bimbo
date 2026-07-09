@@ -11,7 +11,7 @@ import { setTimeout } from "timers/promises";
 
 import { conf, logger, ICON } from './utils.js'
 import projects from './projects.js'
-import config from './config.js'
+import config from './config/config.js'
 
 export const IS_PLUS_MODE = true
 
@@ -75,7 +75,7 @@ ipcMain.handle('form', async function (_event, newDeployMeta) {
 			break;
 	}
 
-	const secretsPath = path.join(projects.getActive().rootPath, config.SECRETS_FILENAME) // TODO dedupe
+	const secretsPath = projects.getActivePath(config.SECRETS_FILENAME)
 	logger.info(`writing deploy meta to ${secretsPath}`)
 	if (!fs.existsSync(secretsPath)) {
 		fs.writeFileSync(secretsPath, yaml.stringify({}))
@@ -138,7 +138,7 @@ export async function deploy(sftpPassword = null) {
 			let startMsg = `starting deployment to ${deployMeta.provider} via SFTP`
 
 			new Notification({
-				title: config.BASE_NAME,
+				title: config.APP_NAME,
 				body: startMsg
 			}).show()
 
@@ -151,7 +151,7 @@ export async function deploy(sftpPassword = null) {
 			logger.info(resultMsg)
 
 			new Notification({
-				title: config.BASE_NAME,
+				title: config.APP_NAME,
 				body: resultMsg
 			}).show()
 		}
@@ -170,7 +170,7 @@ export async function deploy(sftpPassword = null) {
 				let startMsg = `starting deployment to ${deployMeta.provider}`
 	
 				new Notification({
-					title: config.BASE_NAME,
+					title: config.APP_NAME,
 					body: startMsg
 				}).show()
 	
@@ -192,7 +192,7 @@ export async function deploy(sftpPassword = null) {
 				logger.info(resultMsg)
 	
 				new Notification({
-					title: config.BASE_NAME,
+					title: config.APP_NAME,
 					body: resultMsg
 				}).show()
 			}

@@ -19,7 +19,7 @@ import chokidar from 'chokidar'
 
 import { conf, logger, openBrowserPreview } from './utils.js'
 import projects from './projects.js'
-import config from './config.js'
+import config from './config/config.js'
 
 let rssFeed
 

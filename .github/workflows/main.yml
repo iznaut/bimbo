@@ -74,3 +74,10 @@ jobs:
           itchGameId: ${{ env.ITCH_GAME_ID }}
           buildChannel: ${{ matrix.channel }}
           buildNumberFile: ./version
+      - name: get version
+        run: echo "version=$(cat ./version)" >> $GITHUB_ENV
+      - name: send discord message
+        uses: appleboy/discord-action@v1.2.0
+        with:
+          webhook_url: ${{ secrets.DISCORD_WEBHOOK }}
+          message: "${{ env.version }} now available on itch.io"

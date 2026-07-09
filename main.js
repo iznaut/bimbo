@@ -1,4 +1,3 @@
-import { platform } from 'node:os'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { exec } from 'node:child_process'
@@ -7,15 +6,15 @@ import prompt from 'electron-prompt'
 import * as yaml from 'yaml'
 import winston from 'winston'
 import Handlebars from 'handlebars'
-import { compareVersions } from 'compare-versions'
-import tiny from 'tiny-json-http'
 import { fileURLToPath } from 'url'
 import { BugSplatNode as BugSplat } from "bugsplat-node"
 
-import { conf, isDev, logger, openBrowserPreview, ICON } from './utils.js'
-import config from './config.js'
+import { conf, isDev, logger, openBrowserPreview, ICON, CURRENT_VERSION, versionIsCurrent, getLatestVersion, notifyUpdateAvailability, isPlatformMac } from './utils.js'
+import config from './config/config.js'
 import projects from './projects.js'
 import { deploy, presets, IS_PLUS_MODE } from './deploy.js'
+import strings from './config/strings.js'
+import urls from './config/urls.js'
 
 import {
 	app,
@@ -52,16 +51,7 @@ import {
 // }
 
 const USER_DATA_PATH = app.getPath("userData")
-const LOG_PATH = path.join(!isDev() ? './' : USER_DATA_PATH, 'bimbo.log')
-
-const CURRENT_VERSION = fs.readFileSync(path.join(app.getAppPath(), 'version'), 'utf-8').trim()
-let latestVersion
-let versionIsCurrent = true
-let versionCheckError = false
-
-let versionString = `bimbo${IS_PLUS_MODE ? '+' : ''} ssg v${CURRENT_VERSION}`
-
-logger.info(versionString)
+const LOG_PATH = path.join(!isDev() ? './' : USER_DATA_PATH, `${strings.app.title}.log`)
 
 let bugsplat = null
 
@@ -81,9 +71,9 @@ app.whenReady().then(() => {
 		humanReadableUnhandledException: true
 	}))
 
-	logger.info('app ready!')
+	logger.info(strings.logMsg.ready)
 
-	if (platform() === "darwin") {
+	if (isPlatformMac()) {
 		app.dock.hide()
 	}
 
@@ -94,20 +84,20 @@ app.whenReady().then(() => {
 	})
 
 	globalShortcut.register('CommandOrControl+Alt+R', () => {
-		logger.info('attempting config clear')
+		logger.info(strings.logMsg.configClearTry)
 		conf.clear()
 		projects.setActive(-1)
-		tray.setToolTip('no project loaded')
-		tray.setTitle('no project loaded')
-		dialog.showMessageBox({ message: 'bimbo config has been reset to defaults', icon: ICON })
-		logger.info('config cleared')
+		tray.setToolTip(strings.app.noProject)
+		tray.setTitle(strings.app.noProject)
+		dialog.showMessageBox({ message: strings.app.configClear, icon: ICON })
+		logger.info(strings.logMsg.configClearSuccess)
 	})
 
 	// having this listener active will prevent the app from quitting.
 	app.on('window-all-closed', () => {})
 
 	if (conf.get('activeIndex') == -1 && !isDev()) {
-		shell.openExternal('https://bimbo.nekoweb.org/posts/2-getting-started.html')
+		shell.openExternal(urls.tutorial)
 	}
 	else {
 		// start watching last active project
@@ -117,10 +107,10 @@ app.whenReady().then(() => {
 	updateTrayTitle()
 	updateTrayMenu()
 
-	getLatestVersion().then(() => {
-		if(!versionIsCurrent) {
-			logger.warn('newer version available')
-			notifyUpdateAvailability()
+	getLatestVersion().then((results) => {
+		if(!results.versionIsCurrent) {
+			logger.warn(strings.logMsg.updateAvailable)
+			notifyUpdateAvailability(results.versionIsCurrent, results.versionCheckError)
 		}
 	})
 })
@@ -131,7 +121,7 @@ function updateTrayMenu() {
 
 	const projectSubmenuItems = [
 		{
-			label: `🆕 create new project`,
+			label: strings.menu.projects.create,
 			type: 'submenu',
 			submenu: Menu.buildFromTemplate(
 				fs.readdirSync(startersPath, {withFileTypes: true})
@@ -141,12 +131,12 @@ function updateTrayMenu() {
 							label: dirent.name,
 							click: async function () {
 								const title = await prompt({
-									title: 'create new bimbo project',
+									title: strings.popups.createProject.title,
 									buttonLabels: {
-										ok: 'let\'s go',
-										cancel: 'nevermind'
+										ok: strings.popups.createProject.confirm,
+										cancel: strings.popups.createProject.cancel
 									},
-									label: 'title:',
+									label: strings.popups.createProject.label,
 									value: dirent.name,
 									type: 'input'
 								})
@@ -170,7 +160,7 @@ function updateTrayMenu() {
 			)
 		},
 		{
-			label: `🆒 import existing project`,
+			label: strings.menu.projects.import,
 			click: function() {
 				let pickedPaths = dialog.showOpenDialogSync({
 					filters: [{name: 'bimbo project file', extensions: ['yaml']}],
@@ -189,20 +179,20 @@ function updateTrayMenu() {
 
 	menu = Menu.buildFromTemplate([
 		{
-			label: versionString,
+			label: strings.app.titleWithVersion(CURRENT_VERSION),
 			enabled: false
 		},
 		{
-			label: '🚨 NEW UPDATE AVAILABLE!!!',
+			label: strings.menu.updateAvailable,
 			visible: !versionIsCurrent,
 			click: () => {
-				shell.openExternal('https://iznaut.itch.io/bimbo')
+				shell.openExternal(urls.itch)
 			}
 		},
 		{ type: 'separator' },
 		{
 			id: 'title',
-			label: !!activeProject ? activeProject.data.site.title : 'no project loaded',
+			label: !!activeProject ? activeProject.data.site.title : strings.app.noProject,
 			type: 'submenu',
 			submenu: Menu.buildFromTemplate(
 				[
@@ -227,7 +217,7 @@ function updateTrayMenu() {
 			)
 		},
 		{
-			label: `🔗 preview in browser`,
+			label: strings.menu.openPreview,
 			enabled: !!activeProject,
 			click: function() {
 				openBrowserPreview()
@@ -235,16 +225,16 @@ function updateTrayMenu() {
 		},
 		{ type: 'separator' },
 		{
-			label: `👩‍💻 edit in VSCodium`,
+			label: strings.menu.openEditor,
 			enabled: !!activeProject,
 			click: function() {
-				logger.info(`user requested editor ${conf.get('editor')}`)
+				logger.info(strings.logMsg.tryEditor(conf.get('editor')))
 
 				exec(`${conf.get('editor')} "${activeProject.rootPath}"`, (error, stdout, stderr) => {
 					if (error) {
 						logger.error(error)
 
-						dialog.showMessageBoxSync({ message: "VSCodium was not found - if it's installed, please open it and go to View > Command Palette... > Shell Command: Install 'codium' command in PATH" })
+						dialog.showMessageBoxSync({ message: strings.popups.codiumError })
 					}
 					if (stdout) { logger.info(stdout) }
 					if (stderr) { logger.error(stderr) }
@@ -252,7 +242,7 @@ function updateTrayMenu() {
 			}
 		},
 		{
-			label: `📂 open project folder`,
+			label: strings.menu.openFolder,
 			enabled: !!activeProject,
 			click: function() {
 				shell.openPath(activeProject.rootPath)
@@ -261,14 +251,14 @@ function updateTrayMenu() {
 		{ type: 'separator' },
 		{
 			id: 'deploy',
-			label: !!deployMeta ? `🌐 deploy to ${deployMeta.provider}` : 'deployment not configured',
+			label: strings.menu.deploy(deployMeta.provider),
 			visible: !!deployMeta && Object.keys(presets).length > 0,
 			click: () => {
 				deploy()
 			},
 		},
 		{
-			label: 'set up deployment',
+			label: strings.menu.configDeployment,
 			type: 'submenu',
 			enabled: Object.keys(presets).length > 0 && !!activeProject,
 			visible: !deployMeta,
@@ -284,20 +274,21 @@ function updateTrayMenu() {
 			)
 		},
 		{
-			label: `👀 get bimbo+ for one-click deploy!`,
+			label: strings.menu.upgrade,
 			visible: Object.keys(presets).length == 0,
 			click: function() {
-				shell.openExternal('https://iznaut.itch.io/bimbo')
+				shell.openExternal(urls.itch)
 			}
 		},
 		{ type: 'separator' },
 		{
-			label: 'settings',
+			label: strings.menu.settings.title,
 			type: 'submenu',
 			submenu: Menu.buildFromTemplate(
 				[
 					{
-						label: 'show active project title in menubar',
+						label: strings.menu.settings.showProjectTitleInMenubar,
+						visible: isPlatformMac(),
 						type: 'checkbox',
 						checked: conf.get('settings.showProjectTitleInMenubar'),
 						click: () => {
@@ -307,7 +298,7 @@ function updateTrayMenu() {
 						}
 					},
 					{
-						label: 'open site preview on app/project load',
+						label: strings.menu.settings.autoOpenPreview,
 						type: 'checkbox',
 						checked: conf.get('settings.autoOpenPreview'),
 						click: () => {
@@ -315,18 +306,18 @@ function updateTrayMenu() {
 						}
 					},
 					{
-						label: 'submit crash reports/logs to bimbo central',
+						label: strings.menu.settings.submitCrashLogs,
 						type: 'checkbox',
 						checked: conf.get('settings.submitCrashLogs'),
 						click: () => {
 							if (conf.get('settings.submitCrashLogs')) {
 								let clickedId = dialog.showMessageBoxSync({
-									message: `hi! jsyk bimbo only sends data relevant to crashes and the contents of your bimbo.log file. it's super helpful for improving bimbo and doesn't contain anything sensitive or identifying. you're welcome to disable it, but i'd really appreciate it if you kept it on. thanks!`,
+									message: strings.popups.disableCrashReporting.message,
 									type: 'warning',
-									buttons: ['nah disable please', 'oh alright leave it on'],
+									buttons: [strings.popups.disableCrashReporting.confirm, strings.popups.disableCrashReporting.cancel],
 									defaultId: 1,
 									cancelId: 1,
-									title: 'disable crash reporting',
+									title: strings.popups.disableCrashReporting.title,
 									icon: ICON
 								})
 
@@ -345,47 +336,52 @@ function updateTrayMenu() {
 			)
 		},
 		{
-			label: 'support',
+			label: strings.menu.support.title,
 			type: 'submenu',
 			submenu: Menu.buildFromTemplate(
 				[
 					{
-						label: '👀 check for updates',
-						click: async () => {
-							await getLatestVersion()
-							notifyUpdateAvailability()
+						label: strings.menu.support.checkForUpdates,
+						click: () => {
+							// TODO dedupe
+							getLatestVersion().then((results) => {
+								if(!results.versionIsCurrent) {
+									logger.warn(strings.update.available)
+									notifyUpdateAvailability(results.versionIsCurrent, results.versionCheckError)
+								}
+							})
 						},
 					},
 					{
-						label: `🤖 join bimbo Discord`,
-						click: () => {shell.openExternal('https://discord.gg/hkAMG3Kru8')}
+						label: strings.menu.support.openDiscord,
+						click: () => shell.openExternal(urls.discord)
 					},
 					{
-						label: `💌 email izzy (she made this)`,
+						label: strings.menu.support.sendEmail,
 						click: () => {
 							if (bugsplat) {
 								bugsplat.post(new Error('user prompted email'))
 							}
-							shell.openExternal('mailto:bimbo@iznaut.com')
+							shell.openExternal(urls.supportMailto)
 						}
 					},
 				]
 			)
 		},
 		{
-			label: '🔧 debug',
+			label: strings.menu.debug.title,
 			visible: isDev(),
 			type: 'submenu',
 			submenu: Menu.buildFromTemplate(
 				[
 					{
-						label: 'open user data folder',
+						label: strings.menu.debug.openUserData,
 						click: () => {
 							shell.openPath(USER_DATA_PATH)
 						},
 					},
 					{
-						label: 'delete bimbo-secrets.yaml',
+						label: strings.menu.debug.deleteSecrets,
 						click: () => {
 							fs.rmSync(path.join(projects.getActive().rootPath, config.SECRETS_FILENAME))
 						},
@@ -393,7 +389,7 @@ function updateTrayMenu() {
 				]
 			)
 		},
-		{ label: 'quit', click: function() {
+		{ label: strings.menu.exit, click: function() {
 			app.quit()
 		}}
 	])
@@ -402,7 +398,7 @@ function updateTrayMenu() {
 }
 
 function updateTrayTitle() {
-	let displayTitle = 'no project loaded'
+	let displayTitle = strings.app.noProject
 
 	if (projects.getActive()) {
 		displayTitle = projects.getActive().data.site.title
@@ -444,7 +440,7 @@ async function initDeploymentPreset(menuItem) {
 	const __dirname = path.dirname(__filename)
 
 	win = new BrowserWindow({
-		title: "set up deployment - bimbo",
+		title: strings.popups.configDeploymentTitle,
 		useContentSize: true,
 		alwaysOnTop: true,
 		webPreferences: {
@@ -453,32 +449,6 @@ async function initDeploymentPreset(menuItem) {
 	})
 
 	win.loadFile(`deploy-popups/${presetName}.html`)
-}
-
-async function getLatestVersion() {
-	if(isDev()) {
-		latestVersion = '99.99.99-dev'
-	} else {
-		try {
-			latestVersion = (await tiny.get({url: "https://raw.githubusercontent.com/iznaut/bimbo/refs/heads/main/version"})).body.trim()
-		} catch(e) {
-			logger.info(`Error getting latest version: ${e}`)
-			versionCheckError = true
-		}
-	}
-	if(latestVersion) {
-		versionCheckError = false
-		const versionComparison = compareVersions(latestVersion, CURRENT_VERSION)
-		versionIsCurrent = versionComparison === 0
-	}
-}
-
-function notifyUpdateAvailability() {
-	const message = 
-		versionCheckError ? 'update check failed' : 
-		versionIsCurrent ? 'no updates available' : 
-		`version ${latestVersion} available on itch.io`
-	new Notification({ title: config.BASE_NAME, body: message }).show()
 }
 
 function configureCrashReporting() {
@@ -495,7 +465,7 @@ function configureCrashReporting() {
 		bugsplat.setDefaultAdditionalFilePaths([LOG_PATH])
 		
 		crashReporter.start({
-			submitURL: `https://me-iznaut-com.bugsplat.com/post/electron/v2/crash.php`,
+			submitURL: urls.bugsplat,
 			ignoreSystemCrashHandler: true,
 			uploadToServer: true,
 			rateLimit: false,

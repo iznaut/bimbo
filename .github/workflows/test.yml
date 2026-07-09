@@ -27,3 +27,6 @@ jobs:
           content: "||@everyone||"
           footer_title: "Changelog"
           reduce_headings: true
+          release_name: ${{ inputs.release_name }}
+          release_body: ${{ inputs.release_body }}
+          release_html_url: ${{ inputs.release_html_url }}

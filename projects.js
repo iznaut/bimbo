@@ -1,12 +1,12 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import _ from 'lodash'
-import { Notification } from 'electron'
 import * as yaml from 'yaml'
 
-import { conf, logger } from './utils.js'
+import { conf, logger, showNotification } from './utils.js'
 import config from './config/config.js'
 import { watch } from './site-generator.js'
+import strings from './config/strings.js'
 
 export default {
     getAll(pathsOnly = false) {
@@ -57,20 +57,17 @@ export default {
 
         watch()
 
-        new Notification({
-            title: config.APP_NAME,
-            body: index == -1 ? 'no project loaded!' : `loaded project: ${this.getActive().data.site.title}`
-        }).show()
+        showNotification(
+            index == -1
+                ? strings.projects.notLoaded
+                : strings.projects.loaded(this.getActive().data.site.title)
+            )
     },
     add(newProjRootPath) {
         let current = this.getAll(true)
 
         if (current.includes(newProjRootPath)) {
-            new Notification({
-                title: config.APP_NAME,
-                body: 'project already imported: ' + newProjRootPath
-            }).show()
-
+            showNotification(strings.projects.alreadyImported)
             return
         }
 
@@ -83,12 +80,8 @@ export default {
         )
 
         if (!fileExists) {
-            logger.warn('unable to find project, removing from list: ' + projRootPath)
-
-            new Notification({
-                title: config.APP_NAME,
-                body: `failed to load project: ${projRootPath}`
-            }).show()
+            logger.warn(strings.logMsg.missingProject)
+            showNotification(strings.projects.loadFailed)
         }
 
         return fileExists

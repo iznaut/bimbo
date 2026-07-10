@@ -1,14 +1,10 @@
-import { dialog } from 'electron'
-import { ICON } from './utils.js'
+import strings from './config/strings.js'
+import { showMessageBox } from './utils.js'
 
 export const IS_PLUS_MODE = false
 
 export const presets = {}
 
 export async function deploy() {
-	dialog.showMessageBoxSync({
-		message: `get bimbo+ to enable one-click deployment options!`,
-		type: 'warning',
-		icon: ICON
-	})
+	showMessageBox(strings.popups.upgrade, 'warning')
 }

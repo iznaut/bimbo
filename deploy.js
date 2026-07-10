@@ -1,4 +1,4 @@
-import { ipcMain, dialog, Notification, BrowserWindow, shell } from 'electron'
+import { ipcMain, BrowserWindow, shell } from 'electron'
 import { NeocitiesAPIClient } from 'async-neocities'
 import NekowebAPI from '@indiefellas/nekoweb-api'
 import SftpClient from 'ssh2-sftp-client'
@@ -9,7 +9,8 @@ import * as yaml from 'yaml'
 import { zip } from 'zip-a-folder'
 import { setTimeout } from "timers/promises";
 
-import { conf, logger, ICON } from './utils.js'
+import { conf, logger, showMessageBox, showNotification, showPrompt } from './utils.js'
+import strings from './config/strings.js'
 import projects from './projects.js'
 import config from './config/config.js'
 
@@ -47,24 +48,17 @@ ipcMain.handle('form', async function (_event, newDeployMeta) {
 			})
 
 			if (apiKeyResponse.result == 'success') {
-				logger.info('neocities auth successful')
+				logger.info(strings.deployment.auth.success(newDeployMeta.provider))
 
 				newDeployMeta = {
-					provider: 'neocities',
+					provider: newDeployMeta.provider,
 					apiKey: apiKeyResponse.api_key
 				}
 
 			}
 			else {
-				logger.info('neocities auth failed')
-
-				dialog.showMessageBoxSync({
-					message: 'unable to authenticate with neocities, please check your credentials and try again',
-					type: 'error',
-					title: 'something went wrong',
-					icon: ICON
-				})
-
+				logger.info(strings.deployment.auth.fail(newDeployMeta.provider))
+				showMessageBox(strings.popups.deployFail(newDeployMeta.provider), 'error')
 				return
 			}
 			break;
@@ -76,7 +70,7 @@ ipcMain.handle('form', async function (_event, newDeployMeta) {
 	}
 
 	const secretsPath = projects.getActivePath(config.SECRETS_FILENAME)
-	logger.info(`writing deploy meta to ${secretsPath}`)
+	logger.info(strings.logMsg.writeDeployMeta(secretsPath))
 	if (!fs.existsSync(secretsPath)) {
 		fs.writeFileSync(secretsPath, yaml.stringify({}))
 	}
@@ -105,7 +99,7 @@ export async function deploy(sftpPassword = null) {
 		const __dirname = path.dirname(__filename)
 
 		win = new BrowserWindow({
-			title: "set up deployment - bimbo",
+			title: strings.popups.configDeploymentTitle,
 			useContentSize: true,
 			alwaysOnTop: true,
 			webPreferences: {
@@ -120,7 +114,7 @@ export async function deploy(sftpPassword = null) {
 		const __dirname = path.dirname(__filename)
 
 		win = new BrowserWindow({
-			title: "sftp deployment",
+			title: strings.popups.configDeploymentTitle,
 			useContentSize: true,
 			alwaysOnTop: true,
 			webPreferences: {
@@ -135,46 +129,29 @@ export async function deploy(sftpPassword = null) {
 
 		if (sftpPassword || deployMeta.keyPath) {
 			// TODO dedupe
-			let startMsg = `starting deployment to ${deployMeta.provider} via SFTP`
-
-			new Notification({
-				title: config.APP_NAME,
-				body: startMsg
-			}).show()
-
+			let startMsg = strings.deployment.start(deployMeta.provider)
+			showNotification(startMsg)
 			logger.info(startMsg)
 
 			success = await deployViaSftp(deployMeta, activeProjectMeta.rootPath, sftpPassword)
 
-			let resultMsg = success ? `deployment completed successfully` : 'deployment failed'
-	
+			let resultMsg = success ? strings.deployment.finish.success : strings.deployment.finish.fail	
 			logger.info(resultMsg)
-
-			new Notification({
-				title: config.APP_NAME,
-				body: resultMsg
-			}).show()
+			showNotification(resultMsg)
 		}
 		else {
-			let clickedId = dialog.showMessageBoxSync({
-				message: `are you sure you want to deploy ${activeProjectMeta.data.site.title} to ${deployMeta.provider}?`,
-				type: 'warning',
-				buttons: ['yeah!!', 'not yet...'],
-				defaultId: 1,
-				cancelId: 1,
-				title: 'confirm deployment',
-				icon: ICON
-			})
+			let clickedId = showPrompt(
+				strings.popups.confirmDeployment.message(
+					activeProjectMeta.data.site.title,
+					deployMeta.provider
+				),
+				'warning'
+			)
 	
 			if (clickedId == 0) {
-				let startMsg = `starting deployment to ${deployMeta.provider}`
-	
-				new Notification({
-					title: config.APP_NAME,
-					body: startMsg
-				}).show()
-	
+				let startMsg = strings.deployment.start(deployMeta.provider)
 				logger.info(startMsg)
+				showNotification(startMsg)	
 	
 				switch (deployMeta.provider) {
 					case 'nekoweb':
@@ -187,17 +164,12 @@ export async function deploy(sftpPassword = null) {
 						break;
 				}
 	
-				let resultMsg = success ? `deployment completed successfully` : 'deployment failed'
-	
+				let resultMsg = success ? strings.deployment.finish.success : strings.deployment.finish.fail
 				logger.info(resultMsg)
-	
-				new Notification({
-					title: config.APP_NAME,
-					body: resultMsg
-				}).show()
+				showNotification(resultMsg)
 			}
 			else {
-				logger.info('deployment canceled')
+				logger.info(strings.deployment.finish.cancel)
 			}
 		}
 	}

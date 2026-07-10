@@ -9,7 +9,20 @@ import Handlebars from 'handlebars'
 import { fileURLToPath } from 'url'
 import { BugSplatNode as BugSplat } from "bugsplat-node"
 
-import { conf, isDev, logger, openBrowserPreview, ICON, CURRENT_VERSION, versionIsCurrent, getLatestVersion, notifyUpdateAvailability, isPlatformMac } from './utils.js'
+import {
+	CURRENT_VERSION,
+	conf,
+	isDev,
+	logger,
+	versionIsCurrent,
+	getLatestVersion,
+	notifyUpdateAvailability,
+	openBrowserPreview,
+	isPlatformMac,
+	showMessageBox,
+	showPrompt,
+	showFilePicker,
+} from './utils.js'
 import config from './config/config.js'
 import projects from './projects.js'
 import { deploy, presets, IS_PLUS_MODE } from './deploy.js'
@@ -18,8 +31,6 @@ import urls from './config/urls.js'
 
 import {
 	app,
-	dialog,
-	Notification,
 	Menu,
 	shell,
 	globalShortcut,
@@ -77,7 +88,7 @@ app.whenReady().then(() => {
 		app.dock.hide()
 	}
 
-	tray = new Tray(ICON)
+	tray = new Tray(config.ICON)
 	
 	tray.on('click', () => {
 		updateTrayMenu()
@@ -87,9 +98,9 @@ app.whenReady().then(() => {
 		logger.info(strings.logMsg.configClearTry)
 		conf.clear()
 		projects.setActive(-1)
-		tray.setToolTip(strings.app.noProject)
-		tray.setTitle(strings.app.noProject)
-		dialog.showMessageBox({ message: strings.app.configClear, icon: ICON })
+		tray.setToolTip(strings.projects.notLoaded)
+		tray.setTitle(strings.projects.notLoaded)
+		showMessageBox(strings.app.configClear)
 		logger.info(strings.logMsg.configClearSuccess)
 	})
 
@@ -144,7 +155,7 @@ function updateTrayMenu() {
 
 								if (!title) { return }
 
-								let pickedPaths = dialog.showOpenDialogSync({
+								let pickedPaths = showFilePicker({
 									properties: ['openDirectory']
 								})
 
@@ -162,7 +173,7 @@ function updateTrayMenu() {
 		{
 			label: strings.menu.projects.import,
 			click: function() {
-				let pickedPaths = dialog.showOpenDialogSync({
+				let pickedPaths = showFilePicker({
 					filters: [{name: 'bimbo project file', extensions: ['yaml']}],
 					properties: ['openFile']
 				})
@@ -192,7 +203,7 @@ function updateTrayMenu() {
 		{ type: 'separator' },
 		{
 			id: 'title',
-			label: !!activeProject ? activeProject.data.site.title : strings.app.noProject,
+			label: !!activeProject ? activeProject.data.site.title : strings.projects.notLoaded,
 			type: 'submenu',
 			submenu: Menu.buildFromTemplate(
 				[
@@ -233,8 +244,7 @@ function updateTrayMenu() {
 				exec(`${conf.get('editor')} "${activeProject.rootPath}"`, (error, stdout, stderr) => {
 					if (error) {
 						logger.error(error)
-
-						dialog.showMessageBoxSync({ message: strings.popups.codiumError })
+						showMessageBox(strings.popups.codiumError)
 					}
 					if (stdout) { logger.info(stdout) }
 					if (stderr) { logger.error(stderr) }
@@ -311,15 +321,7 @@ function updateTrayMenu() {
 						checked: conf.get('settings.submitCrashLogs'),
 						click: () => {
 							if (conf.get('settings.submitCrashLogs')) {
-								let clickedId = dialog.showMessageBoxSync({
-									message: strings.popups.disableCrashReporting.message,
-									type: 'warning',
-									buttons: [strings.popups.disableCrashReporting.confirm, strings.popups.disableCrashReporting.cancel],
-									defaultId: 1,
-									cancelId: 1,
-									title: strings.popups.disableCrashReporting.title,
-									icon: ICON
-								})
+								let clickedId = showPrompt(strings.popups.disableCrashReporting.message, 'warning')								
 
 								if (clickedId == 0) {
 									conf.set('settings.submitCrashLogs', false)
@@ -398,7 +400,7 @@ function updateTrayMenu() {
 }
 
 function updateTrayTitle() {
-	let displayTitle = strings.app.noProject
+	let displayTitle = strings.projects.notLoaded
 
 	if (projects.getActive()) {
 		displayTitle = projects.getActive().data.site.title

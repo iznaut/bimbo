@@ -20,6 +20,7 @@ import chokidar from 'chokidar'
 import { conf, logger, openBrowserPreview } from './utils.js'
 import projects from './projects.js'
 import config from './config/config.js'
+import strings from './config/strings.js' // TODO export separate categories? (e.g. {generator} from strings)
 
 let rssFeed
 
@@ -155,7 +156,7 @@ async function build() {
 					page.md.replace('bskyPostId: tbd', `bskyPostId: ${postsData[index].id}`)
 				)
 	
-				logger.info('Successfully posted to Bluesky!')
+				logger.info(strings.generator.bsky.postSuccess)
 				logger.info(`https://bsky.app/profile/${postsData[index].handle}/post/${postsData[index].id}`)
 	
 				index++
@@ -214,13 +215,13 @@ async function build() {
 		}
 	}
 	catch (err) {
-		logger.info('no Bluesky User ID set, skipping integrations...')
+		logger.info(strings.generator.bsky.noId)
 		logger.info(err)
 	}
 
 	process.watchData = data
 
-	logger.info("site build completed 💅")
+	logger.info(strings.generator.buildComplete)
 
 	if (conf.get('settings.openPreviewOnChange')) {
 		openBrowserPreview()
@@ -269,7 +270,7 @@ export async function watch() {
 			}
 		})
 		await server.listen()
-		logger.info(`monitoring ${activeProject.rootPath} for changes`)
+		logger.info(strings.generator.monitoring(activeProject.rootPath))
 	
 		build()
 	}
@@ -318,7 +319,7 @@ function updateMetadata(filepath, data) {
 	}
 
 	if (page.draft) {
-		logger.info(`skipping ${filepath} (draft)`)
+		logger.info(strings.generator.skipDraft(filepath))
 		return data
 	}
 
@@ -358,7 +359,7 @@ function updateMetadata(filepath, data) {
 				content: page.content
 			})
 		} catch (err) {
-			logger.info('failed to add RSS post...')
+			logger.info()
 			logger.info(err)
 		}
 	}
@@ -394,7 +395,7 @@ function generatePages(data) {
 
 		// get html template
 		if (!fs.existsSync(templatePath)) {
-			console.warn("couldn't find template, using default")
+			logger.warn(strings.generator.missingTemplate)
 			page.template = 'default.html'
 			templatePath = path.join(getJoinedPath(PATHS.TEMPLATES), 'default.html')
 		}
@@ -408,7 +409,7 @@ function generatePages(data) {
 			htmlOutput = htmlTemplate(page)
 		}
 		catch(error) {
-			console.error(`failed to compile ${page.template}`)
+			logger.error(strings.generator.compileFail(page.template))
 			let encodedError = error.message.replace(/[\u00A0-\u9999<>\&]/gim, function(i) {
 				return '&#' + i.charCodeAt(0) + ';'
 			})

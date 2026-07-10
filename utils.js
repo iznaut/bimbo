@@ -1,7 +1,7 @@
 import { platform } from 'node:os'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import { app, Notification, shell, nativeImage } from 'electron'
+import { app, Notification, shell, dialog } from 'electron'
 import { Conf } from 'electron-conf/main'
 import winston from 'winston'
 import { compareVersions } from 'compare-versions'
@@ -10,6 +10,7 @@ import tiny from 'tiny-json-http'
 import { IS_PLUS_MODE } from './deploy.js'
 import strings from './config/strings.js'
 import urls from './config/urls.js'
+import config from './config/config.js'
 
 export const logger = winston.createLogger({
 	level: 'info',
@@ -21,7 +22,6 @@ export const logger = winston.createLogger({
 	],
 })
 
-export const ICON = nativeImage.createFromDataURL('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABJElEQVR4AayRsWrCUBSGT24plCyVPkJL6dZ2cVfIWrv2bUzWPolrOwfi7qJOiujsqIsIwej9LrmXaEwQ9MKfnPOfcz5ObpRceW4LmH0GrcVHkMzfgxDZ5ap86m4DBp6+/OSx47d0oYvwkMok2e/lyJf8OEDj2+8+vN1Lo+OLjvOyGJBNCm98kyqerLj628h2msrqX78nKXatmKHBAAiQgehhQOSXyABeh3HfNl86bGcMgGHPEweRilO4m8i2OMDzKG7XQRi2F/wyjsMSAGPniSOTW9m/Qw4kG/wkxMhtQJJ/VwnCvSx/17SgSDV7bQJ0BMBgvUyJa8Dj0zazFC+6a/bc+tRKAEw20SBPx2wTcT94p8O6LmcBFJCGhIi4SrWAqqGifwAAAP//2exw9QAAAAZJREFUAwBmLW4hL61AdQAAAABJRU5ErkJggg==')
 export const CURRENT_VERSION = fs.readFileSync(path.join(app.getAppPath(), 'version'), 'utf-8').trim()
 
 let latestVersion
@@ -69,11 +69,11 @@ export async function getLatestVersion() {
 }
 
 export function notifyUpdateAvailability(isNewVersionAvailable, versionCheckError = false) {
-	const message = 
+	showNotification(
 		versionCheckError ? strings.update.checkFailed : 
 		versionIsCurrent ? strings.update.none : 
 		strings.update.available(latestVersion)
-	new Notification({ title: strings.app.title, body: message }).show()
+	)
 }
 
 export function isDev() {
@@ -86,4 +86,42 @@ export function openBrowserPreview() {
 
 export function isPlatformMac() {
 	return platform() === "darwin"
+}
+
+export function showNotification(body) {
+	new Notification({
+		title: config.APP_NAME,
+		body: body,
+		icon: config.ICON
+	}).show()
+}
+
+export function showMessageBox(message, type = 'none') {
+	dialog.showMessageBoxSync({
+		message: message,
+		type: type,
+		icon: config.ICON
+	})
+}
+
+export function showPrompt(message, type = 'none', buttons = null) {
+	if (!buttons) {
+		buttons = [
+			strings.popups.confirmDeployment.confirm,
+			strings.popups.confirmDeployment.cancel
+		]
+	}
+
+	return dialog.showMessageBoxSync({
+		message: message,
+		type: type,
+		buttons: buttons,
+		defaultId: 1,
+		cancelId: 1,
+		icon: config.ICON
+	})
+}
+
+export function showFilePicker(config) {
+	return dialog.showOpenDialogSync(config)
 }

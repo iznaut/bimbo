@@ -74,15 +74,14 @@ global.win = null
 const startersPath = path.join((isDev() ? '' : process.resourcesPath), 'project-starters')
 
 app.whenReady().then(() => {
-	logger.info(`writing log to ${LOG_PATH}`)
-
 	logger.add(new winston.transports.File({
 		filename: LOG_PATH,
 		handleRejections: true,
 		humanReadableUnhandledException: true
 	}))
 
-	logger.info(strings.logMsg.ready)
+	logger.info(strings.logMsg.writeDir(LOG_PATH))
+	logger.info(strings.app.titleWithVersion(CURRENT_VERSION))	
 
 	if (isPlatformMac()) {
 		app.dock.hide()
@@ -94,15 +93,7 @@ app.whenReady().then(() => {
 		updateTrayMenu()
 	})
 
-	globalShortcut.register('CommandOrControl+Alt+R', () => {
-		logger.info(strings.logMsg.configClearTry)
-		conf.clear()
-		projects.setActive(-1)
-		tray.setToolTip(strings.projects.notLoaded)
-		tray.setTitle(strings.projects.notLoaded)
-		showMessageBox(strings.app.configClear)
-		logger.info(strings.logMsg.configClearSuccess)
-	})
+	globalShortcut.register('CommandOrControl+Alt+R', clearConfig)
 
 	// having this listener active will prevent the app from quitting.
 	app.on('window-all-closed', () => {})
@@ -124,6 +115,8 @@ app.whenReady().then(() => {
 			notifyUpdateAvailability(results.versionIsCurrent, results.versionCheckError)
 		}
 	})
+
+	logger.info(strings.logMsg.ready)
 })
 
 function updateTrayMenu() {
@@ -388,6 +381,10 @@ function updateTrayMenu() {
 							fs.rmSync(path.join(projects.getActive().rootPath, config.SECRETS_FILENAME))
 						},
 					},
+					{
+						label: strings.menu.debug.clearConfig,
+						click: clearConfig,
+					},
 				]
 			)
 		},
@@ -485,4 +482,14 @@ function configureCrashReporting() {
 		process.removeListener("unhandledRejection", javaScriptErrorHandler)
 		process.removeListener("uncaughtException", javaScriptErrorHandler)
 	}
+}
+
+function clearConfig() {
+	logger.info(strings.logMsg.configClearTry)
+	conf.clear()
+	projects.setActive(-1)
+	tray.setToolTip(strings.projects.notLoaded)
+	tray.setTitle(strings.projects.notLoaded)
+	showMessageBox(strings.app.configClear)
+	logger.info(strings.logMsg.configClearSuccess)
 }

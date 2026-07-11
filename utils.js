@@ -28,6 +28,8 @@ let latestVersion
 export let versionIsCurrent = true
 let versionCheckError = false
 
+logger.info(strings.app.titleWithVersion(CURRENT_VERSION))
+
 export const conf = new Conf({
 	defaults: {
 		projects: [],

@@ -1,5 +1,5 @@
-import config from "./config.js"
-import { IS_PLUS_MODE } from "../deploy.js"
+import config from "./config.js";
+import { IS_PLUS_MODE } from "../deploy.js";
 
 export default {
     app: {
@@ -42,13 +42,11 @@ export default {
             title: "🔧 debug",
             openUserData: "open user data folder",
             deleteSecrets: `delete ${config.SECRETS_FILENAME}`,
-            clearConfig: "clear projects and config",
         },
         exit: "quit",
     },
     logMsg: {
         ready: "app ready!",
-        logPath: (path) => `writing log to ${path}`,
         configClearTry: "attempting config clear",
         configClearSuccess: "config cleared",
         updateAvailable: "newer version available",
@@ -119,4 +117,4 @@ export default {
         monitoring: (path) => `monitoring ${path} for changes`,
         skipDraft: (path) => `skipping ${path} (draft)`,
     },
-}
+};

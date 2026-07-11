@@ -261,7 +261,7 @@ function updateTrayMenu() {
 		{ type: 'separator' },
 		{
 			id: 'deploy',
-			label: strings.menu.deploy(deployMeta.provider),
+			label: strings.menu.deploy(deployMeta.provider || ""),
 			visible: !!deployMeta && Object.keys(presets).length > 0,
 			click: () => {
 				deploy()

@@ -179,7 +179,7 @@ function updateTrayMenu() {
 		},
 	]
 
-	const deployMeta = !!activeProject ? activeProject.data.deployment : {provider: ""}
+	const deployMeta = activeProject && activeProject.data.deployment || null
 
 	menu = Menu.buildFromTemplate([
 		{
@@ -254,8 +254,8 @@ function updateTrayMenu() {
 		{ type: 'separator' },
 		{
 			id: 'deploy',
-			label: strings.menu.deploy(deployMeta.provider),
-			visible: deployMeta.provider != "" && Object.keys(presets).length > 0,
+			label: strings.menu.deploy(deployMeta?.provider),
+			visible: deployMeta && Object.keys(presets).length > 0,
 			click: () => {
 				deploy()
 			},
@@ -264,7 +264,7 @@ function updateTrayMenu() {
 			label: strings.menu.configDeployment,
 			type: 'submenu',
 			enabled: Object.keys(presets).length > 0 && !!activeProject,
-			visible: deployMeta.provider == "",
+			visible: !deployMeta,
 			submenu: Menu.buildFromTemplate(
 				Object.keys(presets).map(key => {
 					return {

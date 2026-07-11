@@ -80,7 +80,7 @@ app.whenReady().then(() => {
 		humanReadableUnhandledException: true
 	}))
 
-	logger.info(strings.logMsg.writeDir(LOG_PATH))
+	logger.info(strings.logMsg.logPath(LOG_PATH))
 	logger.info(strings.app.titleWithVersion(CURRENT_VERSION))	
 
 	if (isPlatformMac()) {

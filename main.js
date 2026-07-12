@@ -287,48 +287,7 @@ function updateTrayMenu() {
 		{
 			label: strings.menu.settings.title,
 			type: 'submenu',
-			submenu: Menu.buildFromTemplate(
-				[
-					{
-						label: strings.menu.settings.showProjectTitleInMenubar,
-						visible: isPlatformMac(),
-						type: 'checkbox',
-						checked: conf.get('settings.showProjectTitleInMenubar'),
-						click: () => {
-							conf.set('settings.showProjectTitleInMenubar', !conf.get('settings.showProjectTitleInMenubar'))
-
-							updateTrayTitle()
-						}
-					},
-					{
-						label: strings.menu.settings.autoOpenPreview,
-						type: 'checkbox',
-						checked: conf.get('settings.autoOpenPreview'),
-						click: () => {
-							conf.set('settings.autoOpenPreview', !conf.get('settings.autoOpenPreview'))
-						}
-					},
-					{
-						label: strings.menu.settings.submitCrashLogs,
-						type: 'checkbox',
-						checked: conf.get('settings.submitCrashLogs'),
-						click: () => {
-							if (conf.get('settings.submitCrashLogs')) {
-								let clickedId = showPrompt(strings.popups.disableCrashReporting.message, 'warning')								
-
-								if (clickedId == 0) {
-									conf.set('settings.submitCrashLogs', false)
-									configureCrashReporting()
-								}
-							}
-							else {
-								conf.set('settings.submitCrashLogs', true)
-								configureCrashReporting()
-							}
-						}
-					},
-				]
-			)
+			submenu: getSettingsMenu(),
 		},
 		{
 			label: strings.menu.support.title,
@@ -492,4 +451,52 @@ function clearConfig() {
 	tray.setTitle(strings.projects.notLoaded)
 	showMessageBox(strings.app.configClear)
 	logger.info(strings.logMsg.configClearSuccess)
+}
+
+function getSettingsMenu() {
+	const callbacks = {
+		showProjectTitleInMenubar: updateTrayTitle,
+		submitCrashLogs: () => {
+			if (conf.get('settings.submitCrashLogs')) {
+				let clickedId = showPrompt(
+					strings.popups.disableCrashReporting.message,
+					'warning',
+					[
+						strings.popups.disableCrashReporting.confirm,
+						strings.popups.disableCrashReporting.cancel,
+					]
+				)								
+
+				if (clickedId == 0) {
+					conf.set('settings.submitCrashLogs', false)
+					configureCrashReporting()
+				}
+			}
+			else {
+				conf.set('settings.submitCrashLogs', true)
+				configureCrashReporting()
+			}
+		}
+	}
+
+	const requireConfirmation = ['submitCrashLogs']
+
+	let items = _.map(conf.defaultValues.settings, (v, k) => {
+		return {
+			label: strings.menu.settings[k],
+			type: 'checkbox',
+			checked: conf.get(`settings.${k}`),
+			click: () => {
+				if (!requireConfirmation.includes(k)) {
+					conf.set(`settings.${k}`, !conf.get(`settings.${k}`))
+				}
+
+				if (k in callbacks) {
+					callbacks[k]()
+				}
+			}
+		}
+	})
+
+	return Menu.buildFromTemplate(items)
 }

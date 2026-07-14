@@ -62,7 +62,7 @@ import {
 // }
 
 const USER_DATA_PATH = app.getPath("userData")
-const LOG_PATH = path.join(!isDev() ? './' : USER_DATA_PATH, `${strings.app.title}.log`)
+const LOG_PATH = path.join(USER_DATA_PATH, `${strings.app.title}.log`)
 
 let bugsplat = null
 

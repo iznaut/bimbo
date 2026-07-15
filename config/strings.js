@@ -109,6 +109,10 @@ export default {
     },
     generator: {
         bsky: {
+            domainVerification: {
+                success: (handle, did) => `successfully created .well-known/at-proto-did for ${handle} (${did})`,
+                fail: (handle) => `failed to create .well-known/at-proto-did for ${handle}`
+            },
             noId: "no Bluesky User ID set, skipping integrations...",
             postSuccess: "Successfully posted to Bluesky!",
         },

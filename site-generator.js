@@ -13,7 +13,6 @@ import moment from 'moment'
 import { Feed } from 'feed'
 import * as cheerio from 'cheerio'
 import * as feather from 'feather-icons'
-import { sendBlueskyPostWithEmbed } from './bluesky.ts'
 import { createServer } from 'vite'
 import chokidar from 'chokidar'
 
@@ -21,6 +20,8 @@ import { conf, logger, openBrowserPreview } from './utils.js'
 import projects from './projects.js'
 import config from './config/config.js'
 import strings from './config/strings.js' // TODO export separate categories? (e.g. {generator} from strings)
+import { sendBlueskyPostWithEmbed } from './integrations/bluesky/utils.ts' // TODO remove
+import { createPost, setupDomainVerification } from './integrations/bluesky/main.js'
 
 let rssFeed
 
@@ -203,21 +204,18 @@ async function build() {
 		rssFeed.rss2()
 	);
 
-	try {
-		if (data.site.integrations?.bskyUserId) {
-			const wellKnownPath = path.join(getJoinedPath(PATHS.OUTPUT), '.well-known')
-	
-			fs.mkdirSync(wellKnownPath)
-			fs.writeFileSync(
-				path.join(wellKnownPath, 'atproto-did'),
-				`did:plc:${data.site.integrations.bskyUserId}`
-			)
+	const bskyHandle = data.integrations?.bluesky?.handle
+
+	if (bskyHandle) {
+		try {
+			setupDomainVerification(bskyHandle, getJoinedPath(PATHS.OUTPUT))
+		}
+		catch(err) {
+			logger.warn(strings.generator.bsky.domainVerification.fail(bskyHandle))
+			logger.warn(err)
 		}
 	}
-	catch (err) {
-		logger.info(strings.generator.bsky.noId)
-		logger.info(err)
-	}
+
 
 	process.watchData = data
 
@@ -364,19 +362,10 @@ function updateMetadata(filepath, data) {
 		}
 	}
 
-	if (page.bskyPostId == 'tbd' && process.argv.includes('--deploy')) {
-		const headerImg = fs.readFileSync('static/images/header.png');
-
-		const bskyPost =[
-			`new post: ${page.title}`,
-			new URL(page.url, 'https://' + data.site.url).href,
-			page.title,
-			page.description,
-			new Blob([headerImg]),
-		]
-
-		pagesToUpdate[filepath] = bskyPost
-	}
+	// generate params for bluesky post
+	// if (page.bskyPostId == 'tbd') {
+	// 	createPost()
+	// }
 
 	data.pages.push(page)
 

@@ -1,4 +1,4 @@
-name: build
+name: build and deploy
 
 permissions:
   contents: write
@@ -23,6 +23,7 @@ jobs:
     runs-on: ${{ matrix.os.runner }}
     strategy:
       matrix:
+        sku: ['', '+']
         os: [
           { runner: 'macos-latest', channel: 'macos' },
           { runner: 'macos-15-intel', channel: 'macos-intel' },
@@ -40,12 +41,13 @@ jobs:
       - name: npm install
         uses: bahmutov/npm-install@v1
       - name: nonplus
+        if: ${{ matrix.sku == '' }}
         run: mv deploy-nonplus.js deploy.js
       - name: electron packager
         run: npx @electron/packager . --extra-resource project-starters/ --ignore project-starters/ --out build/ --overwrite
       - uses: actions/upload-artifact@v7.0.1
         with:
-          name: ${{ matrix.os.channel }}
+          name: ${{ matrix.os.channel }}${{ matrix.sku }}
           path: build
   deploy:
     name: Upload to Itch
@@ -54,6 +56,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
+        sku: ['', '+']
         channel:
           - macos
           - macos-intel
@@ -64,21 +67,23 @@ jobs:
 
       - uses: actions/download-artifact@v8
         with:
-          name: ${{ matrix.channel }}
-          path: build/${{ matrix.channel }}
+          name: ${{ matrix.channel }}${{ matrix.sku }}
+          path: build/${{ matrix.channel }}${{ matrix.sku }}
       - uses: KikimoraGames/itch-publish@v0.0.3
         with:
           butlerApiKey: ${{secrets.BUTLER_API_KEY}}
-          gameData: ./build/${{ matrix.channel }}
+          gameData: ./build/${{ matrix.channel }}${{ matrix.sku }}
           itchUsername: ${{env.ITCH_USERNAME}}
           itchGameId: ${{ env.ITCH_GAME_ID }}
-          buildChannel: ${{ matrix.channel }}
+          buildChannel: ${{ matrix.channel }}${{ matrix.sku }}
           buildNumberFile: ./version
   notify:
     name: send update notification to Discord
     runs-on: ubuntu-latest
     needs: deploy
     steps:
+      - uses: actions/checkout@v6.0.3
+
       - name: get version
         run: echo "version=$(cat ./version)" >> $GITHUB_ENV
       - name: send discord message

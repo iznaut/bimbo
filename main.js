@@ -447,7 +447,7 @@ async function initDeploymentPreset(menuItem) {
 		}
 	})
 
-	win.loadFile(`deploy-popups/${presetName}.html`)
+	win.loadFile(`popups/deployment/${presetName}.html`)
 }
 
 function configureCrashReporting() {

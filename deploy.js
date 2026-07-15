@@ -172,6 +172,10 @@ export async function deploy(sftpPassword = null) {
 				logger.info(strings.deployment.finish.cancel)
 			}
 		}
+
+		// if (success) {
+		// 	postDeploy()
+		// }
 	}
 }
 
@@ -229,4 +233,8 @@ async function deployViaSftp(deployMeta, projectRootPath, password = null) {
 
 	logger.info(result)
 	return result
+}
+
+async function postDeploy() {
+
 }

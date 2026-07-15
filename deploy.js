@@ -107,7 +107,7 @@ export async function deploy(sftpPassword = null) {
 			}
 		})
 
-		win.loadFile(`deploy-popups/${deployMeta.provider}.html`)
+		win.loadFile(`popups/deployment/${deployMeta.provider}.html`)
 	}
 	else if (deployMeta.host && !sftpPassword && !deployMeta.keyPath) {
 		const __filename = fileURLToPath(import.meta.url)
@@ -122,7 +122,7 @@ export async function deploy(sftpPassword = null) {
 			}
 		})
 
-		win.loadFile(`deploy-popups/sftp-password.html`)
+		win.loadFile(`popups/deployment/sftp-password.html`)
 	}
 	else {
 		let success = false

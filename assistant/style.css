@@ -1,0 +1,14 @@
+.assistant {
+    display: flex;
+
+    .box {
+        position: fixed;
+        bottom: 0;
+        right: 0;
+        width: 20%;
+
+        .message {
+            background-color: white;
+        }
+    }
+}

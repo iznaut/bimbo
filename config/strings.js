@@ -28,8 +28,9 @@ export default {
         upgrade: `👀 get ${config.APP_NAME}+ for one-click deploy!`,
         settings: {
             title: "settings",
-            showProjectTitleInMenubar: "show active project title in menubar",
+            showAssistant: "show assistant on site preview",
             autoOpenPreview: "open site preview on app/project load",
+            showProjectTitleInMenubar: "show active project title in menubar",
             submitCrashLogs: "submit crash reports/logs to bimbo central",
         },
         support: {

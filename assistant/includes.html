@@ -1,0 +1,17 @@
+<link href="/assistant/style.css" rel="stylesheet" type="text/css" media="all">
+<script src="/assistant/jquery-4.0.0.min.js"></script>
+<script>
+    window.addEventListener("error", (event) => {
+        console.log(event)
+        if (event.type == 'error' && event.target.tagName == 'IMG') {
+            $('.message').text("images not loading? make sure you include a leading backslash!")
+        }
+    }, true)
+
+</script>
+<div class="assistant">
+    <div class="box">
+        <p class="message"></p>
+        <img class="float" src="/assistant/izzy.png"></img>
+    </div>
+</div>

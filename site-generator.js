@@ -407,6 +407,12 @@ function generatePages(data) {
 
 		try {
 			htmlOutput = htmlTemplate(page)
+
+			const ASSISTANT_INCLUDES_HTML = fs.readFileSync('assistant/includes.html', 'utf-8')
+
+			const $ = cheerio.load(htmlOutput)
+			$('body').prepend(ASSISTANT_INCLUDES_HTML)
+			htmlOutput = $.html()
 		}
 		catch(error) {
 			logger.error(strings.generator.compileFail(page.template))
@@ -422,6 +428,8 @@ function generatePages(data) {
 		if (!fs.existsSync(outputDir)) {
 			fs.mkdirSync(path.join(getJoinedPath(PATHS.OUTPUT), outputDir), { recursive: true })
 		}
+
+		fs.cpSync('assistant', path.join(getJoinedPath(PATHS.OUTPUT), 'assistant'), { recursive: true })
 
 		fs.writeFileSync(
 			path.join(getJoinedPath(PATHS.OUTPUT), outputPath),

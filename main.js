@@ -38,6 +38,7 @@ import {
 	BrowserWindow,
 	crashReporter,
 } from 'electron'
+import { compileHtml } from './site-generator.js'
 
 // exec("ssh-keygen -t rsa -q -f \"$HOME/.ssh/id_rsa2\" -N \"\"", (error, stdout, stderr) => {
 //     if (error) {
@@ -115,6 +116,36 @@ app.whenReady().then(() => {
 			notifyUpdateAvailability(results.versionIsCurrent, results.versionCheckError)
 		}
 	})
+
+	// TODO this should open "welcome" window
+	// (do version compare for changelog window)
+	if (!conf.get('lastVersionLaunched')) {
+		// TODO make this a util function
+		const __filename = fileURLToPath(import.meta.url)
+		const __dirname = path.dirname(__filename)
+
+		let window = new BrowserWindow({
+			title: strings.popups.configDeploymentTitle,
+			useContentSize: true,
+			alwaysOnTop: true,
+			webPreferences: {
+				preload: path.join(__dirname, 'preload.js')
+			},
+		})
+
+		let changelogYaml = fs.readFileSync("CHANGELOG.yaml", "utf-8")
+		let changelogHtml = compileHtml("popups/changelog.html", yaml.parse(changelogYaml))
+
+		window.loadURL(
+			'data:text/html;charset=UTF-8,' + encodeURIComponent(changelogHtml),
+			{ baseURLForDataURL: `file://${__dirname}/popups/` }
+		)
+
+		window.on('close', () => {
+			conf.set('lastVersionLaunched', CURRENT_VERSION)
+		})
+	}
+		
 
 	logger.info(strings.logMsg.ready)
 })

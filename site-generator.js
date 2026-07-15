@@ -400,22 +400,6 @@ function generatePages(data) {
 			templatePath = path.join(getJoinedPath(PATHS.TEMPLATES), 'default.html')
 		}
 
-		let htmlOutput = fs.readFileSync(templatePath, "utf-8")
-
-		// compile html template
-		let htmlTemplate = Handlebars.compile(htmlOutput)
-
-		try {
-			htmlOutput = htmlTemplate(page)
-		}
-		catch(error) {
-			logger.error(strings.generator.compileFail(page.template))
-			let encodedError = error.message.replace(/[\u00A0-\u9999<>\&]/gim, function(i) {
-				return '&#' + i.charCodeAt(0) + ';'
-			})
-			htmlOutput = ('<pre>' + encodedError + '</pre>')
-		}
-
 		let outputPath = page.url
 		let outputDir = path.dirname(outputPath)
 
@@ -425,9 +409,27 @@ function generatePages(data) {
 
 		fs.writeFileSync(
 			path.join(getJoinedPath(PATHS.OUTPUT), outputPath),
-			htmlOutput
+			compileHtml(templatePath, page)
 		);
 
 		return outputPath
 	})
+}
+
+export function compileHtml(templatePath, data) {
+	let htmlOutput = fs.readFileSync(templatePath, "utf-8")
+	let htmlTemplate = Handlebars.compile(htmlOutput)
+
+	try {
+		htmlOutput = htmlTemplate(data)
+	}
+	catch(error) {
+		logger.error(strings.generator.compileFail(data.template))
+		let encodedError = error.message.replace(/[\u00A0-\u9999<>\&]/gim, function(i) {
+			return '&#' + i.charCodeAt(0) + ';'
+		})
+		htmlOutput = ('<pre>' + encodedError + '</pre>')
+	}
+
+	return htmlOutput
 }

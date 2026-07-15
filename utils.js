@@ -37,7 +37,8 @@ export const conf = new Conf({
 			showProjectTitleInMenubar: true,
 			autoOpenPreview: false,
 			submitCrashLogs: true
-		}
+		},
+		lastVersionLaunched: null,
 	}
 })
 

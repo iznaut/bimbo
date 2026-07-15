@@ -1,5 +1,6 @@
 import { nativeImage } from 'electron'
 
+// TODO change this or user config name so there aren't two configs
 let config = {}
 
 config.APP_NAME = 'bimbo'

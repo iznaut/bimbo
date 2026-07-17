@@ -1,6 +1,7 @@
 {
   "name": "bimbo",
   "description": "static site generator for dumb girls",
+  "version": "0.10.13-beta",
   "main": "main.js",
   "bin": {
     "bimbo": "main.js"

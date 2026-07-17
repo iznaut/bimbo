@@ -1,6 +1,7 @@
 // source: https://kulpinski.dev/posts/embed-card-links-on-bluesky/
 
 import { AtpAgent, RichText } from "@atproto/api"
+import projects from "../../projects.js"
 
 type Metadata = {
   title: string
@@ -72,9 +73,11 @@ const getBlueskyAgent = async () => {
     service: "https://bsky.social",
   })
 
+  const creds = projects.getActive().data.integrations.bluesky
+
   await agent.login({
-    identifier: process.env.BLUESKY_USERNAME!,
-    password: process.env.BLUESKY_PASSWORD!,
+    identifier: creds.handle!,
+    password: creds.appPassword!,
   })
 
   return agent

@@ -55,7 +55,7 @@ export default {
             conf.set('activeIndex', index)
         }
 
-        watch()
+        watch(true)
 
         showNotification(
             index == -1

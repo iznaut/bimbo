@@ -30,6 +30,7 @@
     "markdown-it-footnote": "^4.0.0",
     "markdown-it-highlightjs": "^4.2.0",
     "moment": "^2.30.1",
+    "promise-all-properties": "^6.0.0",
     "ssh2-sftp-client": "^12.1.1",
     "tiny-json-http": "^7.5.1",
     "vite": "^7.3.0",

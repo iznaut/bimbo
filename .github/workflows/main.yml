@@ -7,8 +7,8 @@ on:
   push:
     branches:
       - main
-    paths:
-      - 'version'
+    # paths:
+    #   - 'version'
 
 env:
   ITCH_USERNAME: iznaut
@@ -47,6 +47,17 @@ jobs:
         with:
           name: ${{ matrix.os.channel }}
           path: build
+      - name: Conventional Changelog Action
+        uses: TriPSs/conventional-changelog-action@v5
+        with:
+          github-token: ${{ secrets.github_token }}
+      - name: Create Release
+        uses: softprops/action-gh-release@v3
+        if: ${{ steps.changelog.outputs.skipped == 'false' }}
+        with:
+          tag_name: ${{ steps.changelog.outputs.tag }}
+          release_name: ${{ steps.changelog.outputs.tag }}
+          body: ${{ steps.changelog.outputs.clean_changelog }}
   deploy:
     name: Upload to Itch
     needs: build

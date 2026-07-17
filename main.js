@@ -37,7 +37,9 @@ import {
 	Tray,
 	BrowserWindow,
 	crashReporter,
+	ipcMain,
 } from 'electron'
+import { resolveHandle } from './integrations/bluesky/main.js'
 
 // exec("ssh-keygen -t rsa -q -f \"$HOME/.ssh/id_rsa2\" -N \"\"", (error, stdout, stderr) => {
 //     if (error) {
@@ -180,6 +182,8 @@ function updateTrayMenu() {
 	]
 
 	const deployMeta = activeProject && activeProject.data.deployment
+	const bskyMeta = activeProject && activeProject.data.integrations?.bluesky
+	const bskyAutoPostEnabled = conf.get('settings.bskyAutoPost')
 
 	menu = Menu.buildFromTemplate([
 		{
@@ -275,6 +279,33 @@ function updateTrayMenu() {
 					}
 				})
 			)
+		},
+		{
+			label: bskyAutoPostEnabled ? strings.menu.bskyAutoPost.enabled(bskyMeta?.handle) : strings.menu.bskyAutoPost.disabled,
+			visible: !!bskyMeta && IS_PLUS_MODE,
+			click: () => {
+				conf.set('settings.bskyAutoPost', !conf.get('settings.bskyAutoPost'))
+			},
+		},
+		{
+			label: strings.menu.configBsky,
+			enabled: IS_PLUS_MODE && !!activeProject,
+			visible: !bskyMeta,
+			click: () => {
+				const __filename = fileURLToPath(import.meta.url)
+				const __dirname = path.dirname(__filename)
+		
+				win = new BrowserWindow({
+					useContentSize: true,
+					alwaysOnTop: true,
+					webPreferences: {
+						preload: path.join(__dirname, 'preload.js')
+					}
+				})
+				
+				// TODO move to popups folder
+				win.loadFile("integrations/bluesky/bsky-app-password.html")
+			}
 		},
 		{
 			label: strings.menu.upgrade,
@@ -406,6 +437,28 @@ function updateTrayTitle() {
 	tray.setToolTip(displayTitle)
 	tray.setTitle(conf.get('settings.showProjectTitleInMenubar') ? displayTitle : '')
 }
+
+ipcMain.handle('bsky', async function (_event, data) {
+	// TODO dedupe
+	const bskyUserId = await resolveHandle(data.handle)
+	// TODO util function for writing secrets
+	const secretsPath = projects.getActivePath(config.SECRETS_FILENAME)
+
+	if (!fs.existsSync(secretsPath)) {
+		fs.writeFileSync(secretsPath, yaml.stringify({}))
+	}
+
+	const secretsData = yaml.parse(fs.readFileSync(secretsPath, "utf-8"))
+	const integrations = {
+		bluesky: {
+			handle: data.handle, // TODO do we need this? will it break if changed?
+			userId: bskyUserId,
+			appPassword: data.appPassword,
+		}
+	}
+	secretsData.integrations = integrations // TODO will need to merge if more integrations are added
+	fs.writeFileSync(secretsPath, yaml.stringify(secretsData))
+})
 
 async function initProjectStarter(newProjPath, starterName) {
 	fs.cpSync(path.join(startersPath, starterName), newProjPath, {recursive: true})

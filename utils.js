@@ -36,7 +36,8 @@ export const conf = new Conf({
 		settings: {
 			showProjectTitleInMenubar: true,
 			autoOpenPreview: false,
-			submitCrashLogs: true
+			submitCrashLogs: true,
+			bskyAutoPost: true,
 		}
 	}
 })

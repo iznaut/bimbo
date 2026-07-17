@@ -5,8 +5,10 @@ export default {
     app: {
         title: config.APP_NAME,
         titleWithVersion: (version) =>
-            `${config.APP_NAME}${IS_PLUS_MODE ? "+" : ""} ssg v${version}`,
+            `💖 ${config.APP_NAME}${IS_PLUS_MODE ? "+" : ""} ssg v${version}`,
         configClear: `${config.APP_NAME} config has been reset to defaults`,
+        pauseWatcher: "temporarily pausing project watcher 🙈",
+        server: (port) => `preview webserver started on port ${port}`,
     },
     projects: {
         notLoaded: "no project loaded",
@@ -24,7 +26,12 @@ export default {
         openEditor: `👩‍💻 edit in VSCodium`,
         openFolder: `📂 open project folder`,
         configDeployment: "set up deployment",
+        configBsky: "set up Bluesky integration",
         deploy: (provider) => `🌐 deploy to ${provider}`,
+        bskyAutoPost: {
+            enabled: (handle) => `🦋 autoposting to @${handle}`,
+            disabled: "🦋 Bluesky autoposting disabled",
+        },
         upgrade: `👀 get ${config.APP_NAME}+ for one-click deploy!`,
         settings: {
             title: "settings",
@@ -57,6 +64,8 @@ export default {
             `unable to find project, removing from list: ${path}`,
         writeDeployMeta: (secretsPath) =>
             `writing deploy meta to ${secretsPath}`,
+        deployStart: "🌐 user requested deployment",
+        postDeployStart: "starting secondary deployment",
     },
     update: {
         none: "no updates available",
@@ -100,23 +109,35 @@ export default {
             success: (provider) => `${provider} auth successful`,
             fail: (provider) => `${provider} auth failed`,
         },
-        start: (provider) => `starting deployment to ${provider} via SFTP`,
+        start: (provider) => `starting deployment to ${provider}`,
         finish: {
-            success: "deployment completed successfully",
-            fail: "deployment failed",
+            success: (isPostDeploy) => `${isPostDeploy ? "post-" : ""}deployment completed successfully 💅`,
+            fail: "deployment failed 🙇‍♀️",
         },
         cancel: "deployment canceled",
+        urlCheck: {
+            success: (url) => `confirmed remote page is live: ${url}`,
+            fail: (url) => `unable to resolve remote url: ${url}`,
+        },
+        queuedPosts: "found queued Bluesky posts, beginning post-deploy",
+        bskyPostSkipped: "skipping Bluesky post for unresolved page",
     },
     generator: {
         bsky: {
-            noId: "no Bluesky User ID set, skipping integrations...",
-            postSuccess: "Successfully posted to Bluesky!",
+            domainVerification: {
+                success: (handle, did) =>
+                    `successfully created .well-known/atproto-did for ${handle} (${did})`,
+                fail: (handle) =>
+                    `failed to create .well-known/atproto-did for ${handle}`,
+            },
+            postSuccess: (url) => `successfully posted to Bluesky! ${url}`,
         },
-        buildComplete: "site build completed 💅",
+        buildStart: (isPostDeploy) => `👷‍♀️ ${isPostDeploy ? "post deploy " : ""}site build starting...`,
+        buildComplete: (isPostDeploy) => `${isPostDeploy ? "post deploy " : ""}site build completed 💅`,
         missingTemplate: "couldn't find template, using default",
         compileFail: (template) => `failed to compile ${template}`,
-        rssFail: "failed to add RSS post...",
-        monitoring: (path) => `monitoring ${path} for changes`,
+        rssFail: "failed to add RSS post",
+        monitoring: (path) => `👀 watching ${path} for changes`,
         skipDraft: (path) => `skipping ${path} (draft)`,
     },
 }

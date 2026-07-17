@@ -7,12 +7,15 @@ import * as fs from 'node:fs'
 import { fileURLToPath } from 'url'
 import * as yaml from 'yaml'
 import { zip } from 'zip-a-folder'
-import { setTimeout } from "timers/promises";
+import { setTimeout } from "timers/promises"
+import tiny from "tiny-json-http"
 
 import { conf, logger, showMessageBox, showNotification, showPrompt } from './utils.js'
 import strings from './config/strings.js'
 import projects from './projects.js'
 import config from './config/config.js'
+import { arePostsQueued } from './integrations/bluesky/main.js'
+import { build, pauseWatcher, watch } from './site-generator.js'
 
 export const IS_PLUS_MODE = true
 
@@ -90,7 +93,14 @@ ipcMain.handle('form', async function (_event, newDeployMeta) {
 	}
 })
 
-export async function deploy(sftpPassword = null) {
+export async function deploy(sftpPassword = null, isPostDeploy = false) {
+	if (isPostDeploy) {
+		logger.info(strings.logMsg.postDeployStart)
+	}
+	else {
+		logger.info(strings.logMsg.deployStart)
+	}
+
 	const activeProjectMeta = projects.getActive()
 	const deployMeta = activeProjectMeta.data.deployment
 
@@ -129,29 +139,35 @@ export async function deploy(sftpPassword = null) {
 
 		if (sftpPassword || deployMeta.keyPath) {
 			// TODO dedupe
+			await pauseWatcher()
 			let startMsg = strings.deployment.start(deployMeta.provider)
-			showNotification(startMsg)
 			logger.info(startMsg)
+			showNotification(startMsg)
 
 			success = await deployViaSftp(deployMeta, activeProjectMeta.rootPath, sftpPassword)
 
-			let resultMsg = success ? strings.deployment.finish.success : strings.deployment.finish.fail	
+			let resultMsg = success ? strings.deployment.finish.success(isPostDeploy) : strings.deployment.finish.fail	
 			logger.info(resultMsg)
 			showNotification(resultMsg)
 		}
 		else {
-			let clickedId = showPrompt(
-				strings.popups.confirmDeployment.message(
-					activeProjectMeta.data.site.title,
-					deployMeta.provider
-				),
-				'warning'
-			)
+			let clickedId = 0
+
+			if (!isPostDeploy) {
+				clickedId = showPrompt(
+					strings.popups.confirmDeployment.message(
+						activeProjectMeta.data.site.title,
+						deployMeta.provider
+					),
+					'warning'
+				)
+			}
 	
 			if (clickedId == 0) {
+				await pauseWatcher()
 				let startMsg = strings.deployment.start(deployMeta.provider)
 				logger.info(startMsg)
-				showNotification(startMsg)	
+				showNotification(startMsg)
 	
 				switch (deployMeta.provider) {
 					case 'nekoweb':
@@ -164,7 +180,7 @@ export async function deploy(sftpPassword = null) {
 						break;
 				}
 	
-				let resultMsg = success ? strings.deployment.finish.success : strings.deployment.finish.fail
+				let resultMsg = success ? strings.deployment.finish.success(isPostDeploy) : strings.deployment.finish.fail
 				logger.info(resultMsg)
 				showNotification(resultMsg)
 			}
@@ -172,19 +188,33 @@ export async function deploy(sftpPassword = null) {
 				logger.info(strings.deployment.finish.cancel)
 			}
 		}
+
+		if (success) {
+			if (conf.get("settings.bskyAutoPost") && !isPostDeploy) {
+				await postDeploy()
+			}
+		}
+
+		watch()
 	}
 }
 
 async function deployToNeocities(deployMeta) {
-	const client = new NeocitiesAPIClient(deployMeta.apiKey)
-
-	let result = await client.deploy({
-		directory: path.join(projects.getActive().rootPath, '_site'),
-		cleanup: true, // Delete orphaned files
-		includeUnsupportedFiles: false // TODO - atproto-did unsupported, paid feature
-	})
-
-	return result.results[0].body.result == 'success'
+	try {
+		const client = new NeocitiesAPIClient(deployMeta.apiKey)
+	
+		let result = await client.deploy({
+			directory: path.join(projects.getActive().rootPath, '_site'),
+			cleanup: true, // Delete orphaned files
+			includeUnsupportedFiles: false // TODO - atproto-did unsupported, paid feature
+		})
+	
+		return result.results[0].body.result == 'success'
+	}
+	catch(err) {
+		logger.error(err)
+		return false
+	}
 }
 
 async function deployToNekoweb(deployMeta) {
@@ -203,7 +233,18 @@ async function deployToNekoweb(deployMeta) {
 	let response = await bigfile.import(path.join('/', deployMeta.domain))
 
 	fs.rmSync(zipPath)
+
+	// TODO atproto thing not uploading - need to do separately?
+	// let atfile = fs.readFileSync(path.join(sitePath, '.well-known/atproto-did'))
+	// await nekoweb.upload('/.well-known/atproto-did', atfile)
+
 	return response == "Imported"
+	// try {
+	// }
+	// catch(err) {
+	// 	logger.error(err) // TODO returns undefined
+	// 	return false
+	// }
 }
 
 async function deployViaSftp(deployMeta, projectRootPath, password = null) {
@@ -229,4 +270,12 @@ async function deployViaSftp(deployMeta, projectRootPath, password = null) {
 
 	logger.info(result)
 	return result
+}
+
+async function postDeploy() {
+	if (arePostsQueued()) {
+		logger.info(strings.deployment.queuedPosts)
+		await build(true)
+		await deploy(null, true)
+	}
 }

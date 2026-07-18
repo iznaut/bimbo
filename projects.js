@@ -121,8 +121,10 @@ const exports = {
         logger.info(strings.logMsg.secretsSaved(secretsPath, Object.keys(data)))
     },
     paths() {
-        return _.mapValues(PATHS, (pathPart) => path.join(this.getActive().rootPath, pathPart))
-    }
+        return _.mapValues(PATHS, (pathPart) =>
+            path.join(this.getActive().rootPath, pathPart),
+        )
+    },
 }
 
 export default exports

@@ -82,9 +82,9 @@ ipcMain.handle("form", async function (_event, newDeployMeta) {
             break
     }
 
-	projects.writeSecrets({
-		deployment: newDeployMeta
-	})
+    projects.writeSecrets({
+        deployment: newDeployMeta,
+    })
 
     projects.setActive()
 

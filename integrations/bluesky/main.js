@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises"
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
-import _ from 'lodash'
+import _ from "lodash"
 import tiny from "tiny-json-http"
 import promiseAllProperties from "promise-all-properties"
 import { sendBlueskyPostWithEmbed } from "./utils.ts"
@@ -30,9 +30,8 @@ export async function resolveHandle(handle) {
 
 async function resolveUrl(url) {
     try {
-        await tiny.get({url: url})
-    }
-    catch(err) {
+        await tiny.get({ url: url })
+    } catch (err) {
         logger.error(strings.deployment.urlCheck.fail(url))
         logger.error(err)
         return false
@@ -53,9 +52,10 @@ export async function setupDomainVerification(handle, outputPath) {
         mkdir(WELL_KNOWN_PATH).then(() => {
             writeFile(join(WELL_KNOWN_PATH, "atproto-did"), did)
 
-            logger.info(strings.generator.bsky.domainVerification.success(handle, did))
-        }
-        )
+            logger.info(
+                strings.generator.bsky.domainVerification.success(handle, did),
+            )
+        })
     } catch (err) {
         return err
     }
@@ -79,7 +79,7 @@ export function queuePost(pageData, siteUrl) {
     queuedPosts[pageData.path] = postMeta
 }
 
-export async function submitQueuedPosts() { 
+export async function submitQueuedPosts() {
     let submittedPosts = {}
 
     for (const key in queuedPosts) {
@@ -90,8 +90,7 @@ export async function submitQueuedPosts() {
         if (!doesRemoteUrlResolve) {
             logger.error(strings.deployment.bskyPostSkipped)
             delete queuedPosts[key]
-        }
-        else {
+        } else {
             submittedPosts[key] = sendBlueskyPostWithEmbed(...post)
         }
     }

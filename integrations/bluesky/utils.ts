@@ -4,9 +4,9 @@ import { AtpAgent, RichText } from "@atproto/api"
 import projects from "../../projects.js"
 
 type Metadata = {
-  title: string
-  description: string
-  image: string
+    title: string
+    description: string
+    image: string
 }
 
 /**
@@ -15,10 +15,10 @@ type Metadata = {
  * @returns The metadata
  */
 const getUrlMetadata = async (url: string) => {
-  const req = await fetch(`https://api.dub.co/metatags?url=${url}`)
-  const metadata: Metadata = await req.json()
+    const req = await fetch(`https://api.dub.co/metatags?url=${url}`)
+    const metadata: Metadata = await req.json()
 
-  return metadata
+    return metadata
 }
 
 /**
@@ -27,40 +27,51 @@ const getUrlMetadata = async (url: string) => {
  * @param agent - The Bluesky agent
  * @returns The embed card
  */
-const getBlueskyEmbedCard = async (url: string | undefined, agent: AtpAgent) => {
-  if (!url) return
+const getBlueskyEmbedCard = async (
+    url: string | undefined,
+    agent: AtpAgent,
+) => {
+    if (!url) return
 
-  try {
-    const metadata = await getUrlMetadata(url)
-    const blob = await fetch(metadata.image).then(r => r.blob())
-    const { data } = await agent.uploadBlob(blob, { encoding: "image/jpeg" })
+    try {
+        const metadata = await getUrlMetadata(url)
+        const blob = await fetch(metadata.image).then((r) => r.blob())
+        const { data } = await agent.uploadBlob(blob, {
+            encoding: "image/jpeg",
+        })
 
-    return {
-      $type: "app.bsky.embed.external",
-      external: {
-        uri: url,
-        title: metadata.title,
-        description: metadata.description,
-        thumb: data.blob,
-      },
+        return {
+            $type: "app.bsky.embed.external",
+            external: {
+                uri: url,
+                title: metadata.title,
+                description: metadata.description,
+                thumb: data.blob,
+            },
+        }
+    } catch (error) {
+        console.error("Error fetching embed card:", error)
+        return
     }
-  } catch (error) {
-    console.error("Error fetching embed card:", error)
-    return
-  }
 }
 
-const createBlueskyEmbedCard = async (url: string, title: string, description: string, thumb: Blob, agent: AtpAgent) => {
-  const { data } = await agent.uploadBlob(thumb, { encoding: "image/jpeg" })
+const createBlueskyEmbedCard = async (
+    url: string,
+    title: string,
+    description: string,
+    thumb: Blob,
+    agent: AtpAgent,
+) => {
+    const { data } = await agent.uploadBlob(thumb, { encoding: "image/jpeg" })
 
-  return {
-      $type: "app.bsky.embed.external",
-      external: {
-        uri: url,
-        title: title,
-        description: description,
-        thumb: data.blob,
-      },
+    return {
+        $type: "app.bsky.embed.external",
+        external: {
+            uri: url,
+            title: title,
+            description: description,
+            thumb: data.blob,
+        },
     }
 }
 
@@ -69,18 +80,18 @@ const createBlueskyEmbedCard = async (url: string, title: string, description: s
  * @returns The Bluesky agent
  */
 const getBlueskyAgent = async () => {
-  const agent = new AtpAgent({
-    service: "https://bsky.social",
-  })
+    const agent = new AtpAgent({
+        service: "https://bsky.social",
+    })
 
-  const creds = projects.getActive().data.integrations.bluesky
+    const creds = projects.getActive().data.integrations.bluesky
 
-  await agent.login({
-    identifier: creds.handle!,
-    password: creds.appPassword!,
-  })
+    await agent.login({
+        identifier: creds.handle!,
+        password: creds.appPassword!,
+    })
 
-  return agent
+    return agent
 }
 
 /**
@@ -89,33 +100,45 @@ const getBlueskyAgent = async () => {
  * @param url - The URL to include in the post
  */
 export const sendBlueskyPost = async (text: string, url?: string) => {
-  const agent = await getBlueskyAgent()
-  const rt = new RichText({ text })
-  await rt.detectFacets(agent)
+    const agent = await getBlueskyAgent()
+    const rt = new RichText({ text })
+    await rt.detectFacets(agent)
 
-  await agent.post({
-    text: rt.text,
-    facets: rt.facets,
-    embed: await getBlueskyEmbedCard(url, agent),
-  })
+    await agent.post({
+        text: rt.text,
+        facets: rt.facets,
+        embed: await getBlueskyEmbedCard(url, agent),
+    })
 }
 
-export const sendBlueskyPostWithEmbed = async (text: string, url: string, title: string, description: string, thumb: Blob) => {
-  const agent = await getBlueskyAgent()
-  const rt = new RichText({ text })
-  await rt.detectFacets(agent)
+export const sendBlueskyPostWithEmbed = async (
+    text: string,
+    url: string,
+    title: string,
+    description: string,
+    thumb: Blob,
+) => {
+    const agent = await getBlueskyAgent()
+    const rt = new RichText({ text })
+    await rt.detectFacets(agent)
 
-  const postData = await agent.post({
-    text: rt.text,
-    facets: rt.facets,
-    embed: await createBlueskyEmbedCard(url, title, description, thumb, agent),
-  })
-  
-  const splitUri = postData.uri.split('/')
-  const postId = splitUri[splitUri.length - 1]
+    const postData = await agent.post({
+        text: rt.text,
+        facets: rt.facets,
+        embed: await createBlueskyEmbedCard(
+            url,
+            title,
+            description,
+            thumb,
+            agent,
+        ),
+    })
 
-  return {
-    id: postId,
-    handle: agent.sessionManager.session.handle
-  }  
+    const splitUri = postData.uri.split("/")
+    const postId = splitUri[splitUri.length - 1]
+
+    return {
+        id: postId,
+        handle: agent.sessionManager.session.handle,
+    }
 }

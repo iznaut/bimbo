@@ -240,10 +240,7 @@ export async function build(isPostDeploy = false) {
         },
     )
 
-    fs.writeFileSync(
-        path.join(PROJECT_PATH.OUTPUT, "feed.xml"),
-        rssFeed.rss2(),
-    )
+    fs.writeFileSync(path.join(PROJECT_PATH.OUTPUT, "feed.xml"), rssFeed.rss2())
 
     const bskyHandle = data.integrations?.bluesky?.handle
     let bskyUserId = data.integrations?.bluesky?.userId
@@ -286,8 +283,7 @@ export async function watch(initialBuild = false) {
             .watch(ACTIVE_PROJECT_META.rootPath, {
                 ignored: (filePath) => {
                     return (
-                        PROJECT_PATH.OUTPUT ==
-                            path.normalize(filePath) ||
+                        PROJECT_PATH.OUTPUT == path.normalize(filePath) ||
                         [".git", ".gitignore", ".DS_Store"].includes(
                             path.basename(filePath),
                         ) ||
@@ -373,9 +369,7 @@ function updateMetadata(filepath, data) {
 
     let page = {
         path: filepath,
-        url: filepath
-            .replace(PROJECT_PATH.CONTENT, "")
-            .replace(".md", ".html"),
+        url: filepath.replace(PROJECT_PATH.CONTENT, "").replace(".md", ".html"),
         content: md.render(frontMatter.body),
         md: originalMd,
     }
@@ -449,19 +443,13 @@ function generatePages(data) {
 
         page.site = data.site
 
-        let templatePath = path.join(
-            PROJECT_PATH.TEMPLATES,
-            page.template,
-        )
+        let templatePath = path.join(PROJECT_PATH.TEMPLATES, page.template)
 
         // get html template
         if (!fs.existsSync(templatePath)) {
             logger.warn(strings.generator.missingTemplate)
             page.template = "default.html"
-            templatePath = path.join(
-                PROJECT_PATH.TEMPLATES,
-                "default.html",
-            )
+            templatePath = path.join(PROJECT_PATH.TEMPLATES, "default.html")
         }
 
         let htmlOutput = fs.readFileSync(templatePath, "utf-8")
@@ -492,10 +480,7 @@ function generatePages(data) {
             })
         }
 
-        fs.writeFileSync(
-            path.join(PROJECT_PATH.OUTPUT, outputPath),
-            htmlOutput,
-        )
+        fs.writeFileSync(path.join(PROJECT_PATH.OUTPUT, outputPath), htmlOutput)
 
         // queue bluesky post for after deploy
         if (conf.get("settings.bskyAutoPost") && page.bskyPostId == "tbd") {

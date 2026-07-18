@@ -285,7 +285,7 @@ export async function watch(initialBuild = false) {
         if (!server) {
             server = await createServer({
                 configFile: false,
-                root: projects.paths.OUTPUT,
+                root: projects.paths().OUTPUT,
                 publicDir: false,
                 logLevel: "silent",
                 server: {

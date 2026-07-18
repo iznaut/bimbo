@@ -23,9 +23,17 @@ export const logger = winston.createLogger({
     ],
 })
 
-export const CURRENT_VERSION = fs
-    .readFileSync(path.join(app.getAppPath(), "version"), "utf-8")
-    .trim()
+export const CURRENT_VERSION = function() {
+    let version = fs
+        .readFileSync(path.join(app.getAppPath(), "version"), "utf-8")
+        .trim()
+
+    if (isDev()) {
+        version = version.replace('-beta', '-dev')
+    }
+    
+    return version
+}()
 
 let latestVersion
 export let versionIsCurrent = true

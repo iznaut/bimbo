@@ -6,7 +6,6 @@ import prompt from 'electron-prompt'
 import * as yaml from 'yaml'
 import winston from 'winston'
 import Handlebars from 'handlebars'
-import { fileURLToPath } from 'url'
 import { BugSplatNode as BugSplat } from "bugsplat-node"
 
 import {
@@ -22,6 +21,7 @@ import {
 	showMessageBox,
 	showPrompt,
 	showFilePicker,
+	showHtmlPopup,
 } from './utils.js'
 import config from './config/config.js'
 import projects from './projects.js'
@@ -107,6 +107,8 @@ app.whenReady().then(() => {
 		// start watching last active project
 		projects.setActive()
 	}
+
+	console.log(projects.joinPath())
 
 	updateTrayTitle()
 	updateTrayMenu()
@@ -273,8 +275,8 @@ function updateTrayMenu() {
 				Object.keys(presets).map(key => {
 					return {
 						label: key,
-						click: (label) => {
-							initDeploymentPreset(label)
+						click: (menuItem) => {
+							showHtmlPopup(`popups/deployment/${menuItem.label}.html`)
 						}
 					}
 				})
@@ -292,19 +294,7 @@ function updateTrayMenu() {
 			enabled: IS_PLUS_MODE && !!activeProject,
 			visible: !bskyMeta,
 			click: () => {
-				const __filename = fileURLToPath(import.meta.url)
-				const __dirname = path.dirname(__filename)
-		
-				win = new BrowserWindow({
-					useContentSize: true,
-					alwaysOnTop: true,
-					webPreferences: {
-						preload: path.join(__dirname, 'preload.js')
-					}
-				})
-				
-				// TODO move to popups folder
-				win.loadFile("integrations/bluesky/bsky-app-password.html")
+				showHtmlPopup("popups/integrations/bluesky.html")
 			}
 		},
 		{
@@ -439,25 +429,17 @@ function updateTrayTitle() {
 }
 
 ipcMain.handle('bsky', async function (_event, data) {
-	// TODO dedupe
 	const bskyUserId = await resolveHandle(data.handle)
 	// TODO util function for writing secrets
-	const secretsPath = projects.getActivePath(config.SECRETS_FILENAME)
-
-	if (!fs.existsSync(secretsPath)) {
-		fs.writeFileSync(secretsPath, yaml.stringify({}))
-	}
-
-	const secretsData = yaml.parse(fs.readFileSync(secretsPath, "utf-8"))
-	const integrations = {
-		bluesky: {
-			handle: data.handle, // TODO do we need this? will it break if changed?
-			userId: bskyUserId,
-			appPassword: data.appPassword,
+	projects.writeSecrets({
+		integrations: {
+			bluesky: {
+				handle: data.handle, // TODO do we need this? will it break if changed?
+				userId: bskyUserId,
+				appPassword: data.appPassword,
+			}
 		}
-	}
-	secretsData.integrations = integrations // TODO will need to merge if more integrations are added
-	fs.writeFileSync(secretsPath, yaml.stringify(secretsData))
+	})
 })
 
 async function initProjectStarter(newProjPath, starterName) {
@@ -483,24 +465,6 @@ async function initProjectStarter(newProjPath, starterName) {
 
 	projects.add(newProjPath)
 	projects.setActive(projects.getAll().length - 1)
-}
-
-async function initDeploymentPreset(menuItem) {
-	let presetName = menuItem.label
-
-	const __filename = fileURLToPath(import.meta.url)
-	const __dirname = path.dirname(__filename)
-
-	win = new BrowserWindow({
-		title: strings.popups.configDeploymentTitle,
-		useContentSize: true,
-		alwaysOnTop: true,
-		webPreferences: {
-			preload: path.join(__dirname, 'preload.js')
-		}
-	})
-
-	win.loadFile(`popups/deployment/${presetName}.html`)
 }
 
 function configureCrashReporting() {

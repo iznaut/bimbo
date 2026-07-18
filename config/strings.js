@@ -62,8 +62,8 @@ export default {
         tryEditor: (editor) => `user requested editor ${editor}`,
         missingProject: (path) =>
             `unable to find project, removing from list: ${path}`,
-        writeDeployMeta: (secretsPath) =>
-            `writing deploy meta to ${secretsPath}`,
+        secretsSaved: (secretsPath, keys) =>
+            `wrote user secrets to ${secretsPath} (${keys})`,
         deployStart: "🌐 user requested deployment",
         postDeployStart: "starting secondary deployment",
     },
@@ -111,7 +111,8 @@ export default {
         },
         start: (provider) => `starting deployment to ${provider}`,
         finish: {
-            success: (isPostDeploy) => `${isPostDeploy ? "post-" : ""}deployment completed successfully 💅`,
+            success: (isPostDeploy) =>
+                `${isPostDeploy ? "post-" : ""}deployment completed successfully 💅`,
             fail: "deployment failed 🙇‍♀️",
         },
         cancel: "deployment canceled",
@@ -132,8 +133,10 @@ export default {
             },
             postSuccess: (url) => `successfully posted to Bluesky! ${url}`,
         },
-        buildStart: (isPostDeploy) => `👷‍♀️ ${isPostDeploy ? "post deploy " : ""}site build starting...`,
-        buildComplete: (isPostDeploy) => `${isPostDeploy ? "post deploy " : ""}site build completed 💅`,
+        buildStart: (isPostDeploy) =>
+            `👷‍♀️ ${isPostDeploy ? "post deploy " : ""}site build starting...`,
+        buildComplete: (isPostDeploy) =>
+            `${isPostDeploy ? "post deploy " : ""}site build completed 💅`,
         missingTemplate: "couldn't find template, using default",
         compileFail: (template) => `failed to compile ${template}`,
         rssFail: "failed to add RSS post",

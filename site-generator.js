@@ -23,9 +23,9 @@ import strings from "./config/strings.js" // TODO export separate categories? (e
 import {
     queuePost,
     setupDomainVerification,
-	arePostsQueued,
-	submitQueuedPosts,
-	resolveHandle,
+    arePostsQueued,
+    submitQueuedPosts,
+    resolveHandle,
 } from "./integrations/bluesky/main.js"
 
 let rssFeed
@@ -46,20 +46,18 @@ const PATHS = {
     OUTPUT: "_site",
 }
 
-function getJoinedPath(pathConst) {
-    return path.normalize(path.join(projects.getActive().rootPath, pathConst))
-}
-
 export async function build(isPostDeploy = false) {
-	logger.info(strings.generator.buildStart(isPostDeploy))
+    logger.info(strings.generator.buildStart(isPostDeploy))
+
+    const PROJECT_PATH = projects.paths()
 
     // load site config data
     let data = projects.getActive().data
     data.pages = []
 
     // register Handlebars partials
-    if (fs.existsSync(getJoinedPath(PATHS.PARTIALS))) {
-        const partials = fs.readdirSync(getJoinedPath(PATHS.PARTIALS))
+    if (fs.existsSync(PROJECT_PATH.PARTIALS)) {
+        const partials = fs.readdirSync(PROJECT_PATH.PARTIALS)
 
         partials.forEach(function (filename) {
             var matches = /^([^.]+).hbs$/.exec(filename)
@@ -68,8 +66,8 @@ export async function build(isPostDeploy = false) {
             }
             var name = matches[1]
             var template = fs.readFileSync(
-                path.join(getJoinedPath(PATHS.PARTIALS), filename),
-                "utf8",
+                path.join(PROJECT_PATH.PARTIALS, filename),
+                "utf-8",
             )
             Handlebars.registerPartial(name, template)
         })
@@ -94,10 +92,11 @@ export async function build(isPostDeploy = false) {
         return valid[0]
     })
 
-    if (fs.existsSync(getJoinedPath(PATHS.OUTPUT))) {
-        fs.rmSync(getJoinedPath(PATHS.OUTPUT), { recursive: true, force: true })
+    // delete previous build
+    if (fs.existsSync(PROJECT_PATH.OUTPUT)) {
+        fs.rmSync(PROJECT_PATH.OUTPUT, { recursive: true, force: true })
     }
-    fs.mkdirSync(getJoinedPath(PATHS.OUTPUT))
+    fs.mkdirSync(PROJECT_PATH.OUTPUT)
 
     rssFeed = new Feed({
         title: data.site.title,
@@ -113,20 +112,20 @@ export async function build(isPostDeploy = false) {
 
     data.site.userDefined = {}
 
-    const userDataPath = getJoinedPath(PATHS.DATA)
-
-    if (fs.existsSync(userDataPath)) {
-        const dataFilepaths = await fs.promises.readdir(userDataPath, {
+    if (fs.existsSync(PROJECT_PATH.DATA)) {
+        // TODO - find out why i'm using promise readdir sometimes
+        const dataFilepaths = await fs.promises.readdir(PROJECT_PATH.DATA, {
             recursive: true,
         })
 
         _.each(dataFilepaths, (filepath) => {
             const rawData = fs.readFileSync(
-                path.join(userDataPath, filepath),
+                path.join(PROJECT_PATH.DATA, filepath),
                 "utf-8",
             )
             const dataName = path.basename(filepath, path.extname(filepath))
 
+            // TODO clean this up
             if (path.extname(filepath) == ".json") {
                 data.site.userDefined[dataName] = JSON.parse(rawData)
             }
@@ -139,22 +138,23 @@ export async function build(isPostDeploy = false) {
         })
     }
 
-    const contentPath = getJoinedPath(PATHS.CONTENT)
-
-    if (fs.existsSync(contentPath)) {
-        const contentFilepaths = await fs.promises.readdir(contentPath, {
-            recursive: true,
-        })
+    if (fs.existsSync(PROJECT_PATH.CONTENT)) {
+        const contentFilepaths = await fs.promises.readdir(
+            PROJECT_PATH.CONTENT,
+            {
+                recursive: true,
+            },
+        )
         let mdPaths = contentFilepaths.filter((item) => {
             return path.extname(item) == ".md"
         })
 
         mdPaths.forEach((item) => {
-            data = updateMetadata(path.join(contentPath, item), data)
+            data = updateMetadata(path.join(PROJECT_PATH.CONTENT, item), data)
         })
 
         if (isPostDeploy && arePostsQueued()) {
-			await pauseWatcher()
+            await pauseWatcher()
             const postsData = await submitQueuedPosts()
 
             let index = 0
@@ -176,7 +176,11 @@ export async function build(isPostDeploy = false) {
                     ),
                 )
 
-                logger.info(strings.generator.bsky.postSuccess(`https://bsky.app/profile/${data.integrations.bluesky.userId}/post/${postData.id}`))
+                logger.info(
+                    strings.generator.bsky.postSuccess(
+                        `https://bsky.app/profile/${data.integrations.bluesky.userId}/post/${postData.id}`,
+                    ),
+                )
 
                 index++
             })
@@ -193,7 +197,7 @@ export async function build(isPostDeploy = false) {
 
         data.site.blogPosts = _.chain(data.pages)
             .filter((v) => {
-                return path.dirname(v.path) == getJoinedPath(PATHS.POSTS)
+                return path.dirname(v.path) == PROJECT_PATH.POSTS
             })
             .sortBy((v) => {
                 return v.date * (data.site.sortPostsAscending ? 1 : -1)
@@ -202,7 +206,7 @@ export async function build(isPostDeploy = false) {
 
         data.site.snippets = _.chain(data.pages)
             .filter((v) => {
-                return path.dirname(v.path) == getJoinedPath(PATHS.SNIPPETS)
+                return path.dirname(v.path) == PROJECT_PATH.SNIPPETS
             })
             .map((v) => {
                 const key = path.basename(v.path, ".md")
@@ -226,24 +230,23 @@ export async function build(isPostDeploy = false) {
 
     // copy static pages
     fs.cp(
-        getJoinedPath(PATHS.STATIC),
-        getJoinedPath(PATHS.OUTPUT),
+        PROJECT_PATH.STATIC,
+        PROJECT_PATH.OUTPUT,
         { recursive: true },
         (err) => {
             if (err) {
-                logger.info(err)
+                logger.error(err)
             }
         },
     )
 
     fs.writeFileSync(
-        path.join(getJoinedPath(PATHS.OUTPUT), "feed.xml"),
+        path.join(PROJECT_PATH.OUTPUT, "feed.xml"),
         rssFeed.rss2(),
     )
 
     const bskyHandle = data.integrations?.bluesky?.handle
     let bskyUserId = data.integrations?.bluesky?.userId
-
 
     if (bskyHandle) {
         // TODO never exists bc _site gets wiped every build
@@ -257,33 +260,13 @@ export async function build(isPostDeploy = false) {
         //         logger.warn(err)
         //     }
         // }
-
-		if (!bskyUserId) {
-			try {
-				bskyUserId = await resolveHandle(bskyHandle)
-				// TODO util function for writing secrets
-				const secretsPath = projects.getActivePath(config.SECRETS_FILENAME)
-
-				if (!fs.existsSync(secretsPath)) {
-					fs.writeFileSync(secretsPath, yaml.stringify({}))
-				}
-
-				const secretsData = yaml.parse(fs.readFileSync(secretsPath, "utf-8"))
-				secretsData.integrations.bluesky.userId = bskyUserId
-				data.integrations.bluesky.userId = bskyUserId
-				fs.writeFileSync(secretsPath, yaml.stringify(secretsData))
-			} catch (err) {
-				// TODO log error message
-				logger.warn(err)
-			}
-		}
     }
 
     process.watchData = data
 
     logger.info(strings.generator.buildComplete(isPostDeploy))
 
-	// TODO this is autoOpenPreview now and probably goes elsewhere
+    // TODO this is autoOpenPreview now and probably goes elsewhere
     // if (conf.get("settings.openPreviewOnChange")) {
     //     openBrowserPreview()
     // }
@@ -295,14 +278,15 @@ export async function watch(initialBuild = false) {
         await watcher.close()
     }
 
-    let activeProject = projects.getActive()
+    const ACTIVE_PROJECT_META = projects.getActive()
+    const PROJECT_PATH = projects.paths()
 
-    if (activeProject) {
+    if (ACTIVE_PROJECT_META) {
         watcher = chokidar
-            .watch(activeProject.rootPath, {
+            .watch(ACTIVE_PROJECT_META.rootPath, {
                 ignored: (filePath) => {
                     return (
-                        getJoinedPath(PATHS.OUTPUT) ==
+                        PROJECT_PATH.OUTPUT ==
                             path.normalize(filePath) ||
                         [".git", ".gitignore", ".DS_Store"].includes(
                             path.basename(filePath),
@@ -325,26 +309,26 @@ export async function watch(initialBuild = false) {
                 }
             })
 
-        logger.info(strings.generator.monitoring(activeProject.rootPath))
+        logger.info(strings.generator.monitoring(ACTIVE_PROJECT_META.rootPath))
 
         if (!server) {
-			server = await createServer({
-				configFile: false,
-				root: getJoinedPath(PATHS.OUTPUT),
-				publicDir: false,
-				logLevel: "silent",
-				server: {
-					port: config.VITE_PORT,
-					strictPort: true,
-				},
-			})
-			await server.listen()
-			logger.info(strings.app.server(config.VITE_PORT))
+            server = await createServer({
+                configFile: false,
+                root: projects.paths.OUTPUT,
+                publicDir: false,
+                logLevel: "silent",
+                server: {
+                    port: config.VITE_PORT,
+                    strictPort: true,
+                },
+            })
+            await server.listen()
+            logger.info(strings.app.server(config.VITE_PORT))
         }
 
-		if (initialBuild) {
-			build()
-		}
+        if (initialBuild) {
+            build()
+        }
     }
 }
 
@@ -357,7 +341,7 @@ export async function pauseWatcher() {
 }
 
 function getContentDefaults(dir) {
-    const defaultFilepath = path.join(dir, "~default.yaml")
+    const defaultFilepath = path.join(dir, config.DEFAULTS_FILENAME)
 
     if (fs.existsSync(defaultFilepath)) {
         return yaml.parse(fs.readFileSync(defaultFilepath, "utf-8"))
@@ -367,6 +351,8 @@ function getContentDefaults(dir) {
 }
 
 function updateMetadata(filepath, data) {
+    const PROJECT_PATH = projects.paths()
+
     const originalMd = fs.readFileSync(filepath, "utf-8")
 
     let frontMatter = fm(originalMd)
@@ -388,7 +374,7 @@ function updateMetadata(filepath, data) {
     let page = {
         path: filepath,
         url: filepath
-            .replace(getJoinedPath(PATHS.CONTENT), "")
+            .replace(PROJECT_PATH.CONTENT, "")
             .replace(".md", ".html"),
         content: md.render(frontMatter.body),
         md: originalMd,
@@ -454,6 +440,8 @@ function updateMetadata(filepath, data) {
 }
 
 function generatePages(data) {
+    const PROJECT_PATH = projects.paths()
+
     _.each(data.pages, (page) => {
         if (page.redirect) {
             return
@@ -462,7 +450,7 @@ function generatePages(data) {
         page.site = data.site
 
         let templatePath = path.join(
-            getJoinedPath(PATHS.TEMPLATES),
+            PROJECT_PATH.TEMPLATES,
             page.template,
         )
 
@@ -471,7 +459,7 @@ function generatePages(data) {
             logger.warn(strings.generator.missingTemplate)
             page.template = "default.html"
             templatePath = path.join(
-                getJoinedPath(PATHS.TEMPLATES),
+                PROJECT_PATH.TEMPLATES,
                 "default.html",
             )
         }
@@ -485,7 +473,7 @@ function generatePages(data) {
             htmlOutput = htmlTemplate(page)
         } catch (error) {
             logger.error(strings.generator.compileFail(page.template))
-			logger.error(error.message)
+            logger.error(error.message)
             let encodedError = error.message.replace(
                 /[\u00A0-\u9999<>\&]/gim,
                 function (i) {
@@ -499,20 +487,20 @@ function generatePages(data) {
         let outputDir = path.dirname(outputPath)
 
         if (!fs.existsSync(outputDir)) {
-            fs.mkdirSync(path.join(getJoinedPath(PATHS.OUTPUT), outputDir), {
+            fs.mkdirSync(path.join(PROJECT_PATH.OUTPUT, outputDir), {
                 recursive: true,
             })
         }
 
         fs.writeFileSync(
-            path.join(getJoinedPath(PATHS.OUTPUT), outputPath),
+            path.join(PROJECT_PATH.OUTPUT, outputPath),
             htmlOutput,
         )
 
-		// queue bluesky post for after deploy
-		if (conf.get('settings.bskyAutoPost') && page.bskyPostId == 'tbd') {
-			queuePost(page)
-		}
+        // queue bluesky post for after deploy
+        if (conf.get("settings.bskyAutoPost") && page.bskyPostId == "tbd") {
+            queuePost(page)
+        }
 
         return outputPath
     })

@@ -1,5 +1,7 @@
+import config from "./config.js"
+
 export default {
-    localPreview: 'http://localhost:6969',
+    localPreview: `http://localhost:${config.VITE_PORT}`,
     itch: 'https://iznaut.itch.io/bimbo',
     tutorial: 'https://bimbo.nekoweb.org/posts/2-getting-started.html',
     discord: 'https://discord.gg/hkAMG3Kru8',

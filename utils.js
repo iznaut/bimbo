@@ -1,11 +1,12 @@
 import { platform } from 'node:os'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import { app, Notification, shell, dialog } from 'electron'
+import { app, Notification, shell, dialog, BrowserWindow } from 'electron'
 import { Conf } from 'electron-conf/main'
 import winston from 'winston'
 import { compareVersions } from 'compare-versions'
 import tiny from 'tiny-json-http'
+import { fileURLToPath } from 'url'
 
 import { IS_PLUS_MODE } from './deploy.js'
 import strings from './config/strings.js'
@@ -27,6 +28,9 @@ export const CURRENT_VERSION = fs.readFileSync(path.join(app.getAppPath(), 'vers
 let latestVersion
 export let versionIsCurrent = true
 let versionCheckError = false
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 export const conf = new Conf({
 	defaults: {
@@ -123,4 +127,17 @@ export function showPrompt(message, type = 'none', buttons = null) {
 
 export function showFilePicker(config) {
 	return dialog.showOpenDialogSync(config)
+}
+
+// TODO make deployment htmls into templates
+export function showHtmlPopup(htmlPath) {
+	const window = new BrowserWindow({
+		useContentSize: true,
+		alwaysOnTop: true,
+		webPreferences: {
+			preload: path.join(__dirname, 'preload.js')
+		}
+	})
+
+	window.loadFile(htmlPath)
 }

@@ -15,6 +15,7 @@ import * as cheerio from "cheerio"
 import * as feather from "feather-icons"
 import { createServer } from "vite"
 import chokidar from "chokidar"
+import { readingTime } from 'reading-time-estimator'
 
 import { conf, logger, openBrowserPreview } from "./utils.js"
 import projects from "./projects.js"
@@ -154,38 +155,10 @@ export async function build(isPostDeploy = false) {
         })
 
         if (isPostDeploy && arePostsQueued()) {
-            await pauseWatcher()
-            const postsData = await submitQueuedPosts()
-
-            let index = 0
-
-            _.each(postsData, (postData, filepath) => {
-                const pageIndex = _.findIndex(data.pages, (page) => {
-                    return page.path == filepath
-                })
-
-                const page = data.pages[pageIndex]
-
-                data.pages[pageIndex].bskyPostId = postData.id
-
-                fs.writeFileSync(
-                    page.path,
-                    page.md.replace(
-                        "bskyPostId: tbd",
-                        `bskyPostId: ${postData.id}`,
-                    ),
-                )
-
-                logger.info(
-                    strings.generator.bsky.postSuccess(
-                        `https://bsky.app/profile/${data.integrations.bluesky.userId}/post/${postData.id}`,
-                    ),
-                )
-
-                index++
-            })
+            await processBlueskyPosts()
         }
 
+        // create navigation data
         data.site.navPages = _.chain(data.pages)
             .pickBy((v) => {
                 return v.navIndex
@@ -195,6 +168,7 @@ export async function build(isPostDeploy = false) {
             })
             .value()
 
+        // create blog post data
         data.site.blogPosts = _.chain(data.pages)
             .filter((v) => {
                 return path.dirname(v.path) == PROJECT_PATH.POSTS
@@ -204,6 +178,7 @@ export async function build(isPostDeploy = false) {
             })
             .value()
 
+        // do something with snippets idk
         data.site.snippets = _.chain(data.pages)
             .filter((v) => {
                 return path.dirname(v.path) == PROJECT_PATH.SNIPPETS
@@ -310,7 +285,7 @@ export async function watch(initialBuild = false) {
         if (!server) {
             server = await createServer({
                 configFile: false,
-                root: projects.paths.OUTPUT,
+                root: projects.paths().OUTPUT,
                 publicDir: false,
                 logLevel: "silent",
                 server: {
@@ -376,6 +351,8 @@ function updateMetadata(filepath, data) {
     for (let key in frontMatter.attributes) {
         page[key] = frontMatter.attributes[key]
     }
+
+    page.readingTime = readingTime(frontMatter.body).text
 
     if (page.draft) {
         logger.info(strings.generator.skipDraft(filepath))
@@ -488,5 +465,38 @@ function generatePages(data) {
         }
 
         return outputPath
+    })
+}
+
+async function processBlueskyPosts() {
+    await pauseWatcher()
+    const postsData = await submitQueuedPosts()
+
+    let index = 0
+
+    _.each(postsData, (postData, filepath) => {
+        const pageIndex = _.findIndex(data.pages, (page) => {
+            return page.path == filepath
+        })
+
+        const page = data.pages[pageIndex]
+
+        data.pages[pageIndex].bskyPostId = postData.id
+
+        fs.writeFileSync(
+            page.path,
+            page.md.replace(
+                "bskyPostId: tbd",
+                `bskyPostId: ${postData.id}`,
+            ),
+        )
+
+        logger.info(
+            strings.generator.bsky.postSuccess(
+                `https://bsky.app/profile/${data.integrations.bluesky.userId}/post/${postData.id}`,
+            ),
+        )
+
+        index++
     })
 }

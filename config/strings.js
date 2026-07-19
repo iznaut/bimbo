@@ -9,6 +9,8 @@ export default {
         configClear: `${config.APP_NAME} config has been reset to defaults`,
         pauseWatcher: "temporarily pausing project watcher 🙈",
         server: (port) => `preview webserver started on port ${port}`,
+        projectFile: `${config.APP_NAME} project file`,
+        debugMode: "debug mode enabled!",
     },
     projects: {
         notLoaded: "no project loaded",
@@ -23,14 +25,14 @@ export default {
         },
         updateAvailable: "🚨 NEW UPDATE AVAILABLE!!!",
         openPreview: `🔗 preview in browser`,
-        openEditor: `👩‍💻 edit in VSCodium`,
+        openEditor: `👩‍💻 edit in vscodium`,
         openFolder: `📂 open project folder`,
         configDeployment: "set up deployment",
-        configBsky: "set up Bluesky integration",
+        configBsky: "set up bluesky integration",
         deploy: (provider) => `🌐 deploy to ${provider}`,
         bskyAutoPost: {
             enabled: (handle) => `🦋 autoposting to @${handle}`,
-            disabled: "🦋 Bluesky autoposting disabled",
+            disabled: "🦋 bluesky autoposting disabled",
         },
         upgrade: `👀 get ${config.APP_NAME}+ for one-click deploy!`,
         settings: {
@@ -42,7 +44,7 @@ export default {
         support: {
             title: "support",
             checkForUpdates: "👀 check for updates",
-            openDiscord: `🤖 join bimbo Discord`,
+            openDiscord: `🤖 join bimbo discord`,
             sendEmail: `💌 email izzy (she made this)`,
         },
         debug: {

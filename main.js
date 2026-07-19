@@ -67,11 +67,12 @@ const USER_DATA_PATH = app.getPath("userData")
 const LOG_PATH = path.join(USER_DATA_PATH, `${strings.app.title}.log`)
 
 let bugsplat = null
+let isDebugMode = isDev()
 
 configureCrashReporting()
 
 let tray = null
-global.win = null
+let trayMenu = null
 
 const startersPath = path.join(
     isDev() ? "" : process.resourcesPath,
@@ -96,11 +97,8 @@ app.whenReady().then(() => {
 
     tray = new Tray(config.ICON)
 
-    tray.on("click", () => {
-        updateTrayMenu()
-    })
-
     globalShortcut.register("CommandOrControl+Alt+R", clearConfig)
+    globalShortcut.register("CommandOrControl+Alt+D", enableDebugMode)
 
     // having this listener active will prevent the app from quitting.
     app.on("window-all-closed", () => {})
@@ -112,10 +110,9 @@ app.whenReady().then(() => {
         projects.setActive()
     }
 
-    console.log(projects.joinPath())
-
     updateTrayTitle()
     updateTrayMenu()
+
 
     getLatestVersion().then((results) => {
         if (!results.versionIsCurrent) {
@@ -131,7 +128,6 @@ app.whenReady().then(() => {
 })
 
 function updateTrayMenu() {
-    let menu = null
     const activeProject = projects.getActive()
 
     const projectSubmenuItems = [
@@ -157,7 +153,7 @@ function updateTrayMenu() {
                                     label: strings.popups.createProject.label,
                                     value: dirent.name,
                                     type: "input",
-                                }).catch(console.error)
+                                }).catch(logger.error)
 
                                 if (!title) {
                                     return
@@ -185,7 +181,7 @@ function updateTrayMenu() {
             click: function () {
                 let pickedPaths = showFilePicker({
                     filters: [
-                        { name: "bimbo project file", extensions: ["yaml"] },
+                        { name: strings.app.projectFile, extensions: ["yaml"] },
                     ],
                     properties: ["openFile"],
                 })
@@ -204,7 +200,7 @@ function updateTrayMenu() {
     const bskyMeta = activeProject && activeProject.data.integrations?.bluesky
     const bskyAutoPostEnabled = conf.get("settings.bskyAutoPost")
 
-    menu = Menu.buildFromTemplate([
+    const CONTEXT_MENU = Menu.buildFromTemplate([
         {
             label: strings.app.titleWithVersion(CURRENT_VERSION),
             enabled: false,
@@ -250,9 +246,7 @@ function updateTrayMenu() {
         {
             label: strings.menu.openPreview,
             enabled: !!activeProject,
-            click: function () {
-                openBrowserPreview()
-            },
+            click: openBrowserPreview,
         },
         { type: "separator" },
         {
@@ -290,9 +284,7 @@ function updateTrayMenu() {
             id: "deploy",
             label: strings.menu.deploy(deployMeta?.provider),
             visible: !!deployMeta && Object.keys(presets).length > 0,
-            click: () => {
-                deploy()
-            },
+            click: deploy,
         },
         {
             label: strings.menu.configDeployment,
@@ -381,7 +373,7 @@ function updateTrayMenu() {
         },
         {
             label: strings.menu.debug.title,
-            visible: isDev(),
+            visible: isDebugMode,
             type: "submenu",
             submenu: Menu.buildFromTemplate([
                 {
@@ -409,13 +401,11 @@ function updateTrayMenu() {
         },
         {
             label: strings.menu.exit,
-            click: function () {
-                app.quit()
-            },
+            role: "quit",
         },
     ])
 
-    tray.setContextMenu(menu)
+    tray.setContextMenu(CONTEXT_MENU)
 }
 
 function updateTrayTitle() {
@@ -515,6 +505,14 @@ function clearConfig() {
     logger.info(strings.logMsg.configClearSuccess)
 }
 
+function enableDebugMode() {
+    if (!isDebugMode) {
+        isDebugMode = true
+        tray.closeContextMenu()
+        showMessageBox(strings.app.debugMode)
+    } 
+}
+
 function getSettingsMenu() {
     const callbacks = {
         showProjectTitleInMenubar: updateTrayTitle,
@@ -541,12 +539,12 @@ function getSettingsMenu() {
     }
 
     const requireConfirmation = ["submitCrashLogs"]
-	const hidden = ["showAssistant", "bskyAutoPost"]
+    const hidden = ["showAssistant", "bskyAutoPost"]
 
     let items = _.map(conf.defaultValues.settings, (v, k) => {
-		if (hidden.includes(k)) {
-			return
-		}
+        if (hidden.includes(k)) {
+            return
+        }
 
         return {
             label: strings.menu.settings[k],
@@ -564,7 +562,7 @@ function getSettingsMenu() {
         }
     })
 
-	items = _.without(items, undefined)
+    items = _.without(items, undefined)
 
     return Menu.buildFromTemplate(items)
 }

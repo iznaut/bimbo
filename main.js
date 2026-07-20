@@ -74,11 +74,6 @@ configureCrashReporting()
 let tray = null
 let trayMenu = null
 
-const startersPath = path.join(
-    isDev() ? "" : process.resourcesPath,
-    "project-starters",
-)
-
 app.whenReady().then(() => {
     logger.add(
         new winston.transports.File({
@@ -113,7 +108,6 @@ app.whenReady().then(() => {
     updateTrayTitle()
     updateTrayMenu()
 
-
     getLatestVersion().then((results) => {
         if (!results.versionIsCurrent) {
             logger.warn(strings.logMsg.updateAvailable)
@@ -128,73 +122,8 @@ app.whenReady().then(() => {
 })
 
 function updateTrayMenu() {
+    // TODO audit getActive use
     const activeProject = projects.getActive()
-
-    const projectSubmenuItems = [
-        {
-            label: strings.menu.projects.create,
-            type: "submenu",
-            submenu: Menu.buildFromTemplate(
-                fs
-                    .readdirSync(startersPath, { withFileTypes: true })
-                    .filter((dirent) => dirent.isDirectory())
-                    .map((dirent) => {
-                        return {
-                            label: dirent.name,
-                            click: async function () {
-                                const title = await prompt({
-                                    title: strings.popups.createProject.title,
-                                    buttonLabels: {
-                                        ok: strings.popups.createProject
-                                            .confirm,
-                                        cancel: strings.popups.createProject
-                                            .cancel,
-                                    },
-                                    label: strings.popups.createProject.label,
-                                    value: dirent.name,
-                                    type: "input",
-                                }).catch(logger.error)
-
-                                if (!title) {
-                                    return
-                                }
-
-                                let pickedPaths = showFilePicker({
-                                    properties: ["openDirectory"],
-                                })
-
-                                if (!pickedPaths) {
-                                    return
-                                }
-
-                                initProjectStarter(
-                                    path.join(pickedPaths[0], title),
-                                    dirent.name,
-                                )
-                            },
-                        }
-                    }),
-            ),
-        },
-        {
-            label: strings.menu.projects.import,
-            click: function () {
-                let pickedPaths = showFilePicker({
-                    filters: [
-                        { name: strings.app.projectFile, extensions: ["yaml"] },
-                    ],
-                    properties: ["openFile"],
-                })
-
-                if (!pickedPaths) {
-                    return
-                }
-
-                projects.add(path.dirname(pickedPaths[0]))
-                projects.setActive(projects.getAll().length - 1)
-            },
-        },
-    ]
 
     const deployMeta = activeProject && activeProject.data.deployment
     const bskyMeta = activeProject && activeProject.data.integrations?.bluesky
@@ -219,29 +148,7 @@ function updateTrayMenu() {
                 ? activeProject.data.site.title
                 : strings.projects.notLoaded,
             type: "submenu",
-            submenu: Menu.buildFromTemplate([
-                ...projects.getAll().map((meta, index) => {
-                    return {
-                        label: meta.data.site.title,
-                        type: "radio",
-                        checked: index == conf.get("activeIndex"),
-                        click: () => {
-                            projects.setActive(index)
-
-                            // TODO dedupe
-                            let displayTitle = conf.get(
-                                "settings.showProjectTitleInMenubar",
-                            )
-                                ? projects.getActive().data.site.title
-                                : ""
-                            tray.setToolTip(displayTitle)
-                            tray.setTitle(displayTitle)
-                        },
-                    }
-                }),
-                { type: "separator" },
-                ...projectSubmenuItems,
-            ]),
+            submenu: getProjectsSubmenu(),
         },
         {
             label: strings.menu.openPreview,
@@ -436,7 +343,7 @@ ipcMain.handle("bsky", async function (_event, data) {
 })
 
 async function initProjectStarter(newProjPath, starterName) {
-    fs.cpSync(path.join(startersPath, starterName), newProjPath, {
+    fs.cpSync(path.join(PROJECT_STARTERS_PATH, starterName), newProjPath, {
         recursive: true,
     })
 
@@ -510,7 +417,7 @@ function enableDebugMode() {
         isDebugMode = true
         tray.closeContextMenu()
         showMessageBox(strings.app.debugMode)
-    } 
+    }
 }
 
 function getSettingsMenu() {
@@ -565,4 +472,106 @@ function getSettingsMenu() {
     items = _.without(items, undefined)
 
     return Menu.buildFromTemplate(items)
+}
+
+function getProjectsSubmenu() {
+    const PROJECT_STARTERS = fs
+        .readdirSync(path.join(app.getAppPath(), "project-starters"), {
+            withFileTypes: true,
+        })
+        .filter((dirent) => dirent.isDirectory())
+        .map((dirent) => dirent.name)
+
+    const PROJECT_MENU_ITEM = (meta, index) => {
+        const RELATIVE_PATH = path.relative(meta.rootPath, app.getAppPath())
+        const IS_STARTER = !RELATIVE_PATH.startsWith('..') && !path.isAbsolute(RELATIVE_PATH)
+        const PROJECT_TITLE = `${IS_STARTER ? "📝 " : ""}${meta.data.site.title}`
+
+        return {
+            label: PROJECT_TITLE,
+            type: "radio",
+            checked: index == conf.get("activeIndex"),
+            click: () => {
+                projects.setActive(index)
+
+                // TODO dedupe
+                let displayTitle = conf.get(
+                    "settings.showProjectTitleInMenubar",
+                )
+                    ? PROJECT_TITLE
+                    : ""
+                tray.setToolTip(displayTitle)
+                tray.setTitle(displayTitle)
+            },
+        }
+    }
+
+    let menuTemplate = [
+        ...projects.getAll().map(PROJECT_MENU_ITEM),
+        { type: "separator" },
+        {
+            label: strings.menu.projects.create,
+            type: "submenu",
+            submenu: Menu.buildFromTemplate(
+                PROJECT_STARTERS.map((name) => {
+                    return {
+                        label: name,
+                        click: async function () {
+                            const title = await prompt({
+                                title: strings.popups.createProject.title,
+                                buttonLabels: {
+                                    ok: strings.popups.createProject.confirm,
+                                    cancel: strings.popups.createProject.cancel,
+                                },
+                                label: strings.popups.createProject.label,
+                                value: name,
+                                type: "input",
+                            }).catch(logger.error)
+
+                            if (!title) {
+                                return
+                            }
+
+                            let pickedPaths = showFilePicker({
+                                properties: ["openDirectory"],
+                            })
+
+                            if (!pickedPaths) {
+                                return
+                            }
+
+                            initProjectStarter(
+                                path.join(pickedPaths[0], title),
+                                name,
+                            )
+                        },
+                    }
+                }),
+            ),
+        },
+        {
+            label: strings.menu.projects.import,
+            click: function () {
+                let pickedPaths = showFilePicker({
+                    filters: [
+                        { name: strings.app.projectFile, extensions: ["yaml"] },
+                    ],
+                    properties: ["openFile"],
+                })
+
+                if (!pickedPaths) {
+                    return
+                }
+
+                projects.add(path.dirname(pickedPaths[0]))
+                projects.setActive(projects.getAll().length - 1)
+            },
+        },
+    ]
+
+    // if (isDev()) {
+    //     menuTemplate.unshift(PROJECT_STARTERS.map(PROJECT_MENU_ITEM)) // no index?
+    // }
+
+    return Menu.buildFromTemplate(menuTemplate)
 }

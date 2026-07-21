@@ -86,11 +86,16 @@ app.whenReady().then(() => {
     logger.info(strings.logMsg.logPath(LOG_PATH))
     logger.info(strings.app.titleWithVersion(CURRENT_VERSION))
 
+    projects.cleanup() // TODO should do this as needed?
+
     if (isPlatformMac()) {
         app.dock.hide()
     }
 
     tray = new Tray(config.ICON)
+    tray.on("click", () => {
+        updateTrayMenu()
+    })
 
     globalShortcut.register("CommandOrControl+Alt+R", clearConfig)
     globalShortcut.register("CommandOrControl+Alt+D", enableDebugMode)
@@ -98,11 +103,12 @@ app.whenReady().then(() => {
     // having this listener active will prevent the app from quitting.
     app.on("window-all-closed", () => {})
 
-    if (conf.get("activeIndex") == -1 && !isDev()) {
+
+    if (projects.activeIndex == -1 && !isDev()) {
         shell.openExternal(urls.tutorial)
     } else {
-        // start watching last active project
-        projects.setActive()
+        // HACK start watching last active project
+        projects.activeIndex = projects.activeIndex
     }
 
     updateTrayTitle()
@@ -122,14 +128,16 @@ app.whenReady().then(() => {
 })
 
 function updateTrayMenu() {
-    // TODO audit getActive use
-    const activeProject = projects.getActive()
+    const activeProject = projects.active
+    const isProjectLoaded = !!projects.active
+    const loadedProjectData = projects.active.getData()
+    const loadedProjectRoot = projects.active.paths.ROOT
 
-    const deployMeta = activeProject && activeProject.data.deployment
-    const bskyMeta = activeProject && activeProject.data.integrations?.bluesky
+    const deployMeta = isProjectLoaded && loadedProjectData.deployment
+    const bskyMeta = isProjectLoaded && loadedProjectData.integrations?.bluesky
     const bskyAutoPostEnabled = conf.get("settings.bskyAutoPost")
 
-    const CONTEXT_MENU = Menu.buildFromTemplate([
+    trayMenu = Menu.buildFromTemplate([
         {
             label: strings.app.titleWithVersion(CURRENT_VERSION),
             enabled: false,
@@ -144,26 +152,26 @@ function updateTrayMenu() {
         { type: "separator" },
         {
             id: "title",
-            label: !!activeProject
-                ? activeProject.data.site.title
+            label: isProjectLoaded
+                ? loadedProjectData.site.title
                 : strings.projects.notLoaded,
             type: "submenu",
             submenu: getProjectsSubmenu(),
         },
         {
             label: strings.menu.openPreview,
-            enabled: !!activeProject,
+            enabled: isProjectLoaded,
             click: openBrowserPreview,
         },
         { type: "separator" },
         {
             label: strings.menu.openEditor,
-            enabled: !!activeProject,
+            enabled: isProjectLoaded,
             click: function () {
                 logger.info(strings.logMsg.tryEditor(conf.get("editor")))
 
                 exec(
-                    `${conf.get("editor")} "${activeProject.rootPath}"`,
+                    `${conf.get("editor")} "${loadedProjectRoot}"`,
                     (error, stdout, stderr) => {
                         if (error) {
                             logger.error(error)
@@ -181,9 +189,9 @@ function updateTrayMenu() {
         },
         {
             label: strings.menu.openFolder,
-            enabled: !!activeProject,
+            enabled: isProjectLoaded,
             click: function () {
-                shell.openPath(activeProject.rootPath)
+                shell.openPath(loadedProjectRoot)
             },
         },
         { type: "separator" },
@@ -196,7 +204,7 @@ function updateTrayMenu() {
         {
             label: strings.menu.configDeployment,
             type: "submenu",
-            enabled: Object.keys(presets).length > 0 && !!activeProject,
+            enabled: Object.keys(presets).length > 0 && isProjectLoaded,
             visible: !deployMeta,
             submenu: Menu.buildFromTemplate(
                 Object.keys(presets).map((key) => {
@@ -225,7 +233,7 @@ function updateTrayMenu() {
         },
         {
             label: strings.menu.configBsky,
-            enabled: IS_PLUS_MODE && !!activeProject,
+            enabled: IS_PLUS_MODE && isProjectLoaded,
             visible: !bskyMeta,
             click: () => {
                 showHtmlPopup("popups/integrations/bluesky.html")
@@ -293,10 +301,7 @@ function updateTrayMenu() {
                     label: strings.menu.debug.deleteSecrets,
                     click: () => {
                         fs.rmSync(
-                            path.join(
-                                projects.getActive().rootPath,
-                                config.SECRETS_FILENAME,
-                            ),
+                            projects.active.paths.SECRETS_FILE,
                         )
                     },
                 },
@@ -312,14 +317,14 @@ function updateTrayMenu() {
         },
     ])
 
-    tray.setContextMenu(CONTEXT_MENU)
+    tray.setContextMenu(trayMenu)
 }
 
 function updateTrayTitle() {
     let displayTitle = strings.projects.notLoaded
 
-    if (projects.getActive()) {
-        displayTitle = projects.getActive().data.site.title
+    if (projects.active) {
+        displayTitle = projects.active.getData().site.title
     }
 
     tray.setToolTip(displayTitle)
@@ -342,8 +347,8 @@ ipcMain.handle("bsky", async function (_event, data) {
     })
 })
 
-async function initProjectStarter(newProjPath, starterName) {
-    fs.cpSync(path.join(PROJECT_STARTERS_PATH, starterName), newProjPath, {
+async function initProjectStarter(projectRoot, starterName) {
+    fs.cpSync(path.join(PROJECT_STARTERS_PATH, starterName), projectRoot, { // TODO undefined
         recursive: true,
     })
 
@@ -352,21 +357,22 @@ async function initProjectStarter(newProjPath, starterName) {
             data.text = JSON.stringify(data.json, null, true)
         }
 
-        if (data.filePath.includes(".vscode")) {
-            fs.mkdirSync(path.join(newProjPath, ".vscode"))
+        if (data.filePath.includes(".vscode")) { // TODO why is this hardcoded
+            fs.mkdirSync(path.join(projectRoot, ".vscode"))
         }
 
-        fs.writeFileSync(path.join(newProjPath, data.filePath), data.text)
+        fs.writeFileSync(path.join(projectRoot, data.filePath), data.text)
     })
 
-    let configFilepath = path.join(newProjPath, config.CONFIG_FILENAME)
+    // TODO util function?
+    let configFilepath = path.join(projectRoot, config.CONFIG_FILENAME)
 
     let newConfig = yaml.parse(fs.readFileSync(configFilepath, "utf-8"))
-    newConfig.site.title = path.basename(newProjPath)
+    newConfig.site.title = path.basename(projectRoot)
     fs.writeFileSync(configFilepath, yaml.stringify(newConfig))
 
-    projects.add(newProjPath)
-    projects.setActive(projects.getAll().length - 1)
+    projects.add(projectRoot)
+    projects.activeIndex = projects.list.length - 1
 }
 
 function configureCrashReporting() {
@@ -405,7 +411,7 @@ function configureCrashReporting() {
 function clearConfig() {
     logger.info(strings.logMsg.configClearTry)
     conf.clear()
-    projects.setActive(-1)
+    projects.activeIndex = -1
     tray.setToolTip(strings.projects.notLoaded)
     tray.setTitle(strings.projects.notLoaded)
     showMessageBox(strings.app.configClear)
@@ -482,17 +488,18 @@ function getProjectsSubmenu() {
         .filter((dirent) => dirent.isDirectory())
         .map((dirent) => dirent.name)
 
-    const PROJECT_MENU_ITEM = (meta, index) => {
-        const RELATIVE_PATH = path.relative(meta.rootPath, app.getAppPath())
+    const PROJECT_MENU_ITEM = (projectPath, index) => {
+        const project = projects.getFromPath(projectPath)
+        const RELATIVE_PATH = path.relative(project.paths.ROOT, app.getAppPath())
         const IS_STARTER = !RELATIVE_PATH.startsWith('..') && !path.isAbsolute(RELATIVE_PATH)
-        const PROJECT_TITLE = `${IS_STARTER ? "📝 " : ""}${meta.data.site.title}`
+        const PROJECT_TITLE = `${IS_STARTER ? "📝 " : ""}${project.getData().site.title}`
 
         return {
             label: PROJECT_TITLE,
             type: "radio",
-            checked: index == conf.get("activeIndex"),
+            checked: index == projects.activeIndex,
             click: () => {
-                projects.setActive(index)
+                projects.activeIndex = index
 
                 // TODO dedupe
                 let displayTitle = conf.get(
@@ -507,7 +514,7 @@ function getProjectsSubmenu() {
     }
 
     let menuTemplate = [
-        ...projects.getAll().map(PROJECT_MENU_ITEM),
+        ...projects.list.map(PROJECT_MENU_ITEM),
         { type: "separator" },
         {
             label: strings.menu.projects.create,
@@ -564,7 +571,7 @@ function getProjectsSubmenu() {
                 }
 
                 projects.add(path.dirname(pickedPaths[0]))
-                projects.setActive(projects.getAll().length - 1)
+                projects.activeIndex = projects.list.length - 1
             },
         },
     ]

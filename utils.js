@@ -104,7 +104,7 @@ export function notifyUpdateAvailability(
     )
 }
 
-// TODO can use app.isPackaged?
+// TODO can use
 export function isDev() {
     return process.argv.includes("--dev")
 }

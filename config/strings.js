@@ -16,7 +16,8 @@ export default {
         notLoaded: "no project loaded",
         loaded: (title) => `loaded project: ${title}`,
         alreadyImported: (path) => `project already imported: ${path}`,
-        loadFailed: (path) => `failed to load project: ${path}`,
+        missing: (path) =>
+            `unable to find project file at ${path}, removing from project list`,
     },
     menu: {
         projects: {

@@ -17,7 +17,7 @@ import {
     showPrompt,
 } from "./utils.js"
 import strings from "./config/strings.js"
-import projects from "./projects.js"
+import projects from "./projects.js" // TODO just import active as activeProject?
 import config from "./config/config.js"
 import { arePostsQueued } from "./integrations/bluesky/main.js"
 import { build, pauseWatcher, watch } from "./site-generator.js"
@@ -86,7 +86,8 @@ ipcMain.handle("form", async function (_event, newDeployMeta) {
         deployment: newDeployMeta,
     })
 
-    projects.setActive()
+    // TODO oh god test this before shipping
+    build() // .then?
 
     await setTimeout(1000) // HACK to get around build not finishing in time for deploy
 
@@ -104,7 +105,7 @@ export async function deploy(sftpPassword = null, isPostDeploy = false) {
         logger.info(strings.logMsg.deployStart)
     }
 
-    const activeProjectMeta = projects.getActive()
+    const activeProjectMeta = projects.active.getData()
     const deployMeta = activeProjectMeta.data.deployment
 
     if (!deployMeta) {
@@ -187,7 +188,7 @@ async function deployToNeocities(deployMeta) {
         const client = new NeocitiesAPIClient(deployMeta.apiKey)
 
         let result = await client.deploy({
-            directory: path.join(projects.getActive().rootPath, "_site"),
+            directory: projects.active.paths.OUTPUT,
             cleanup: true, // Delete orphaned files
             includeUnsupportedFiles: false, // TODO - atproto-did unsupported, paid feature
         })
@@ -204,8 +205,8 @@ async function deployToNekoweb(deployMeta) {
         apiKey: deployMeta.apiKey,
     })
 
-    let sitePath = path.join(projects.getActive().rootPath, "_site")
-    let zipPath = path.join(projects.getActive().rootPath, "upload.zip")
+    let sitePath = projects.active.paths.OUTPUT
+    let zipPath = path.join(projects.active.paths.root, "upload.zip")
 
     await nekoweb.getSiteInfo(deployMeta.domain)
     await zip(sitePath, zipPath) // can we get as buffer?

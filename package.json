@@ -42,12 +42,18 @@
   "devDependencies": {
     "@electron/packager": "^18.4.4",
     "electron": "^39.2.7",
-    "electronmon": "^2.0.4"
+    "electronmon": "^2.0.4",
+    "vitest": "^4.1.10"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
   },
   "mac": {
     "icon": "assets/macos/icon.icns"
+  },
+  "electronmon": {
+    "patterns": [
+      "!project-starters/**"
+    ]
   }
 }

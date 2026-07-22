@@ -103,7 +103,6 @@ app.whenReady().then(() => {
     // having this listener active will prevent the app from quitting.
     app.on("window-all-closed", () => {})
 
-
     if (projects.activeIndex == -1 && !isDev()) {
         shell.openExternal(urls.tutorial)
     } else {
@@ -199,7 +198,7 @@ function updateTrayMenu() {
             id: "deploy",
             label: strings.menu.deploy(deployMeta?.provider),
             visible: !!deployMeta && Object.keys(presets).length > 0,
-            click: deploy,
+            click: () => deploy(), // don't change this again dummy it needs to be like this
         },
         {
             label: strings.menu.configDeployment,
@@ -300,9 +299,7 @@ function updateTrayMenu() {
                 {
                     label: strings.menu.debug.deleteSecrets,
                     click: () => {
-                        fs.rmSync(
-                            projects.active.paths.SECRETS_FILE,
-                        )
+                        fs.rmSync(projects.active.paths.SECRETS_FILE)
                     },
                 },
                 {
@@ -347,8 +344,10 @@ ipcMain.handle("bsky", async function (_event, data) {
     })
 })
 
+// TODO move to projects.js?
 async function initProjectStarter(projectRoot, starterName) {
-    fs.cpSync(path.join(PROJECT_STARTERS_PATH, starterName), projectRoot, { // TODO undefined
+    fs.cpSync(path.join(PROJECT_STARTERS_PATH, starterName), projectRoot, {
+        // TODO undefined
         recursive: true,
     })
 
@@ -357,7 +356,8 @@ async function initProjectStarter(projectRoot, starterName) {
             data.text = JSON.stringify(data.json, null, true)
         }
 
-        if (data.filePath.includes(".vscode")) { // TODO why is this hardcoded
+        if (data.filePath.includes(".vscode")) {
+            // TODO why is this hardcoded
             fs.mkdirSync(path.join(projectRoot, ".vscode"))
         }
 
@@ -481,17 +481,22 @@ function getSettingsMenu() {
 }
 
 function getProjectsSubmenu() {
-    const PROJECT_STARTERS = fs
+    // TODO move to projects.js?
+    const PROJECT_STARTER_PATHS = fs
         .readdirSync(path.join(app.getAppPath(), "project-starters"), {
             withFileTypes: true,
         })
         .filter((dirent) => dirent.isDirectory())
-        .map((dirent) => dirent.name)
+        .map((dirent) => path.join(dirent.path, dirent.name))
 
     const PROJECT_MENU_ITEM = (projectPath, index) => {
         const project = projects.getFromPath(projectPath)
-        const RELATIVE_PATH = path.relative(project.paths.ROOT, app.getAppPath())
-        const IS_STARTER = !RELATIVE_PATH.startsWith('..') && !path.isAbsolute(RELATIVE_PATH)
+        const RELATIVE_PATH = path.relative(
+            app.getAppPath(),
+            project.paths.ROOT,
+        )
+        const IS_STARTER =
+            !RELATIVE_PATH.startsWith("..") && !path.isAbsolute(RELATIVE_PATH)
         const PROJECT_TITLE = `${IS_STARTER ? "📝 " : ""}${project.getData().site.title}`
 
         return {
@@ -520,9 +525,9 @@ function getProjectsSubmenu() {
             label: strings.menu.projects.create,
             type: "submenu",
             submenu: Menu.buildFromTemplate(
-                PROJECT_STARTERS.map((name) => {
+                PROJECT_STARTER_PATHS.map((starterPath) => {
                     return {
-                        label: name,
+                        label: path.basename(starterPath),
                         click: async function () {
                             const title = await prompt({
                                 title: strings.popups.createProject.title,
@@ -531,7 +536,7 @@ function getProjectsSubmenu() {
                                     cancel: strings.popups.createProject.cancel,
                                 },
                                 label: strings.popups.createProject.label,
-                                value: name,
+                                value: starterPath,
                                 type: "input",
                             }).catch(logger.error)
 
@@ -549,7 +554,7 @@ function getProjectsSubmenu() {
 
                             initProjectStarter(
                                 path.join(pickedPaths[0], title),
-                                name,
+                                starterPath,
                             )
                         },
                     }

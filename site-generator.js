@@ -252,6 +252,9 @@ export async function watch(initialBuild = false) {
     if (watcher) {
         await watcher.close()
     }
+    if (server) {
+        await server.close()
+    }
 
     const ACTIVE_PROJECT_DATA = projects.active.getData()
     const PROJECT_PATHS = projects.active.paths
@@ -286,20 +289,18 @@ export async function watch(initialBuild = false) {
 
         logger.info(strings.generator.monitoring(PROJECT_PATHS.ROOT))
 
-        if (!server) {
-            server = await createServer({
-                configFile: false,
-                root: projects.active.paths.OUTPUT,
-                publicDir: false,
-                logLevel: "silent",
-                server: {
-                    port: config.VITE_PORT,
-                    strictPort: true,
-                },
-            })
-            await server.listen()
-            logger.info(strings.app.server(config.VITE_PORT))
-        }
+        server = await createServer({
+            configFile: false,
+            root: projects.active.paths.OUTPUT,
+            publicDir: false,
+            logLevel: "silent",
+            server: {
+                port: config.VITE_PORT,
+                strictPort: true,
+            },
+        })
+        await server.listen()
+        logger.info(strings.app.server(config.VITE_PORT))
 
         if (initialBuild) {
             build()

@@ -105,26 +105,26 @@ export async function deploy(sftpPassword = null, isPostDeploy = false) {
         logger.info(strings.logMsg.deployStart)
     }
 
-    const activeProjectMeta = projects.active.getData()
-    const deployMeta = activeProjectMeta.data.deployment
+    const ACTIVE_PROJECT_DATA = projects.active.getData()
+    const DEPLOY_META = ACTIVE_PROJECT_DATA.deployment
 
-    if (!deployMeta) {
-        showHtmlPopup(`popups/deployment/${deployMeta.provider}.html`)
-    } else if (deployMeta.host && !sftpPassword && !deployMeta.keyPath) {
+    if (!DEPLOY_META) {
+        showHtmlPopup(`popups/deployment/${DEPLOY_META.provider}.html`)
+    } else if (DEPLOY_META.host && !sftpPassword && !DEPLOY_META.keyPath) {
         showHtmlPopup(`popups/deployment/sftp-password.html`)
     } else {
         let success = false
 
-        if (sftpPassword || deployMeta.keyPath) {
+        if (sftpPassword || DEPLOY_META.keyPath) {
             // TODO dedupe
             await pauseWatcher()
-            let startMsg = strings.deployment.start(deployMeta.provider)
+            let startMsg = strings.deployment.start(DEPLOY_META.provider)
             logger.info(startMsg)
             showNotification(startMsg)
 
             success = await deployViaSftp(
-                deployMeta,
-                activeProjectMeta.rootPath,
+                DEPLOY_META,
+                projects.active.paths.ROOT,
                 sftpPassword,
             )
 
@@ -139,8 +139,8 @@ export async function deploy(sftpPassword = null, isPostDeploy = false) {
             if (!isPostDeploy) {
                 clickedId = showPrompt(
                     strings.popups.confirmDeployment.message(
-                        activeProjectMeta.data.site.title,
-                        deployMeta.provider,
+                        ACTIVE_PROJECT_DATA.site.title,
+                        DEPLOY_META.provider,
                     ),
                     "warning",
                 )
@@ -148,16 +148,16 @@ export async function deploy(sftpPassword = null, isPostDeploy = false) {
 
             if (clickedId == 0) {
                 await pauseWatcher()
-                let startMsg = strings.deployment.start(deployMeta.provider)
+                let startMsg = strings.deployment.start(DEPLOY_META.provider)
                 logger.info(startMsg)
                 showNotification(startMsg)
 
-                switch (deployMeta.provider) {
+                switch (DEPLOY_META.provider) {
                     case "nekoweb":
-                        success = await deployToNekoweb(deployMeta)
+                        success = await deployToNekoweb(DEPLOY_META)
                         break
                     case "neocities":
-                        success = await deployToNeocities(deployMeta)
+                        success = await deployToNeocities(DEPLOY_META)
                         break
                     default:
                         break
@@ -206,7 +206,7 @@ async function deployToNekoweb(deployMeta) {
     })
 
     let sitePath = projects.active.paths.OUTPUT
-    let zipPath = path.join(projects.active.paths.root, "upload.zip")
+    let zipPath = path.join(projects.active.paths.ROOT, "upload.zip")
 
     await nekoweb.getSiteInfo(deployMeta.domain)
     await zip(sitePath, zipPath) // can we get as buffer?

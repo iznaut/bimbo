@@ -136,3 +136,5 @@ website/
 build/
 
 .DS_Store
+
+project-starters/*/_site

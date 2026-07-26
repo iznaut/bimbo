@@ -1,4 +1,4 @@
-site:
+globals:
   title: my cool portfolio
   description: where i talk about how cool i am
   url: cool.portfolio
@@ -6,5 +6,5 @@ site:
   authorUrl: https://coolperson.com/
   authorEmail: contact@coolperson.com
 
-contentDefaults:              # these get applied to any .md files with no `~default.yaml` file in their folder
+defaults:              # these get applied to any .md files with no `~default.yaml` file in their folder
   template: default.html

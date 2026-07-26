@@ -1,7 +1,7 @@
 ---
 title: home
 navIndex: 1
-template: index.html
+template: index.hbs
 ---
 
 welcome to the homepage of my cool new blog!

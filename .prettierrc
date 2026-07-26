@@ -1,5 +1,15 @@
 {
-  "tabWidth": 4,
-  "useTabs": false,
-  "semi": false
+    "tabWidth": 4,
+    "useTabs": false,
+    "semi": false,
+    "plugins": ["@poliklot/prettier-plugin-handlebars"],
+    "overrides": [
+        {
+            "files": ["*.hbs", "*.handlebars"],
+            "options": {
+                "parser": "handlebars",
+                "printWidth": 120
+            }
+        }
+    ]
 }

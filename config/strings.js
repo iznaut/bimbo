@@ -10,7 +10,6 @@ export default {
         pauseWatcher: "temporarily pausing project watcher 🙈",
         server: (port) => `preview webserver started on port ${port}`,
         projectFile: `${config.APP_NAME} project file`,
-        debugMode: "debug mode enabled!",
     },
     projects: {
         notLoaded: "no project loaded",
@@ -50,6 +49,7 @@ export default {
         },
         debug: {
             title: "🔧 debug",
+            copyLog: `copy ${config.LOG_FILENAME} to clipboard`,
             openUserData: "open user data folder",
             deleteSecrets: `delete ${config.SECRETS_FILENAME}`,
             clearConfig: "clear projects and config",
@@ -140,6 +140,8 @@ export default {
             `👷‍♀️ ${isPostDeploy ? "post deploy " : ""}site build starting...`,
         buildComplete: (isPostDeploy) =>
             `${isPostDeploy ? "post deploy " : ""}site build completed 💅`,
+        missingContentFolder:
+            "project is missing required 'content' folder, aborting build",
         missingTemplate: "couldn't find template, using default",
         compileFail: (template) => `failed to compile ${template}`,
         rssFail: "failed to add RSS post",

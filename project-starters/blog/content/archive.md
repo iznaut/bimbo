@@ -1,7 +1,7 @@
 ---
 title: archive
 navIndex: 2
-template: archive.html
+template: archive.hbs
 ---
 
 this is a list of all blog posts!

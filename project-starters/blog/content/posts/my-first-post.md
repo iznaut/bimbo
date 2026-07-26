@@ -2,6 +2,7 @@
 title: my first post
 date: 2069-04-20
 draft: false
+# excludeFromRss: true          # uncomment this to exclude this post from the generated RSS feed
 ---
 
 hello! this is my first post on my cool new blog made with <a href="https://iznaut.itch.io/bimbo">bimbo</a>.

@@ -84,7 +84,7 @@ const getBlueskyAgent = async () => {
         service: "https://bsky.social",
     })
 
-    const creds = projects.active.getData().integrations.bluesky
+    const creds = projects.active.getSecrets().integrations.bluesky
 
     await agent.login({
         identifier: creds.handle!,

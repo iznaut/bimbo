@@ -1,0 +1,41 @@
+globals:                                    # global values are available from any TemplateFile
+    title: my cool blog                     # e.g. {{globals.title}} would display as "my cool blog"
+    description: where i go to post
+    url: cool.blog
+    author:
+        name: cool person
+        url: https://coolperson.com/        # {{globals.author.url}} == "https://coolperson.com/"
+        email: contact@coolperson.com
+
+defaults:                                   # these are fallback values. more specific values will take priority
+    title: cool untitled page
+    template: default.hbs                   # every ContentFile requires a `template` value
+    subfolders:
+        posts:                              # values will be used for all ContentFiles in the "content/posts" folder
+            title: cool untitled post       # "content/posts/my-first-post.md" has a `title` value defined, so this will not be used
+            template: post.hbs              # the value of `{{{_content}}}` in this template will be replaced with the body of "content/posts/my-first-post.md"
+            draft: true                     # draft content is ignored on build and won't be published
+
+collections:
+    - name: navPages                        # collections can be accessed in templates using this name with a $ prefix (e.g. $navPages)
+      filter:
+          - key: navIndex                   # this filter returns only pages that have a `navIndex` key
+      sort:
+          - key: navIndex                   # this orders the pages by descending `navIndex` value
+            order: ascending
+    - name: allPosts
+      filter:
+          - key: _subfolder                 # keys with an _ prefix are auto-generated
+            value: posts                    # this filter returns only pages that are inside the `content/posts`
+      sort:
+          - key: date
+            order: descending
+      rss: true                             # this will generate a `feed.xml` file listing the posts included in the "allPosts" group
+    - name: tagged
+      group:
+        - key: tags
+
+validators:
+    - key: url                              # check if the value is a valid URL and make sure the target page isn't down
+    - key: date
+      format: YYYY-MM-DD

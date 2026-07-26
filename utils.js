@@ -1,17 +1,21 @@
 import { platform } from "node:os"
 import * as fs from "node:fs"
 import * as path from "node:path"
-import { app, Notification, shell, dialog, BrowserWindow } from "electron"
-import { Conf } from "electron-conf/main"
 import winston from "winston"
 import { compareVersions } from "compare-versions"
 import tiny from "tiny-json-http"
-import { fileURLToPath } from "url"
+import {
+    APP_PATH,
+    USER_DATA_PATH,
+    openExternalUrl,
+    showNotification,
+} from "./utils/electron.js"
 
 import { IS_PLUS_MODE } from "./deploy.js"
 import strings from "./config/strings.js"
 import urls from "./config/urls.js"
 import config from "./config/config.js"
+import validateSchema from "yaml-schema-validator/src/index.js"
 
 export const logger = winston.createLogger({
     level: "info",
@@ -20,44 +24,27 @@ export const logger = winston.createLogger({
         new winston.transports.Console({
             format: winston.format.combine(
                 winston.format.simple(),
-                winston.format.colorize({ all: true })
-            )
+                winston.format.colorize({ all: true }),
+            ),
         }),
     ],
 })
 
-export const CURRENT_VERSION = function() {
+export const CURRENT_VERSION = (function () {
     let version = fs
-        .readFileSync(path.join(app.getAppPath(), "version"), "utf-8")
+        .readFileSync(path.join(APP_PATH, "version"), "utf-8")
         .trim()
 
     if (isDev()) {
-        version = version.replace('-beta', '-dev')
+        version = version.replace("-beta", "-dev")
     }
-    
+
     return version
-}()
+})()
 
 let latestVersion
 export let versionIsCurrent = true
 let versionCheckError = false
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-
-export const conf = new Conf({
-    defaults: {
-        projects: [],
-        activeIndex: -1,
-        editor: "codium",
-        settings: {
-            showProjectTitleInMenubar: true,
-            autoOpenPreview: false,
-            submitCrashLogs: true,
-            bskyAutoPost: true,
-        },
-    },
-})
 
 export async function getLatestVersion() {
     let results = [
@@ -109,61 +96,6 @@ export function isDev() {
     return process.argv.includes("--dev")
 }
 
-export function openBrowserPreview() {
-    shell.openExternal(urls.localPreview)
-}
-
 export function isPlatformMac() {
     return platform() === "darwin"
-}
-
-export function showNotification(body) {
-    new Notification({
-        title: config.APP_NAME,
-        body: body,
-        icon: config.ICON,
-    }).show()
-}
-
-export function showMessageBox(message, type = "none") {
-    dialog.showMessageBoxSync({
-        message: message,
-        type: type,
-        icon: config.ICON,
-    })
-}
-
-export function showPrompt(message, type = "none", buttons = null) {
-    if (!buttons) {
-        buttons = [
-            strings.popups.confirmDeployment.confirm,
-            strings.popups.confirmDeployment.cancel,
-        ]
-    }
-
-    return dialog.showMessageBoxSync({
-        message: message,
-        type: type,
-        buttons: buttons,
-        defaultId: 1,
-        cancelId: 1,
-        icon: config.ICON,
-    })
-}
-
-export function showFilePicker(config) {
-    return dialog.showOpenDialogSync(config)
-}
-
-// TODO make deployment htmls into templates
-export function showHtmlPopup(htmlPath) {
-    const window = new BrowserWindow({
-        useContentSize: true,
-        alwaysOnTop: true,
-        webPreferences: {
-            preload: path.join(__dirname, "preload.js"),
-        },
-    })
-
-    window.loadFile(htmlPath)
 }

@@ -1,4 +1,4 @@
-import { ipcMain, BrowserWindow, shell } from "electron"
+import { ipcMain, shell } from "electron"
 import { NeocitiesAPIClient } from "async-neocities"
 import NekowebAPI from "@indiefellas/nekoweb-api"
 import SftpClient from "ssh2-sftp-client"
@@ -9,18 +9,21 @@ import { zip } from "zip-a-folder"
 import { setTimeout } from "timers/promises"
 
 import {
-    conf,
     logger,
+} from "./utils.js"
+import {
+    conf,
     showHtmlPopup,
     showMessageBox,
     showNotification,
     showPrompt,
-} from "./utils.js"
+} from "./utils/electron.js"
 import strings from "./config/strings.js"
 import projects from "./projects.js" // TODO just import active as activeProject?
 import config from "./config/config.js"
 import { arePostsQueued } from "./integrations/bluesky/main.js"
 import { build, pauseWatcher, watch } from "./site-generator.js"
+import { openExternalUrl } from "./utils/electron.js"
 
 export const IS_PLUS_MODE = true
 
@@ -42,7 +45,7 @@ export const presets = {
 }
 
 ipcMain.handle("openExternalUrl", async function (_event, url) {
-    shell.openExternal(url)
+    openExternalUrl(url)
 })
 
 ipcMain.handle("form", async function (_event, newDeployMeta) {
@@ -87,9 +90,9 @@ ipcMain.handle("form", async function (_event, newDeployMeta) {
     })
 
     // TODO oh god test this before shipping
-    build() // .then?
+    await build() // .then?
 
-    await setTimeout(1000) // HACK to get around build not finishing in time for deploy
+    // await setTimeout(1000) // HACK to get around build not finishing in time for deploy
 
     try {
         deploy()
@@ -105,8 +108,8 @@ export async function deploy(sftpPassword = null, isPostDeploy = false) {
         logger.info(strings.logMsg.deployStart)
     }
 
-    const ACTIVE_PROJECT_DATA = projects.active.getData()
-    const DEPLOY_META = ACTIVE_PROJECT_DATA.deployment
+    const ACTIVE_PROJECT_DATA = projects.active.getMeta()
+    const DEPLOY_META = projects.active.getSecrets().deployment
 
     if (!DEPLOY_META) {
         showHtmlPopup(`popups/deployment/${DEPLOY_META.provider}.html`)

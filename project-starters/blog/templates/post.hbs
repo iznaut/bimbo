@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+    {{> head}}
+    <body>
+        <div id="container">
+            {{> navbar}}
+            <div id="content">
+                <h1>{{ title }}</h1>
+                {{#if date}}
+                    <h2>
+                        {{ date }}
+                    </h2>
+                {{/if}}
+
+                {{{ _content }}}
+                <h3>
+                    tags:
+                    {{#each tags}}
+                        {{ this }}{{#unless @last}},{{/unless}}
+                    {{/each}}
+                </h3>
+            </div>
+            {{#if comments}}
+                {{> bsky-comments}}
+            {{/if}}
+            <div id="nextprev">
+                {{#if (isCollectionSortAscending "allPosts" "date")}}
+                    {{#if _nextPage}}
+                        <a href="{{ _nextPage._relativeUrl }}">« previous post</a>
+                        |
+                    {{/if}}
+                    <a href="/index.html">home</a>
+                    {{#if _previousPage}}
+                        |
+                        <a href="{{ _previousPage._relativeUrl }}">next post »</a>
+                    {{/if}}
+                {{else}}
+                    {{#if _nextPage}}
+                        <a href="{{ _nextPage._relativeUrl }}">« next post</a>
+                        |
+                    {{/if}}
+                    <a href="/index.html">home</a>
+                    {{#if _previousPage}}
+                        |
+                        <a href="{{ _previousPage._relativeUrl }}">previous post »</a>
+                    {{/if}}
+                {{/if}}
+            </div>
+            {{> footer}}
+        </div>
+    </body>
+    {{{logInBrowser _nextPage}}}
+</html>

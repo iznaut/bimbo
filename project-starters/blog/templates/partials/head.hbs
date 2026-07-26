@@ -1,15 +1,19 @@
 <head>
-    <title>{{title}} - {{site.title}}</title>
+    <title>{{ title }} - {{ globals.title }}</title>
     <!-- link preview stuff -->
-    <meta property="og:title" content="{{title}} - {{site.title}}">
-    <meta property="og:description" content="{{useFirstValid description site.description}}">
-    <meta property="og:image" content="{{headerImage}}">
+    <meta property="og:title" content="{{ title }} - {{ globals.title }}" />
+    <meta property="og:description" content="{{useFirstValid description globals.description}}" />
+    <meta property="og:image" content="{{ headerImage }}" />
     <!-- This specifies the favicon (little icon on the browser tab) -->
     <link rel="icon" href="/static/images/favicon.ico" type="image/x-icon" />
     <!-- This helps our site look consistent across devices -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="UTF-8" />
     <!-- Here's the link to our CSS stylesheet! -->
-    <link href="/static/style.css" rel="stylesheet" type="text/css" media="all">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/{{site.codeTheme}}.min.css">
+    <link href="/static/style.css" rel="stylesheet" type="text/css" media="all" />
+    {{!-- TODO code theme --}}
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/{{ globals.codeTheme }}.min.css"
+    />
 </head>

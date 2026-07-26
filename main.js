@@ -1,8 +1,8 @@
 import * as fs from "node:fs"
 import * as path from "node:path"
-import { exec } from "node:child_process"
+import { exec, spawn } from "node:child_process"
 import _ from "lodash"
-import prompt from "electron-prompt"
+import prompt from "electron-prompt" // TODO replace with HtmlPopup
 import * as yaml from "yaml"
 import winston from "winston"
 import Handlebars from "handlebars"
@@ -10,35 +10,35 @@ import { BugSplatNode as BugSplat } from "bugsplat-node"
 
 import {
     CURRENT_VERSION,
-    conf,
     isDev,
     logger,
     versionIsCurrent,
     getLatestVersion,
     notifyUpdateAvailability,
-    openBrowserPreview,
     isPlatformMac,
+} from "./utils.js"
+import {
+    APP_PATH,
+    USER_DATA_PATH,
+    conf,
+    openExternalUrl,
+    openPath,
+    showHtmlPopup,
     showMessageBox,
+    showNotification,
     showPrompt,
     showFilePicker,
-    showHtmlPopup,
-} from "./utils.js"
+    createTray,
+    buildMenu,
+    LOG_PATH,
+} from "./utils/electron.js"
 import config from "./config/config.js"
 import projects from "./projects.js"
 import { deploy, presets, IS_PLUS_MODE } from "./deploy.js"
 import strings from "./config/strings.js"
 import urls from "./config/urls.js"
 
-import {
-    app,
-    Menu,
-    shell,
-    globalShortcut,
-    Tray,
-    BrowserWindow,
-    crashReporter,
-    ipcMain,
-} from "electron"
+import { app, globalShortcut, crashReporter, ipcMain, clipboard } from "electron" // TODO refactor into electron utils
 import { resolveHandle } from "./integrations/bluesky/main.js"
 
 // exec("ssh-keygen -t rsa -q -f \"$HOME/.ssh/id_rsa2\" -N \"\"", (error, stdout, stderr) => {
@@ -63,11 +63,7 @@ import { resolveHandle } from "./integrations/bluesky/main.js"
 // 	mainWindow.setIcon(path.join(__dirname, 'assets/linux/icons/512x512.png'));
 // }
 
-const USER_DATA_PATH = app.getPath("userData")
-const LOG_PATH = path.join(USER_DATA_PATH, `${strings.app.title}.log`)
-
 let bugsplat = null
-let isDebugMode = isDev()
 
 configureCrashReporting()
 
@@ -92,19 +88,18 @@ app.whenReady().then(() => {
         app.dock.hide()
     }
 
-    tray = new Tray(config.ICON)
-    tray.on("click", () => {
-        updateTrayMenu()
+    tray = createTray()
+    tray.on("click", (event) => {
+        updateTrayMenu(event.shiftKey)
     })
 
     globalShortcut.register("CommandOrControl+Alt+R", clearConfig)
-    globalShortcut.register("CommandOrControl+Alt+D", enableDebugMode)
 
     // having this listener active will prevent the app from quitting.
     app.on("window-all-closed", () => {})
 
     if (projects.activeIndex == -1 && !isDev()) {
-        shell.openExternal(urls.tutorial)
+        openExternalUrl(urls.tutorial)
     } else {
         // HACK start watching last active project
         projects.activeIndex = projects.activeIndex
@@ -126,17 +121,17 @@ app.whenReady().then(() => {
     logger.info(strings.logMsg.ready)
 })
 
-function updateTrayMenu() {
+function updateTrayMenu(isDebugMode) {
     const activeProject = projects.active
     const isProjectLoaded = !!projects.active
-    const loadedProjectData = projects.active.getData()
-    const loadedProjectRoot = projects.active.paths.ROOT
+    const loadedProjectMeta = isProjectLoaded ? projects.active.getMeta() : {}
+    const loadedProjectRoot = isProjectLoaded ? projects.active.paths.ROOT : ""
 
-    const deployMeta = isProjectLoaded && loadedProjectData.deployment
-    const bskyMeta = isProjectLoaded && loadedProjectData.integrations?.bluesky
+    const deployMeta = isProjectLoaded && loadedProjectMeta.deployment
+    const bskyMeta = isProjectLoaded && loadedProjectMeta.integrations?.bluesky
     const bskyAutoPostEnabled = conf.get("settings.bskyAutoPost")
 
-    trayMenu = Menu.buildFromTemplate([
+    trayMenu = buildMenu([
         {
             label: strings.app.titleWithVersion(CURRENT_VERSION),
             enabled: false,
@@ -145,14 +140,14 @@ function updateTrayMenu() {
             label: strings.menu.updateAvailable,
             visible: !versionIsCurrent,
             click: () => {
-                shell.openExternal(urls.itch)
+                openExternalUrl(urls.itch)
             },
         },
         { type: "separator" },
         {
             id: "title",
             label: isProjectLoaded
-                ? loadedProjectData.site.title
+                ? activeProject.globals_meta.title
                 : strings.projects.notLoaded,
             type: "submenu",
             submenu: getProjectsSubmenu(),
@@ -160,7 +155,9 @@ function updateTrayMenu() {
         {
             label: strings.menu.openPreview,
             enabled: isProjectLoaded,
-            click: openBrowserPreview,
+            click: () => {
+                openExternalUrl(urls.localPreview)
+            },
         },
         { type: "separator" },
         {
@@ -190,7 +187,7 @@ function updateTrayMenu() {
             label: strings.menu.openFolder,
             enabled: isProjectLoaded,
             click: function () {
-                shell.openPath(loadedProjectRoot)
+                openPath(loadedProjectRoot)
             },
         },
         { type: "separator" },
@@ -205,7 +202,7 @@ function updateTrayMenu() {
             type: "submenu",
             enabled: Object.keys(presets).length > 0 && isProjectLoaded,
             visible: !deployMeta,
-            submenu: Menu.buildFromTemplate(
+            submenu: buildMenu(
                 Object.keys(presets).map((key) => {
                     return {
                         label: key,
@@ -242,7 +239,7 @@ function updateTrayMenu() {
             label: strings.menu.upgrade,
             visible: Object.keys(presets).length == 0,
             click: function () {
-                shell.openExternal(urls.itch)
+                openExternalUrl(urls.itch)
             },
         },
         { type: "separator" },
@@ -254,7 +251,7 @@ function updateTrayMenu() {
         {
             label: strings.menu.support.title,
             type: "submenu",
-            submenu: Menu.buildFromTemplate([
+            submenu: buildMenu([
                 {
                     label: strings.menu.support.checkForUpdates,
                     click: () => {
@@ -272,7 +269,7 @@ function updateTrayMenu() {
                 },
                 {
                     label: strings.menu.support.openDiscord,
-                    click: () => shell.openExternal(urls.discord),
+                    click: () => openExternalUrl(urls.discord),
                 },
                 {
                     label: strings.menu.support.sendEmail,
@@ -280,7 +277,7 @@ function updateTrayMenu() {
                         if (bugsplat) {
                             bugsplat.post(new Error("user prompted email"))
                         }
-                        shell.openExternal(urls.supportMailto)
+                        openExternalUrl(urls.supportMailto)
                     },
                 },
             ]),
@@ -289,19 +286,26 @@ function updateTrayMenu() {
             label: strings.menu.debug.title,
             visible: isDebugMode,
             type: "submenu",
-            submenu: Menu.buildFromTemplate([
+            submenu: buildMenu([
+                {
+                    label: strings.menu.debug.copyLog,
+                    click: () => {
+                        const LOG_CONTENTS = fs.readFileSync(LOG_PATH, "utf-8")
+                        clipboard.writeText(LOG_CONTENTS)
+                    },
+                },
                 {
                     label: strings.menu.debug.openUserData,
                     click: () => {
-                        shell.openPath(USER_DATA_PATH)
+                        openPath(USER_DATA_PATH)
                     },
                 },
-                {
-                    label: strings.menu.debug.deleteSecrets,
-                    click: () => {
-                        fs.rmSync(projects.active.paths.SECRETS_FILE)
-                    },
-                },
+                // {
+                //     label: strings.menu.debug.deleteSecrets,
+                //     click: () => {
+                //         fs.rmSync(projects.active.paths.SECRETS_FILE)
+                //     },
+                // },
                 {
                     label: strings.menu.debug.clearConfig,
                     click: clearConfig,
@@ -321,7 +325,7 @@ function updateTrayTitle() {
     let displayTitle = strings.projects.notLoaded
 
     if (projects.active) {
-        displayTitle = projects.active.getData().site.title
+        displayTitle = projects.active.globals_meta.title
     }
 
     tray.setToolTip(displayTitle)
@@ -332,7 +336,6 @@ function updateTrayTitle() {
 
 ipcMain.handle("bsky", async function (_event, data) {
     const bskyUserId = await resolveHandle(data.handle)
-    // TODO util function for writing secrets
     projects.writeSecrets({
         integrations: {
             bluesky: {
@@ -345,8 +348,8 @@ ipcMain.handle("bsky", async function (_event, data) {
 })
 
 // TODO move to projects.js?
-async function initProjectStarter(projectRoot, starterName) {
-    fs.cpSync(path.join(PROJECT_STARTERS_PATH, starterName), projectRoot, {
+async function initProjectStarter(projectRoot, starterPath) {
+    fs.cpSync(starterPath, projectRoot, {
         // TODO undefined
         recursive: true,
     })
@@ -365,10 +368,11 @@ async function initProjectStarter(projectRoot, starterName) {
     })
 
     // TODO util function?
-    let configFilepath = path.join(projectRoot, config.CONFIG_FILENAME)
+    // writeSecrets but writeConfig
+    let configFilepath = path.join(projectRoot, config.PROJECT_PATHS.SECRETS_FILE)
 
     let newConfig = yaml.parse(fs.readFileSync(configFilepath, "utf-8"))
-    newConfig.site.title = path.basename(projectRoot)
+    newConfig.globals.title = path.basename(projectRoot) // TODO audit for .site
     fs.writeFileSync(configFilepath, yaml.stringify(newConfig))
 
     projects.add(projectRoot)
@@ -416,14 +420,6 @@ function clearConfig() {
     tray.setTitle(strings.projects.notLoaded)
     showMessageBox(strings.app.configClear)
     logger.info(strings.logMsg.configClearSuccess)
-}
-
-function enableDebugMode() {
-    if (!isDebugMode) {
-        isDebugMode = true
-        tray.closeContextMenu()
-        showMessageBox(strings.app.debugMode)
-    }
 }
 
 function getSettingsMenu() {
@@ -477,13 +473,13 @@ function getSettingsMenu() {
 
     items = _.without(items, undefined)
 
-    return Menu.buildFromTemplate(items)
+    return buildMenu(items)
 }
 
 function getProjectsSubmenu() {
     // TODO move to projects.js?
-    const PROJECT_STARTER_PATHS = fs
-        .readdirSync(path.join(app.getAppPath(), "project-starters"), {
+    const PROJECT_STARTERS_PATHS = fs
+        .readdirSync(path.join(APP_PATH, config.PROJECT_STARTERS_PATH), {
             withFileTypes: true,
         })
         .filter((dirent) => dirent.isDirectory())
@@ -491,13 +487,10 @@ function getProjectsSubmenu() {
 
     const PROJECT_MENU_ITEM = (projectPath, index) => {
         const project = projects.getFromPath(projectPath)
-        const RELATIVE_PATH = path.relative(
-            app.getAppPath(),
-            project.paths.ROOT,
-        )
+        const RELATIVE_PATH = path.relative(APP_PATH, project.paths.ROOT)
         const IS_STARTER =
             !RELATIVE_PATH.startsWith("..") && !path.isAbsolute(RELATIVE_PATH)
-        const PROJECT_TITLE = `${IS_STARTER ? "📝 " : ""}${project.getData().site.title}`
+        const PROJECT_TITLE = `${IS_STARTER ? "📝 " : ""}${project.title}`
 
         return {
             label: PROJECT_TITLE,
@@ -524,8 +517,8 @@ function getProjectsSubmenu() {
         {
             label: strings.menu.projects.create,
             type: "submenu",
-            submenu: Menu.buildFromTemplate(
-                PROJECT_STARTER_PATHS.map((starterPath) => {
+            submenu: buildMenu(
+                PROJECT_STARTERS_PATHS.map((starterPath) => {
                     return {
                         label: path.basename(starterPath),
                         click: async function () {
@@ -585,5 +578,5 @@ function getProjectsSubmenu() {
     //     menuTemplate.unshift(PROJECT_STARTERS.map(PROJECT_MENU_ITEM)) // no index?
     // }
 
-    return Menu.buildFromTemplate(menuTemplate)
+    return buildMenu(menuTemplate)
 }

@@ -1,59 +1,65 @@
 {
-  "name": "bimbo",
-  "description": "static site generator for dumb girls",
-  "main": "main.js",
-  "bin": {
-    "bimbo": "main.js"
-  },
-  "author": "izzy kestrel",
-  "license": "ISC",
-  "type": "module",
-  "dependencies": {
-    "@atproto/api": "^0.14.20",
-    "@indiefellas/nekoweb-api": "^2.2.0",
-    "@mdit/plugin-attrs": "^0.16.7",
-    "@mdit/plugin-img-size": "^0.23.2",
-    "async-neocities": "^4.1.2",
-    "bugsplat": "^9.1.1",
-    "bugsplat-node": "^4.0.0",
-    "cheerio": "^1.0.0",
-    "chokidar": "^5.0.0",
-    "compare-versions": "^6.1.1",
-    "electron-conf": "^1.3.0",
-    "electron-prompt": "^1.7.0",
-    "feather-icons": "^4.29.2",
-    "feed": "^4.2.2",
-    "front-matter": "^4.0.2",
-    "handlebars": "^4.7.8",
-    "lodash": "^4.17.21",
-    "markdown-it": "^14.1.0",
-    "markdown-it-footnote": "^4.0.0",
-    "markdown-it-highlightjs": "^4.2.0",
-    "moment": "^2.30.1",
-    "promise-all-properties": "^6.0.0",
-    "reading-time-estimator": "^2.9.0",
-    "ssh2-sftp-client": "^12.1.1",
-    "tiny-json-http": "^7.5.1",
-    "vite": "^7.3.0",
-    "winston": "^3.19.0",
-    "yaml": "^2.7.0",
-    "zip-a-folder": "^6.1.1"
-  },
-  "devDependencies": {
-    "@electron/packager": "^18.4.4",
-    "electron": "^39.2.7",
-    "electronmon": "^2.0.4",
-    "vitest": "^4.1.10"
-  },
-  "peerDependencies": {
-    "typescript": "^5.0.0"
-  },
-  "mac": {
-    "icon": "assets/macos/icon.icns"
-  },
-  "electronmon": {
-    "patterns": [
-      "!project-starters/**"
-    ]
-  }
+    "name": "bimbo",
+    "description": "static site generator for dumb girls",
+    "author": "izzy kestrel",
+    "license": "MIT",
+    "type": "module",
+    "main": "main.js",
+    "scripts": {
+        "build": "npx @electron/packager . --extra-resource project-starters/ --ignore project-starters/ --out build/ --overwrite",
+        "test": "vitest"
+    },
+    "dependencies": {
+        "@atproto/api": "^0.14.20",
+        "@indiefellas/nekoweb-api": "^2.2.0",
+        "@mdit/plugin-attrs": "^0.16.7",
+        "@mdit/plugin-img-size": "^0.23.2",
+        "async-neocities": "^4.1.2",
+        "bugsplat": "^9.1.1",
+        "bugsplat-node": "^4.0.0",
+        "cheerio": "^1.0.0",
+        "chokidar": "^5.0.0",
+        "compare-versions": "^6.1.1",
+        "electron-conf": "^1.3.0",
+        "electron-prompt": "^1.7.0",
+        "electron-store": "^11.0.2",
+        "feather-icons": "^4.29.2",
+        "feed": "^4.2.2",
+        "front-matter": "^4.0.2",
+        "handlebars": "^4.7.8",
+        "lodash": "^4.17.21",
+        "markdown-it": "^14.1.0",
+        "markdown-it-footnote": "^4.0.0",
+        "markdown-it-highlightjs": "^4.2.0",
+        "moment": "^2.30.1",
+        "promise-all-properties": "^6.0.0",
+        "read-pkg": "^10.1.0",
+        "reading-time-estimator": "^2.9.0",
+        "ssh2-sftp-client": "^12.1.1",
+        "tiny-json-http": "^7.5.1",
+        "vite": "^7.3.0",
+        "winston": "^3.19.0",
+        "yaml": "^2.7.0",
+        "yaml-schema-validator": "^1.2.3",
+        "zip-a-folder": "^6.1.1"
+    },
+    "devDependencies": {
+        "@electron/packager": "^18.4.4",
+        "@poliklot/prettier-plugin-handlebars": "^0.3.2",
+        "electron": "^39.2.7",
+        "electronmon": "^2.0.4",
+        "prettier": "^3.9.6",
+        "vitest": "^4.1.10"
+    },
+    "peerDependencies": {
+        "typescript": "^5.0.0"
+    },
+    "mac": {
+        "icon": "assets/macos/icon.icns"
+    },
+    "electronmon": {
+        "patterns": [
+            "!project-starters/**"
+        ]
+    }
 }

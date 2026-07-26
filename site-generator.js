@@ -15,9 +15,12 @@ import * as cheerio from "cheerio"
 import * as feather from "feather-icons"
 import { createServer } from "vite"
 import chokidar from "chokidar"
-import { readingTime } from 'reading-time-estimator'
+import { readingTime } from "reading-time-estimator"
 
-import { conf, logger, openBrowserPreview } from "./utils.js"
+import { inspect } from "util"
+
+import { logger } from "./utils.js"
+import { conf, showMessageBox } from "./utils/electron.js"
 import projects from "./projects.js"
 import config from "./config/config.js"
 import strings from "./config/strings.js" // TODO export separate categories? (e.g. {generator} from strings)
@@ -29,13 +32,10 @@ import {
     resolveHandle,
 } from "./integrations/bluesky/main.js"
 
-let rssFeed
-
 let server
 let watcher
 
-let pagesToUpdate = {}
-
+let buildData
 
 // TODO dedupe
 const PATHS = {
@@ -54,9 +54,7 @@ export async function build(isPostDeploy = false) {
 
     const PROJECT_PATHS = projects.active.paths
 
-    // load site config data
-    let data = projects.active.getData()
-    data.pages = []
+    buildData = { _pages: [] }
 
     // register Handlebars partials
     if (fs.existsSync(PROJECT_PATHS.PARTIALS)) {
@@ -78,7 +76,7 @@ export async function build(isPostDeploy = false) {
 
     // TODO make separate js for handlebars helpers
     Handlebars.registerHelper("formatDate", function (date) {
-        return moment(date).utc().format(data.site.dateFormat)
+        return moment(date).utc().format(buildData.site.dateFormat) // TODO point to validator
     })
 
     Handlebars.registerHelper("getIcon", function (name, options) {
@@ -87,6 +85,7 @@ export async function build(isPostDeploy = false) {
         return icon.toSvg()
     })
 
+    // TODO maybe get rid of this
     Handlebars.registerHelper("useFirstValid", function () {
         const valid = _.filter(arguments, (arg) => {
             return _.isString(arg)
@@ -95,25 +94,31 @@ export async function build(isPostDeploy = false) {
         return valid[0]
     })
 
+    Handlebars.registerHelper("logInBrowser", function (obj) {
+        return `<script>console.log(${JSON.stringify(obj)})</script>`
+    })
+
+    Handlebars.registerHelper(
+        "isCollectionSortAscending",
+        function (name, key) {
+            const SORTS = _.find(
+                projects.active.collections_meta,
+                (v) => v.name == name,
+            ).sort
+
+            const ORDER = _.find(SORTS, (v) => v.key == key).order
+
+            return ORDER == "ascending"
+        },
+    )
+
     // delete previous build
     if (fs.existsSync(PROJECT_PATHS.OUTPUT)) {
         fs.rmSync(PROJECT_PATHS.OUTPUT, { recursive: true, force: true })
     }
     fs.mkdirSync(PROJECT_PATHS.OUTPUT)
 
-    rssFeed = new Feed({
-        title: data.site.title,
-        description: data.site.description,
-        id: data.site.authorUrl,
-        link: data.site.url,
-        author: {
-            name: data.site.authorName,
-            email: data.site.authorEmail,
-            link: data.site.authorUrl,
-        },
-    })
-
-    data.site.userDefined = {}
+    buildData._data = {}
 
     if (fs.existsSync(PROJECT_PATHS.DATA)) {
         // TODO - find out why i'm using promise readdir sometimes
@@ -130,79 +135,150 @@ export async function build(isPostDeploy = false) {
 
             // TODO clean this up
             if (path.extname(filepath) == ".json") {
-                data.site.userDefined[dataName] = JSON.parse(rawData)
+                buildData._data[dataName] = JSON.parse(rawData)
             }
             if (path.extname(filepath) == ".yaml") {
-                data.site.userDefined[dataName] = yaml.parse(rawData)
+                buildData._data[dataName] = yaml.parse(rawData)
             }
             if (path.extname(filepath) == ".txt") {
-                data.site.userDefined[dataName] = rawData.split("\n")
+                buildData._data[dataName] = rawData.split("\n")
             }
         })
     }
 
-    if (fs.existsSync(PROJECT_PATHS.CONTENT)) {
-        const contentFilepaths = await fs.promises.readdir(
-            PROJECT_PATHS.CONTENT,
-            {
-                recursive: true,
-            },
-        )
-        let mdPaths = contentFilepaths.filter((item) => {
-            return path.extname(item) == ".md"
+    // quit if content folder is missing
+    if (!fs.existsSync(PROJECT_PATHS.CONTENT)) {
+        showMessageBox(strings.generator.missingContentFolder)
+        return
+    }
+
+    const CONTENT_FILEPATHS = await fs.promises.readdir(PROJECT_PATHS.CONTENT, {
+        recursive: true,
+    })
+
+    _.chain(CONTENT_FILEPATHS)
+        .filter((item) => {
+            return path.extname(item) == config.CONTENT_EXTENSION
+        })
+        .each((mdFilepath) => {
+            const PAGE_META = getPageData(mdFilepath)
+
+            if (PAGE_META) {
+                buildData._pages.push(PAGE_META)
+            }
+        })
+        .value()
+
+    if (isPostDeploy && arePostsQueued()) {
+        await processBlueskyPosts()
+    }
+
+    buildData.collections = {}
+
+    _.each(projects.active.collections_meta, (ruleset) => {
+        const NAME = config.PAGE_GROUP_PREFIX + ruleset.name
+        const FILTERS = ruleset.filter
+        const SORTS = ruleset.sort
+        const GROUPS = ruleset.group
+
+        buildData.collections[NAME] = buildData._pages
+
+        _.each(FILTERS, (f) => {
+            const FILTER_KEY = f.key
+            const FILTER_VALUE = f.value
+
+            if (FILTER_VALUE) {
+                buildData.collections[NAME] = _.filter(
+                    buildData.collections[NAME],
+                    (v) => v[FILTER_KEY] == FILTER_VALUE,
+                )
+            } else {
+                buildData.collections[NAME] = _.filter(
+                    buildData.collections[NAME],
+                    (v) => v[FILTER_KEY],
+                )
+            }
         })
 
-        mdPaths.forEach((item) => {
-            data = updateMetadata(path.join(PROJECT_PATHS.CONTENT, item), data)
+        _.each(SORTS, (s) => {
+            buildData.collections[NAME] = _.sortBy(
+                buildData.collections[NAME],
+                (v) => v[s.key],
+            )
+
+            if (s.order == "descending") {
+                buildData.collections[NAME] = _.reverse(
+                    buildData.collections[NAME],
+                )
+            }
         })
 
-        if (isPostDeploy && arePostsQueued()) {
-            await processBlueskyPosts()
-        }
+        _.each(GROUPS, (g) => {
+            const GROUP_VALUES = _.chain(buildData.collections[NAME])
+                .flatMap((v) => v[g.key])
+                .compact()
+                .uniq()
+                .value()
 
-        // create navigation data
-        data.site.navPages = _.chain(data.pages)
-            .pickBy((v) => {
-                return v.navIndex
-            })
-            .sortBy((v) => {
-                return v.navIndex
-            })
-            .value()
+            let pageGroups = {}
 
-        // create blog post data
-        data.site.blogPosts = _.chain(data.pages)
-            .filter((v) => {
-                return path.dirname(v.path) == PROJECT_PATHS.POSTS
-            })
-            .sortBy((v) => {
-                return v.date * (data.site.sortPostsAscending ? 1 : -1)
-            })
-            .value()
+            _.each(GROUP_VALUES, (v) => {
+                pageGroups[v] = _.filter(buildData.collections[NAME], (p) => {
+                    const PAGE_VALUE = p[g.key]
 
-        // do something with snippets idk
-        data.site.snippets = _.chain(data.pages)
-            .filter((v) => {
-                return path.dirname(v.path) == PROJECT_PATHS.SNIPPETS
-            })
-            .map((v) => {
-                const key = path.basename(v.path, ".md")
-                return [key, v.content]
-            })
-            .fromPairs()
-            .value()
+                    if (!PAGE_VALUE) {
+                        return
+                    }
 
-        // include prev/next context for posts
-        _.each(data.site.blogPosts, (v, i) => {
+                    if (Array.isArray(PAGE_VALUE)) {
+                        return PAGE_VALUE.includes(v)
+                    } else {
+                        return PAGE_VALUE == v
+                    }
+                })
+            })
+
+            buildData.collections[NAME] = pageGroups
+        })
+
+        // TODO this doesn't work right for groups
+        _.each(buildData.collections[NAME], (v, i) => {
             if (i - 1 > -1) {
-                data.site.blogPosts[i].postNext = data.site.blogPosts[i - 1]
+                buildData.collections[NAME][i]._nextPage = structuredClone(
+                    buildData.collections[NAME][i - 1],
+                )
             }
-            if (i + 1 < data.site.blogPosts.length) {
-                data.site.blogPosts[i].postPrev = data.site.blogPosts[i + 1]
+            if (i + 1 < buildData.collections[NAME].length) {
+                buildData.collections[NAME][i]._previousPage = structuredClone(
+                    buildData.collections[NAME][i + 1],
+                )
             }
         })
+    })
 
-        generatePages(data)
+    // TODO do something with snippets idk
+    // buildData.site.snippets = _.chain(buildData._pages)
+    //     .filter((v) => {
+    //         return path.dirname(v.path) == PROJECT_PATHS.SNIPPETS
+    //     })
+    //     .map((v) => {
+    //         const key = path.basename(v.path, ".md")
+    //         return [key, v.content]
+    //     })
+    //     .fromPairs()
+    //     .value()
+
+    _.each(buildData._pages, (pageMeta) => {
+        generatePage(pageMeta)
+    })
+
+    const RSS_GROUP_NAME = _.find(
+        projects.active.collections_meta,
+        (g) => g.rss,
+    ).name
+
+    if (RSS_GROUP_NAME) {
+        generateRssFeed(config.PAGE_GROUP_PREFIX + RSS_GROUP_NAME)
     }
 
     // copy static pages
@@ -217,10 +293,8 @@ export async function build(isPostDeploy = false) {
         },
     )
 
-    fs.writeFileSync(path.join(PROJECT_PATHS.OUTPUT, "feed.xml"), rssFeed.rss2())
-
-    const bskyHandle = data.integrations?.bluesky?.handle
-    let bskyUserId = data.integrations?.bluesky?.userId
+    const bskyHandle = buildData.integrations?.bluesky?.handle
+    let bskyUserId = buildData.integrations?.bluesky?.userId
 
     if (bskyHandle) {
         // TODO never exists bc _site gets wiped every build
@@ -236,9 +310,6 @@ export async function build(isPostDeploy = false) {
         // }
     }
 
-    // TODO what even is this
-    process.watchData = data
-
     logger.info(strings.generator.buildComplete(isPostDeploy))
 
     // TODO this is autoOpenPreview now and probably goes elsewhere
@@ -246,6 +317,8 @@ export async function build(isPostDeploy = false) {
     //     openBrowserPreview()
     // }
 }
+
+let lastProjectMeta
 
 // TODO move watch into main
 export async function watch(initialBuild = false) {
@@ -256,10 +329,10 @@ export async function watch(initialBuild = false) {
         await server.close()
     }
 
-    const ACTIVE_PROJECT_DATA = projects.active.getData()
-    const PROJECT_PATHS = projects.active.paths
+    if (projects.active) {
+        const PROJECT_PATHS = projects.active.paths
+        lastProjectMeta = projects.active.getMeta()
 
-    if (ACTIVE_PROJECT_DATA) {
         watcher = chokidar
             .watch(PROJECT_PATHS.ROOT, {
                 ignored: (filePath) => {
@@ -275,16 +348,16 @@ export async function watch(initialBuild = false) {
             })
             .on("all", (event, changedPath) => {
                 logger.info(`${event}: ${changedPath}`)
-                build()
 
-                // TODO triggers data update - not needed anymore?
-                // if (
-                //     [config.CONFIG_FILENAME, config.SECRETS_FILENAME].includes(
-                //         path.basename(changedPath),
-                //     )
-                // ) {
-                //     projects.setActive()
-                // }
+                if (
+                    path.basename(changedPath) == config.PROJECT_PATHS.SECRETS_FILE &&
+                    _.isEqual(projects.active.getMeta(), lastProjectMeta)
+                ) {
+                    return
+                }
+
+                lastProjectMeta = projects.active.getMeta() // TODO move this into build?
+                build()
             })
 
         logger.info(strings.generator.monitoring(PROJECT_PATHS.ROOT))
@@ -316,24 +389,89 @@ export async function pauseWatcher() {
     }
 }
 
-function getContentDefaults(dir) {
-    const defaultFilepath = path.join(dir, config.DEFAULTS_FILENAME)
+function getPageData(contentFilepath) {
+    const PROJECT_PATHS = projects.active.paths
+    const ABSOLUTE_FILEPATH = path.join(PROJECT_PATHS.CONTENT, contentFilepath)
+    const FRONT_MATTER = fm(fs.readFileSync(ABSOLUTE_FILEPATH, "utf-8"))
 
-    if (fs.existsSync(defaultFilepath)) {
-        return yaml.parse(fs.readFileSync(defaultFilepath, "utf-8"))
-    } else {
-        return {}
+    let pageMeta = {
+        _filepath: ABSOLUTE_FILEPATH,
+        _subfolder: path.dirname(contentFilepath),
+        _relativeUrl:
+            "/" +
+            contentFilepath.replace(
+                config.CONTENT_EXTENSION,
+                config.PAGE_EXTENSION,
+            ),
+        _mdContent: FRONT_MATTER,
+        // _content added in generatePage()
     }
+
+    const CONTENT_DEFAULTS = _.omit(projects.active.defaults_meta, "subfolders")
+    const SUBFOLDER_DEFAULTS =
+        projects.active.defaults_meta.subfolders[pageMeta._subfolder] || {}
+
+    _.merge(
+        pageMeta, // base object with generated values
+        CONTENT_DEFAULTS, // project-wide default values
+        SUBFOLDER_DEFAULTS, // subfolder-specific default values
+        FRONT_MATTER.attributes, // page-specific values
+    )
+
+    pageMeta.readingTime = readingTime(FRONT_MATTER.body).text
+
+    // TODO validators
+    if (pageMeta.draft) {
+        logger.info(strings.generator.skipDraft(contentFilepath))
+        return
+    }
+
+    // use filename as title if not defined
+    if (!pageMeta.title) {
+        pageMeta.title = path.basename(
+            contentFilepath,
+            config.CONTENT_EXTENSION,
+        )
+    }
+
+    if (pageMeta.redirect) {
+        pageMeta._relativeUrl = pageMeta.redirect
+    }
+
+    // const $ = cheerio.load(pageMeta._content)
+
+    // if (!pageMeta.description) {
+    //     // TODO make this smarter
+    //     pageMeta.description = $("p").html()
+    // }
+
+    // let firstImgUrl = $("img").prop("src")
+
+    // TODO figure this junk out
+    // if (!pageMeta.headerImage) {
+    //     pageMeta.headerImage = firstImgUrl || buildData.site.headerImage
+    // }
+
+    // pageMeta.headerImageLocal = pageMeta.headerImage
+
+    // if (pageMeta.headerImage && path.parse(pageMeta.headerImage).root == "/") {
+    //     pageMeta.headerImage = new URL(
+    //         pageMeta.headerImage,
+    //         "https://" + buildData.site.url,
+    //     ).href
+    // }
+
+    return pageMeta
 }
 
-function updateMetadata(filepath, data) {
+function generatePage(pageMeta) {
     const PROJECT_PATHS = projects.active.paths
 
-    const originalMd = fs.readFileSync(filepath, "utf-8")
+    if (pageMeta.redirect) {
+        return
+    }
 
-    let frontMatter = fm(originalMd)
-
-    const md = markdownit({
+    const MD = markdownit({
         html: true,
     })
         .use(markdownItFootnote)
@@ -341,167 +479,133 @@ function updateMetadata(filepath, data) {
         .use(attrs)
         .use(imgSize)
 
-    frontMatter.attributes = {
-        ...data.contentDefaults, // global defaults
-        ...getContentDefaults(path.dirname(filepath)), // local defaults
-        ...frontMatter.attributes,
+    // render markdown to html
+    pageMeta._content = MD.render(pageMeta._mdContent.body)
+    // add globals and groups to page
+    pageMeta.globals = projects.active.globals_meta
+    _.assign(pageMeta, buildData.collections) // TODO not sure if still works?
+    // add full project meta
+    pageMeta._project_meta = projects.active.getMeta()
+
+    let templatePath = path.join(PROJECT_PATHS.TEMPLATES, pageMeta.template)
+
+    // get html template
+    if (!fs.existsSync(templatePath)) {
+        logger.warn(strings.generator.missingTemplate)
+        pageMeta.template = "default.hbs"
+        templatePath = path.join(PROJECT_PATHS.TEMPLATES, pageMeta.template) // TODO hardcode this? require it in yaml?
+    }
+    let htmlOutput = fs.readFileSync(templatePath, "utf-8")
+    const HANDLEBARS_TEMPLATE = Handlebars.compile(htmlOutput)
+
+    try {
+        htmlOutput = HANDLEBARS_TEMPLATE(pageMeta)
+    } catch (error) {
+        logger.error(strings.generator.compileFail(pageMeta.template))
+        logger.error(error.message)
+        let encodedError = error.message.replace(
+            /[\u00A0-\u9999<>\&]/gim,
+            function (i) {
+                return "&#" + i.charCodeAt(0) + ";"
+            },
+        )
+        htmlOutput = "<pre>" + encodedError + "</pre>"
     }
 
-    let page = {
-        path: filepath,
-        url: filepath.replace(PROJECT_PATHS.CONTENT, "").replace(".md", ".html"),
-        content: md.render(frontMatter.body),
-        md: originalMd,
-    }
-    for (let key in frontMatter.attributes) {
-        page[key] = frontMatter.attributes[key]
-    }
+    let htmlFilename = pageMeta._relativeUrl
+    let outputDir = path.dirname(htmlFilename)
 
-    page.readingTime = readingTime(frontMatter.body).text
-
-    if (page.draft) {
-        logger.info(strings.generator.skipDraft(filepath))
-        return data
+    if (!fs.existsSync(outputDir)) {
+        fs.mkdirSync(path.join(PROJECT_PATHS.OUTPUT, outputDir), {
+            recursive: true,
+        })
     }
 
-    // use filename as title if not defined
-    if (!page.title) {
-        page.title = path.basename(filepath, ".md")
+    fs.writeFileSync(path.join(PROJECT_PATHS.OUTPUT, htmlFilename), htmlOutput)
+
+    // queue bluesky post for after deploy
+    if (conf.get("settings.bskyAutoPost") && pageMeta.bskyPostId == "tbd") {
+        queuePost(pageMeta)
     }
-
-    if (page.redirect) {
-        page.url = page.redirect
-    }
-
-    const $ = cheerio.load(page.content)
-
-    if (!page.description) {
-        // TODO make this smarter
-        page.description = $("p").html()
-    }
-
-    let firstImgUrl = $("img").prop("src")
-
-    if (!page.headerImage) {
-        page.headerImage = firstImgUrl || data.site.headerImage
-    }
-
-    page.headerImageLocal = page.headerImage
-
-    if (page.headerImage && path.parse(page.headerImage).root == "/") {
-        page.headerImage = new URL(
-            page.headerImage,
-            "https://" + data.site.url,
-        ).href
-    }
-
-    if (page.includeInRSS) {
-        try {
-            rssFeed.addItem({
-                title: page.title,
-                description: page.description,
-                link: page.url,
-                date: page.date,
-                content: page.content,
-            })
-        } catch (err) {
-            logger.info(strings.generator.rssFail)
-            logger.info(err)
-        }
-    }
-
-    data.pages.push(page)
-
-    return data
-}
-
-function generatePages(data) {
-    const PROJECT_PATHS = projects.active.paths
-
-    _.each(data.pages, (page) => {
-        if (page.redirect) {
-            return
-        }
-
-        page.site = data.site
-
-        let templatePath = path.join(PROJECT_PATHS.TEMPLATES, page.template)
-
-        // get html template
-        if (!fs.existsSync(templatePath)) {
-            logger.warn(strings.generator.missingTemplate)
-            page.template = "default.html"
-            templatePath = path.join(PROJECT_PATHS.TEMPLATES, "default.html")
-        }
-
-        let htmlOutput = fs.readFileSync(templatePath, "utf-8")
-
-        // compile html template
-        let htmlTemplate = Handlebars.compile(htmlOutput)
-
-        try {
-            htmlOutput = htmlTemplate(page)
-        } catch (error) {
-            logger.error(strings.generator.compileFail(page.template))
-            logger.error(error.message)
-            let encodedError = error.message.replace(
-                /[\u00A0-\u9999<>\&]/gim,
-                function (i) {
-                    return "&#" + i.charCodeAt(0) + ";"
-                },
-            )
-            htmlOutput = "<pre>" + encodedError + "</pre>"
-        }
-
-        let outputPath = page.url
-        let outputDir = path.dirname(outputPath)
-
-        if (!fs.existsSync(outputDir)) {
-            fs.mkdirSync(path.join(PROJECT_PATHS.OUTPUT, outputDir), {
-                recursive: true,
-            })
-        }
-
-        fs.writeFileSync(path.join(PROJECT_PATHS.OUTPUT, outputPath), htmlOutput)
-
-        // queue bluesky post for after deploy
-        if (conf.get("settings.bskyAutoPost") && page.bskyPostId == "tbd") {
-            queuePost(page)
-        }
-
-        return outputPath
-    })
 }
 
 async function processBlueskyPosts() {
     await pauseWatcher()
-    const postsData = await submitQueuedPosts()
+    const { userId } = projects.active.get_secrets().integrations.bluesky
+    const SKEETS_DATA = await submitQueuedPosts()
 
     let index = 0
 
-    _.each(postsData, (postData, filepath) => {
-        const pageIndex = _.findIndex(data.pages, (page) => {
-            return page.path == filepath
-        })
+    // TODO test
+    _.each(SKEETS_DATA, ({ id }, filepath) => {
+        const PAGE_INDEX = _.findIndex(
+            buildData._pages,
+            (page) => page._filepath == filepath,
+        )
+        const PAGE_META = buildData._pages[PAGE_INDEX]
 
-        const page = data.pages[pageIndex]
-
-        data.pages[pageIndex].bskyPostId = postData.id
+        buildData._pages[PAGE_INDEX].bskyPostId = id
 
         fs.writeFileSync(
-            page.path,
-            page.md.replace(
+            PAGE_META._filepath,
+            PAGE_META._mdContent.replace(
                 "bskyPostId: tbd",
-                `bskyPostId: ${postData.id}`,
+                `bskyPostId: ${id}`,
             ),
         )
 
         logger.info(
             strings.generator.bsky.postSuccess(
-                `https://bsky.app/profile/${data.integrations.bluesky.userId}/post/${postData.id}`,
+                `https://bsky.app/profile/${userId}/post/${id}`,
             ),
         )
 
         index++
     })
+}
+
+function generateRssFeed(groupName) {
+    const PROJECT_GLOBALS = projects.active.globals_meta
+
+    const RSS_FEED = new Feed({
+        title: PROJECT_GLOBALS.title,
+        description: PROJECT_GLOBALS.description,
+        id: PROJECT_GLOBALS.url, // TODO dynamic url get?
+        link: PROJECT_GLOBALS.url, // TODO dynamic url get?
+        author: {
+            // TODO support for multiple authors
+            name: PROJECT_GLOBALS.author.name,
+            email: PROJECT_GLOBALS.author.email,
+            link: PROJECT_GLOBALS.author.url,
+        },
+    })
+
+    _.each(buildData.collections[groupName], (pageMeta) => {
+        if (!pageMeta.excludeFromRss) {
+            try {
+                RSS_FEED.addItem({
+                    title: pageMeta.title,
+                    description: pageMeta.description,
+                    id: pageMeta._relativeUrl,
+                    link: pageMeta._relativeUrl,
+                    date: pageMeta.date,
+                    content: pageMeta._content,
+                    author: {
+                        // TODO support for multiple authors
+                        name: PROJECT_GLOBALS.author.name,
+                        email: PROJECT_GLOBALS.author.email,
+                        link: PROJECT_GLOBALS.author.url,
+                    },
+                })
+            } catch (err) {
+                logger.info(strings.generator.rssFail)
+                logger.info(err)
+            }
+        }
+    })
+
+    fs.writeFileSync(
+        path.join(projects.active.paths.OUTPUT, "feed.xml"),
+        RSS_FEED.rss2(),
+    )
 }

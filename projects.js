@@ -3,45 +3,56 @@ import * as path from "node:path"
 import _ from "lodash"
 import * as yaml from "yaml"
 
-import { conf, logger, showNotification, showPrompt } from "./utils.js"
+import { logger } from "./utils.js"
+import {
+    conf,
+    showMessageBox,
+    showNotification,
+    showPrompt,
+} from "./utils/electron.js"
 import config from "./config/config.js"
 import { watch } from "./site-generator.js"
 import strings from "./config/strings.js"
-
-const PATHS = {
-    ROOT: ".",
-    CONFIG_FILE: config.CONFIG_FILENAME,
-    SECRETS_FILE: config.SECRETS_FILENAME,
-    CONTENT: "content",
-    POSTS: "content/posts",
-    SNIPPETS: "content/snippets",
-    DATA: "data",
-    TEMPLATES: "templates",
-    PARTIALS: "templates/partials",
-    STATIC: "static",
-    OUTPUT: "_site",
-}
+import { PROJECT_CONFIG_OPTIONS } from "./front-matter.js"
 
 class Project {
     paths
 
     constructor(rootPath) {
-        this.paths = _.mapValues(PATHS, (relativePath) =>
+        console.log(rootPath)
+        this.paths = _.mapValues(config.PROJECT_PATHS, (relativePath) =>
+            // console.log(relativePath)
             path.join(rootPath, relativePath),
         )
+
+        console.log(this.paths)
     }
 
-    getData() {
-        const META_FILEPATH = this.paths.CONFIG_FILE
-        const SECRETS_FILEPATH = this.paths.SECRETS_FILE
+    getMeta() {
+        return yaml.parse(fs.readFileSync(this.paths.CONFIG_FILE, "utf-8"))
+    }
 
-        const META_DATA = yaml.parse(fs.readFileSync(META_FILEPATH, "utf-8"))
-        const SECRETS_DATA = fs.existsSync(SECRETS_FILEPATH)
+    getSecrets() {
+        return fs.existsSync(this.paths.SECRETS_FILE)
             ? yaml.parse(fs.readFileSync(SECRETS_FILEPATH, "utf-8"))
             : {}
+    }
 
-        // TODO secrets should be separated
-        return _.merge(META_DATA, SECRETS_DATA)
+    get globals_meta() {
+        return this.getMeta()[PROJECT_CONFIG_OPTIONS.GLOBALS.name]
+    }
+    get defaults_meta() {
+        return this.getMeta()[PROJECT_CONFIG_OPTIONS.DEFAULTS.name]
+    }
+    get validators_meta() {
+        return this.getMeta()[PROJECT_CONFIG_OPTIONS.VALIDATORS.name]
+    }
+    get collections_meta() {
+        return this.getMeta()[PROJECT_CONFIG_OPTIONS.COLLECTIONS.name]
+    }
+
+    get title() {
+        return this.globals_meta.title || "untitled project"
     }
 }
 
@@ -53,8 +64,10 @@ const exports = {
     set activeIndex(value) {
         conf.set("activeIndex", value)
 
-        this.active = new Project(this.list[this.activeIndex])
-        watch(true)
+        if (this.activeIndex > -1) {
+            this.active = new Project(this.list[this.activeIndex])
+            watch(true)
+        }
     },
     get list() {
         return conf.get("projects")
@@ -71,12 +84,12 @@ const exports = {
         // remove invalid paths
         const SAVED_PROJECT_PATHS = this.list.filter((rootPath) => {
             const fileExists = fs.existsSync(
-                path.join(rootPath, config.CONFIG_FILENAME),
+                path.join(rootPath, config.PROJECT_PATHS.SECRETS_FILE),
             )
 
             if (!fileExists) {
-                logger.warn(strings.logMsg.missingProject)
-                showPrompt(strings.projects.missing)
+                logger.warn(strings.logMsg.missingProject(rootPath))
+                showMessageBox(strings.projects.missing(rootPath))
             }
 
             return fileExists
@@ -87,7 +100,9 @@ const exports = {
 
         // if no valid projects
         if (SAVED_PROJECT_PATHS.length == 0) {
-            conf.set("activeIndex", -1)
+            this.activeIndex = -1
+        } else {
+            this.activeIndex = SAVED_PROJECT_PATHS.length - 1
         }
 
         return SAVED_PROJECT_PATHS.map((rootPath) => new Project(rootPath))
@@ -141,16 +156,14 @@ const exports = {
         const secretsPath = this.active.paths.SECRETS_FILE
 
         // if file doesn't exist, create an empty one
-        if (!fs.existsSync(secretsPath)) {
-            fs.writeFileSync(secretsPath, yaml.stringify({}))
-        }
+        // if (!fs.existsSync(secretsPath)) {
+        //     fs.writeFileSync(secretsPath, yaml.stringify({}))
+        // }
 
-        // read existing secrets and merge with new ones
-        const secretsData = yaml.parse(fs.readFileSync(secretsPath, "utf-8"))
-        const mergedData = _.merge(secretsData, data)
-
-        // write back to file
-        fs.writeFileSync(secretsPath, yaml.stringify(mergedData))
+        fs.writeFileSync(
+            secretsPath,
+            yaml.stringify(_.merge(this.active.getSecrets(), data)),
+        )
 
         logger.info(strings.logMsg.secretsSaved(secretsPath, Object.keys(data)))
     },

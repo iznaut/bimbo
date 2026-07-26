@@ -1,7 +1,9 @@
 <div id="postlistdiv">
     <ul>
-        {{#each site.blogPosts}}
-            <li><a href="{{this.url}}">{{formatDate this.date}} » {{this.title}}</a></li>
+        {{#each $allPosts}}
+            <li>
+                <a href="{{ this._relativeUrl }}">{{ this.date }} » {{ this.title }}</a>
+            </li>
         {{/each}}
     </ul>
 </div>

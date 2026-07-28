@@ -65,8 +65,8 @@ export default {
         tryEditor: (editor) => `user requested editor ${editor}`,
         missingProject: (path) =>
             `unable to find project, removing from list: ${path}`,
-        secretsSaved: (secretsPath, keys) =>
-            `wrote user secrets to ${secretsPath} (${keys})`,
+        userConfigSaved: (filepath, keys) =>
+            `wrote user config to ${filepath} (${keys})`,
         deployStart: "🌐 user requested deployment",
         postDeployStart: "starting secondary deployment",
     },

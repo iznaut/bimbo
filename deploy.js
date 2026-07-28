@@ -4,26 +4,23 @@ import NekowebAPI from "@indiefellas/nekoweb-api"
 import SftpClient from "ssh2-sftp-client"
 import * as path from "node:path"
 import * as fs from "node:fs"
-import * as yaml from "yaml"
 import { zip } from "zip-a-folder"
 import { setTimeout } from "timers/promises"
 
-import {
-    logger,
-} from "./utils.js"
+import { logger } from "./utils.js"
 import {
     conf,
     showHtmlPopup,
     showMessageBox,
     showNotification,
     showPrompt,
-} from "./utils/electron.js"
+} from "./electron/main.js"
 import strings from "./config/strings.js"
-import projects from "./projects.js" // TODO just import active as activeProject?
+import projects from "./projects.js"
 import config from "./config/config.js"
 import { arePostsQueued } from "./integrations/bluesky/main.js"
 import { build, pauseWatcher, watch } from "./site-generator.js"
-import { openExternalUrl } from "./utils/electron.js"
+import { openExternalUrl } from "./electron/main.js"
 
 export const IS_PLUS_MODE = true
 
@@ -44,62 +41,9 @@ export const presets = {
     },
 }
 
-ipcMain.handle("openExternalUrl", async function (_event, url) {
-    openExternalUrl(url)
-})
-
-ipcMain.handle("form", async function (_event, newDeployMeta) {
-    switch (newDeployMeta.provider) {
-        case "nekoweb":
-            break
-        case "neocities":
-            const apiKeyResponse = await NeocitiesAPIClient.getKey({
-                siteName: newDeployMeta.username,
-                ownerPassword: newDeployMeta.password,
-            })
-
-            if (apiKeyResponse.result == "success") {
-                logger.info(
-                    strings.deployment.auth.success(newDeployMeta.provider),
-                )
-
-                newDeployMeta = {
-                    provider: newDeployMeta.provider,
-                    apiKey: apiKeyResponse.api_key,
-                }
-            } else {
-                logger.info(
-                    strings.deployment.auth.fail(newDeployMeta.provider),
-                )
-                showMessageBox(
-                    strings.popups.deployFail(newDeployMeta.provider),
-                    "error",
-                )
-                return
-            }
-            break
-        case "sftp":
-            deploy(newDeployMeta.password)
-            return
-        default:
-            break
-    }
-
-    projects.writeSecrets({
-        deployment: newDeployMeta,
-    })
-
-    // TODO oh god test this before shipping
-    await build() // .then?
-
-    // await setTimeout(1000) // HACK to get around build not finishing in time for deploy
-
-    try {
-        deploy()
-    } catch (err) {
-        logger.error(err)
-    }
-})
+export function configure(provider) {
+    showHtmlPopup("forms", provider)
+}
 
 export async function deploy(sftpPassword = null, isPostDeploy = false) {
     if (isPostDeploy) {
@@ -108,11 +52,10 @@ export async function deploy(sftpPassword = null, isPostDeploy = false) {
         logger.info(strings.logMsg.deployStart)
     }
 
-    const ACTIVE_PROJECT_DATA = projects.active.getMeta()
-    const DEPLOY_META = projects.active.getSecrets().deployment
+    const DEPLOY_META = projects.active.secrets.deployment
 
     if (!DEPLOY_META) {
-        showHtmlPopup(`popups/deployment/${DEPLOY_META.provider}.html`)
+        showHtmlPopup(DEPLOY_META.provider) // TODO 
     } else if (DEPLOY_META.host && !sftpPassword && !DEPLOY_META.keyPath) {
         showHtmlPopup(`popups/deployment/sftp-password.html`)
     } else {
@@ -142,7 +85,7 @@ export async function deploy(sftpPassword = null, isPostDeploy = false) {
             if (!isPostDeploy) {
                 clickedId = showPrompt(
                     strings.popups.confirmDeployment.message(
-                        ACTIVE_PROJECT_DATA.site.title,
+                        projects.active.title,
                         DEPLOY_META.provider,
                     ),
                     "warning",

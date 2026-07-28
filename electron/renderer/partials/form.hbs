@@ -1,0 +1,50 @@
+<form id="form" action="#" onsubmit="sendForm(event)">
+    {{#each fields}}
+        <input id="id" value="{{ id }}" style="display:none" />
+        {{#if addon}}
+            <div class="field is-horizontal">
+                <div class="field-body">
+                    <div class="field is-expanded">
+                        <div class="field has-addons">
+                            <p class="control"><a class="button is-static">{{ addon }}</a></p>
+                            <p class="control is-expanded">
+                                <input
+                                    id="{{ id }}"
+                                    class="input"
+                                    placeholder="{{#if placeholder}}{{ placeholder }}{{else}}{{ id }}{{/if}}"
+                                    type="{{#if type}}{{ type }}{{else}}text{{/if}}"
+                                />
+                            </p>
+                        </div>
+                        <p class="help">{{{ helpText }}}</p>
+                    </div>
+                </div>
+            </div>
+        {{else}}
+            <div class="field">
+                <div class="control">
+                    <input
+                        id="{{ id }}"
+                        class="input"
+                        placeholder="{{#if placeholder}}{{ placeholder }}{{else}}{{ id }}{{/if}}"
+                        type="{{#if type}}{{ type }}{{else}}text{{/if}}"
+                    />
+                    {{#if helpText}}
+                        <p class="help">
+                            {{{ helpText }}}
+                        </p>
+                    {{/if}}
+                </div>
+            </div>
+        {{/if}}
+    {{/each}}
+    <div class="field is-grouped">
+        <div class="control">
+            <button class="button is-link">Submit</button>
+        </div>
+        <div class="control">
+            <button class="button is-link is-light">Cancel</button>
+        </div>
+    </div>
+</form>
+<script src="formHandler.js"></script>

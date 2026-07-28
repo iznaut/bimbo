@@ -4,12 +4,14 @@ import * as path from "node:path"
 import winston from "winston"
 import { compareVersions } from "compare-versions"
 import tiny from "tiny-json-http"
+import { parse as yamlParse, stringify as yamlStringify } from "yaml"
+import _ from "lodash"
 import {
     APP_PATH,
     USER_DATA_PATH,
     openExternalUrl,
     showNotification,
-} from "./utils/electron.js"
+} from "./electron/main.js"
 
 import { IS_PLUS_MODE } from "./deploy.js"
 import strings from "./config/strings.js"
@@ -98,4 +100,22 @@ export function isDev() {
 
 export function isPlatformMac() {
     return platform() === "darwin"
+}
+
+export function readConfigFile(filepath) {
+    return fs.existsSync(filepath) ? parseYamlFile(filepath) : {}
+}
+
+export function updateConfigFile(filepath, newData = {}) {
+    let configData = fs.existsSync(filepath) ? parseYamlFile(filepath) : {}
+
+    fs.writeFileSync(filepath, yamlStringify(_.merge(configData, newData)))
+
+    const UPDATED_KEYS = Object.keys(newData)
+    logger.info(strings.logMsg.userConfigSaved(filepath, UPDATED_KEYS))
+    return UPDATED_KEYS
+}
+
+export function parseYamlFile(filepath) {
+    return yamlParse(fs.readFileSync(filepath, "utf-8"))
 }

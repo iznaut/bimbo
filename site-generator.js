@@ -1,8 +1,8 @@
 import * as path from "node:path"
 import * as fs from "node:fs"
 import _ from "lodash"
-import * as yaml from "yaml"
-import markdownit from "markdown-it"
+import { parse as yamlParse } from "yaml"
+import markdownit from "markdown-it" // TODO move md/fm/handlebars stuff into shared file
 import markdownItFootnote from "markdown-it-footnote"
 import markdownItHighlightjs from "markdown-it-highlightjs"
 import { attrs } from "@mdit/plugin-attrs"
@@ -20,7 +20,7 @@ import { readingTime } from "reading-time-estimator"
 import { inspect } from "util"
 
 import { logger } from "./utils.js"
-import { conf, showMessageBox } from "./utils/electron.js"
+import { conf, showMessageBox } from "./electron/main.js"
 import projects from "./projects.js"
 import config from "./config/config.js"
 import strings from "./config/strings.js" // TODO export separate categories? (e.g. {generator} from strings)
@@ -31,6 +31,8 @@ import {
     submitQueuedPosts,
     resolveHandle,
 } from "./integrations/bluesky/main.js"
+
+// TODO idk why this doesn't work const ACTIVE_PROJECT = projects.active
 
 let server
 let watcher
@@ -138,7 +140,7 @@ export async function build(isPostDeploy = false) {
                 buildData._data[dataName] = JSON.parse(rawData)
             }
             if (path.extname(filepath) == ".yaml") {
-                buildData._data[dataName] = yaml.parse(rawData)
+                buildData._data[dataName] = yamlParse(rawData)
             }
             if (path.extname(filepath) == ".txt") {
                 buildData._data[dataName] = rawData.split("\n")
@@ -331,7 +333,7 @@ export async function watch(initialBuild = false) {
 
     if (projects.active) {
         const PROJECT_PATHS = projects.active.paths
-        lastProjectMeta = projects.active.getMeta()
+        lastProjectMeta = projects.active.config
 
         watcher = chokidar
             .watch(PROJECT_PATHS.ROOT, {
@@ -350,13 +352,14 @@ export async function watch(initialBuild = false) {
                 logger.info(`${event}: ${changedPath}`)
 
                 if (
-                    path.basename(changedPath) == config.PROJECT_PATHS.SECRETS_FILE &&
-                    _.isEqual(projects.active.getMeta(), lastProjectMeta)
+                    path.basename(changedPath) ==
+                        config.PROJECT_PATHS.SECRETS_FILE &&
+                    _.isEqual(projects.active.config, lastProjectMeta)
                 ) {
                     return
                 }
 
-                lastProjectMeta = projects.active.getMeta() // TODO move this into build?
+                lastProjectMeta = projects.active.config // TODO move this into build?
                 build()
             })
 
@@ -485,7 +488,7 @@ function generatePage(pageMeta) {
     pageMeta.globals = projects.active.globals_meta
     _.assign(pageMeta, buildData.collections) // TODO not sure if still works?
     // add full project meta
-    pageMeta._project_meta = projects.active.getMeta()
+    pageMeta._project_meta = projects.active.config // TODO _project_config?
 
     let templatePath = path.join(PROJECT_PATHS.TEMPLATES, pageMeta.template)
 
@@ -531,7 +534,7 @@ function generatePage(pageMeta) {
 
 async function processBlueskyPosts() {
     await pauseWatcher()
-    const { userId } = projects.active.get_secrets().integrations.bluesky
+    const { userId } = projects.active.secrets.integrations.bluesky
     const SKEETS_DATA = await submitQueuedPosts()
 
     let index = 0

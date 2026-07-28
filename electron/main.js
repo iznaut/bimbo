@@ -7,15 +7,22 @@ import {
     Notification,
     shell,
     Tray,
+    ipcMain,
 } from "electron"
+import { join as pathJoin } from "node:path"
 import { Conf } from "electron-conf/main"
 import { fileURLToPath } from "url"
 import { dirname, join } from "node:path"
+import { readFileSync } from "node:fs"
 
 import config from "../config/config.js"
+import { compile } from "../templater.js"
+import strings from "../config/strings.js"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
+
+const RENDERER_PATH = pathJoin(__dirname, "renderer")
 
 export const APP_PATH = app.getAppPath()
 export const USER_DATA_PATH = app.getPath("userData")
@@ -77,15 +84,27 @@ export function showFilePicker(config) {
     return dialog.showOpenDialogSync(config)
 }
 
-// TODO make deployment htmls into templates
-export function showHtmlPopup(htmlPath) {
+export function showHtmlPopup(type, contentName) {
     const window = new BrowserWindow({
         useContentSize: true,
         alwaysOnTop: true,
         webPreferences: {
-            preload: path.join(__dirname, "preload.js"),
+            preload: pathJoin(__dirname, "preload.js"),
         },
     })
 
-    window.loadFile(htmlPath)
+    const HTML = compile(
+        pathJoin(RENDERER_PATH, type, "base.hbs"),
+        pathJoin(RENDERER_PATH, type, `${contentName}.md`),
+        pathJoin(RENDERER_PATH, `partials`),
+        true,
+    )
+
+    window.loadURL("data:text/html;charset=UTF-8," + encodeURIComponent(HTML), {
+        baseURLForDataURL: `file://${RENDERER_PATH}/`,
+    })
+
+    if (!app.isPackaged) {
+        window.webContents.openDevTools()
+    }
 }

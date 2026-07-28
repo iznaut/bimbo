@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet" href="bulma.css" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+    </head>
+    <body>
+        <section class="section">
+            <div class="container">
+                <h1 class="title">{{ title }}</h1>
+                <div class="block">{{{ _content }}}</div>
+                <div class="block">
+                    {{> form}}
+                </div>
+            </div>
+        </section>
+    </body>
+</html>

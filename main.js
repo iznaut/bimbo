@@ -3,7 +3,6 @@ import * as path from "node:path"
 import { exec, spawn } from "node:child_process"
 import _ from "lodash"
 import prompt from "electron-prompt" // TODO replace with HtmlPopup
-import * as yaml from "yaml"
 import winston from "winston"
 import Handlebars from "handlebars"
 import { BugSplatNode as BugSplat } from "bugsplat-node"
@@ -16,6 +15,7 @@ import {
     getLatestVersion,
     notifyUpdateAvailability,
     isPlatformMac,
+    updateConfigFile,
 } from "./utils.js"
 import {
     APP_PATH,
@@ -31,37 +31,21 @@ import {
     createTray,
     buildMenu,
     LOG_PATH,
-} from "./utils/electron.js"
+} from "./electron/main.js"
 import config from "./config/config.js"
 import projects from "./projects.js"
-import { deploy, presets, IS_PLUS_MODE } from "./deploy.js"
+import { deploy, configure, presets, IS_PLUS_MODE } from "./deploy.js"
 import strings from "./config/strings.js"
 import urls from "./config/urls.js"
 
-import { app, globalShortcut, crashReporter, ipcMain, clipboard } from "electron" // TODO refactor into electron utils
+import {
+    app,
+    globalShortcut,
+    crashReporter,
+    ipcMain,
+    clipboard,
+} from "electron" // TODO refactor into electron utils
 import { resolveHandle } from "./integrations/bluesky/main.js"
-
-// exec("ssh-keygen -t rsa -q -f \"$HOME/.ssh/id_rsa2\" -N \"\"", (error, stdout, stderr) => {
-//     if (error) {
-//         console.log(`error: ${error.message}`);
-//         return;
-//     }
-//     if (stderr) {
-//         console.log(`stderr: ${stderr}`);
-//         return;
-//     }
-//     console.log(`stdout: ${stdout}`);
-// });
-
-// Windows
-// if (process.platform === 'win32') {
-// 	mainWindow.setIcon(path.join(__dirname, 'assets/windows/icon.ico'));
-// }
-
-// // Linux
-// if (process.platform === 'linux') {
-// 	mainWindow.setIcon(path.join(__dirname, 'assets/linux/icons/512x512.png'));
-// }
 
 let bugsplat = null
 
@@ -82,8 +66,6 @@ app.whenReady().then(() => {
     logger.info(strings.logMsg.logPath(LOG_PATH))
     logger.info(strings.app.titleWithVersion(CURRENT_VERSION))
 
-    projects.cleanup() // TODO should do this as needed?
-
     if (isPlatformMac()) {
         app.dock.hide()
     }
@@ -95,14 +77,11 @@ app.whenReady().then(() => {
 
     globalShortcut.register("CommandOrControl+Alt+R", clearConfig)
 
-    // having this listener active will prevent the app from quitting.
+    // keeps app open with no real windows
     app.on("window-all-closed", () => {})
 
     if (projects.activeIndex == -1 && !isDev()) {
         openExternalUrl(urls.tutorial)
-    } else {
-        // HACK start watching last active project
-        projects.activeIndex = projects.activeIndex
     }
 
     updateTrayTitle()
@@ -119,12 +98,13 @@ app.whenReady().then(() => {
     })
 
     logger.info(strings.logMsg.ready)
+
+    projects.cleanup() // TODO should do this as needed?
 })
 
 function updateTrayMenu(isDebugMode) {
-    const activeProject = projects.active
     const isProjectLoaded = !!projects.active
-    const loadedProjectMeta = isProjectLoaded ? projects.active.getMeta() : {}
+    const loadedProjectMeta = isProjectLoaded ? projects.active.config : {}
     const loadedProjectRoot = isProjectLoaded ? projects.active.paths.ROOT : ""
 
     const deployMeta = isProjectLoaded && loadedProjectMeta.deployment
@@ -147,7 +127,7 @@ function updateTrayMenu(isDebugMode) {
         {
             id: "title",
             label: isProjectLoaded
-                ? activeProject.globals_meta.title
+                ? projects.active.title
                 : strings.projects.notLoaded,
             type: "submenu",
             submenu: getProjectsSubmenu(),
@@ -207,9 +187,7 @@ function updateTrayMenu(isDebugMode) {
                     return {
                         label: key,
                         click: (menuItem) => {
-                            showHtmlPopup(
-                                `popups/deployment/${menuItem.label}.html`,
-                            )
+                            configure(key)
                         },
                     }
                 }),
@@ -232,7 +210,7 @@ function updateTrayMenu(isDebugMode) {
             enabled: IS_PLUS_MODE && isProjectLoaded,
             visible: !bskyMeta,
             click: () => {
-                showHtmlPopup("popups/integrations/bluesky.html")
+                showHtmlPopup("forms", "bluesky")
             },
         },
         {
@@ -325,7 +303,7 @@ function updateTrayTitle() {
     let displayTitle = strings.projects.notLoaded
 
     if (projects.active) {
-        displayTitle = projects.active.globals_meta.title
+        displayTitle = projects.active.title
     }
 
     tray.setToolTip(displayTitle)
@@ -333,19 +311,6 @@ function updateTrayTitle() {
         conf.get("settings.showProjectTitleInMenubar") ? displayTitle : "",
     )
 }
-
-ipcMain.handle("bsky", async function (_event, data) {
-    const bskyUserId = await resolveHandle(data.handle)
-    projects.writeSecrets({
-        integrations: {
-            bluesky: {
-                handle: data.handle, // TODO do we need this? will it break if changed?
-                userId: bskyUserId,
-                appPassword: data.appPassword,
-            },
-        },
-    })
-})
 
 // TODO move to projects.js?
 async function initProjectStarter(projectRoot, starterPath) {
@@ -367,16 +332,16 @@ async function initProjectStarter(projectRoot, starterPath) {
         fs.writeFileSync(path.join(projectRoot, data.filePath), data.text)
     })
 
-    // TODO util function?
-    // writeSecrets but writeConfig
-    let configFilepath = path.join(projectRoot, config.PROJECT_PATHS.SECRETS_FILE)
-
-    let newConfig = yaml.parse(fs.readFileSync(configFilepath, "utf-8"))
-    newConfig.globals.title = path.basename(projectRoot) // TODO audit for .site
-    fs.writeFileSync(configFilepath, yaml.stringify(newConfig))
-
     projects.add(projectRoot)
     projects.activeIndex = projects.list.length - 1
+
+    updateConfigFile(projects.active.paths.CONFIG_FILE, {
+        globals: {
+            title: path.basename(projectRoot),
+        },
+    })
+
+    updateTrayTitle()
 }
 
 function configureCrashReporting() {
@@ -486,11 +451,11 @@ function getProjectsSubmenu() {
         .map((dirent) => path.join(dirent.path, dirent.name))
 
     const PROJECT_MENU_ITEM = (projectPath, index) => {
-        const project = projects.getFromPath(projectPath)
-        const RELATIVE_PATH = path.relative(APP_PATH, project.paths.ROOT)
+        const PROJECT = projects.getFromPath(projectPath)
+        const RELATIVE_PATH = path.relative(APP_PATH, PROJECT.paths.ROOT)
         const IS_STARTER =
             !RELATIVE_PATH.startsWith("..") && !path.isAbsolute(RELATIVE_PATH)
-        const PROJECT_TITLE = `${IS_STARTER ? "📝 " : ""}${project.title}`
+        const PROJECT_TITLE = `${IS_STARTER ? "📝 " : ""}${PROJECT.title}`
 
         return {
             label: PROJECT_TITLE,
@@ -529,7 +494,7 @@ function getProjectsSubmenu() {
                                     cancel: strings.popups.createProject.cancel,
                                 },
                                 label: strings.popups.createProject.label,
-                                value: starterPath,
+                                value: path.basename(starterPath),
                                 type: "input",
                             }).catch(logger.error)
 

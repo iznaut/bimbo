@@ -4,6 +4,7 @@ const { name: PACKAGE_NAME, version: PACKAGE_VERSION } = await readPackage()
 
 let exports = {
     APP_NAME: PACKAGE_NAME,
+    CONFIG_EXTENSION: ".yaml",
     CONTENT_EXTENSION: ".md",
     PAGE_EXTENSION: ".html",
     PAGE_GROUP_PREFIX: "$",
@@ -25,19 +26,20 @@ let exports = {
             },
         },
     },
-    PROJECT_PATHS: {
-        ROOT: ".",
-        CONFIG_FILE: "project.yaml",
-        SECRETS_FILE: "secrets.yaml",
-        CONTENT: "content",
-        SNIPPETS: "content/snippets",
-        DATA: "data",
-        TEMPLATES: "templates",
-        PARTIALS: "templates/partials",
-        STATIC: "static",
-        OUTPUT: "_site",
-    },
-    PROJECT_STARTERS_PATH: "project-starters"
+    PROJECT_STARTERS_PATH: "project-starters",
+}
+
+exports.PROJECT_PATHS = {
+    ROOT: ".",
+    CONFIG_FILE: "project" + exports.CONFIG_EXTENSION,
+    SECRETS_FILE: "secrets" + exports.CONFIG_EXTENSION,
+    CONTENT: "content",
+    SNIPPETS: "content/snippets",
+    DATA: "data",
+    TEMPLATES: "templates",
+    PARTIALS: "templates/partials",
+    STATIC: "static",
+    OUTPUT: "_site",
 }
 
 exports.EXTRA_INIT_FILES = [

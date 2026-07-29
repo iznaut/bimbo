@@ -6,20 +6,19 @@ import * as fs from "node:fs"
 import { zip } from "zip-a-folder"
 import { setTimeout } from "timers/promises"
 
-import { logger } from "./utils.js"
 import {
     conf,
     showHtmlPopup,
     showMessageBox,
     showNotification,
     showPrompt,
-} from "./electron/main.js"
+} from "./app/electron.js"
 import strings from "./config/strings.js"
-import projects from "./projects.js"
+import projects from "./index.js"
 import config from "./config/config.js"
-import { arePostsQueued } from "./integrations/bluesky/main.js"
+import { arePostsQueued } from "./bluesky/main.js"
 import { build, pauseWatcher, watch } from "./site-generator.js"
-import { openExternalUrl } from "./electron/main.js"
+import { openExternalUrl } from "./app/electron.js"
 
 export const IS_PLUS_MODE = true
 
@@ -119,7 +118,8 @@ export async function deploy(sftpPassword = null, isPostDeploy = false) {
         }
 
         if (success) {
-            if (conf.get("settings.bskyAutoPost") && !isPostDeploy) { // TODO should be set at project level (in secrets?)
+            if (conf.get("settings.bskyAutoPost") && !isPostDeploy) {
+                // TODO should be set at project level (in secrets?)
                 await postDeploy()
             }
         }

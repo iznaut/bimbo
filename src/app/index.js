@@ -10,7 +10,6 @@ import { BugSplatNode as BugSplat } from "bugsplat-node"
 import {
     CURRENT_VERSION,
     isDev,
-    logger,
     versionIsCurrent,
     getLatestVersion,
     notifyUpdateAvailability,
@@ -31,9 +30,9 @@ import {
     createTray,
     buildMenu,
     LOG_PATH,
-} from "./main.js"
+} from "./electron.js"
 import config from "../config/config.js"
-import projects from "../projects.js"
+import projects from "../index.js"
 import { deploy, configure, presets, IS_PLUS_MODE } from "../deploy.js"
 import strings from "../config/strings.js"
 import urls from "../config/urls.js"
@@ -46,7 +45,7 @@ import {
     ipcMain,
     clipboard,
 } from "electron" // TODO refactor into electron utils
-import { resolveHandle as resolveBlueskyHandle } from "../integrations/bluesky/main.js"
+import { resolveHandle as resolveBlueskyHandle } from "../bluesky/main.js"
 
 let bugsplat = null
 

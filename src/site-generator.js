@@ -17,11 +17,8 @@ import { createServer } from "vite"
 import chokidar from "chokidar"
 import { readingTime } from "reading-time-estimator"
 
-import { inspect } from "util"
-
-import { logger } from "./utils.js"
-import { conf, showMessageBox } from "./electron/main.js"
-import projects from "./projects.js"
+import { conf, showMessageBox } from "./app/electron.js"
+import projects from "./index.js"
 import config from "./config/config.js"
 import strings from "./config/strings.js" // TODO export separate categories? (e.g. {generator} from strings)
 import {
@@ -30,7 +27,7 @@ import {
     arePostsQueued,
     submitQueuedPosts,
     resolveHandle,
-} from "./integrations/bluesky/main.js"
+} from "./bluesky/main.js"
 
 // TODO idk why this doesn't work const ACTIVE_PROJECT = projects.active
 

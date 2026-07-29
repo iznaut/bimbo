@@ -26,7 +26,7 @@ let exports = {
             },
         },
     },
-    PROJECT_STARTERS_PATH: "project-starters",
+    PROJECT_STARTERS_PATH: "../../resources/project-starters", // TODO
 }
 
 exports.PROJECT_PATHS = {

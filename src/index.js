@@ -1,18 +1,32 @@
 import * as fs from "node:fs"
 import * as path from "node:path"
 import _ from "lodash"
-
-import { logger, readConfigFile, updateConfigFile } from "./utils.js"
+import winston from "winston"
+import { readConfigFile, updateConfigFile } from "./utils.js"
 import {
     conf,
     showMessageBox,
     showNotification,
     showPrompt,
-} from "./electron/main.js"
+} from "./app/electron.js"
 import config from "./config/config.js"
 import { watch } from "./site-generator.js"
 import strings from "./config/strings.js"
 import { PROJECT_CONFIG_OPTIONS } from "./front-matter.js"
+
+
+global.logger = winston.createLogger({
+    level: "info",
+    format: winston.format.json(),
+    transports: [
+        new winston.transports.Console({
+            format: winston.format.combine(
+                winston.format.simple(),
+                winston.format.colorize({ all: true }),
+            ),
+        }),
+    ],
+})
 
 class Project {
     paths
@@ -54,6 +68,8 @@ class Project {
         return this.globals_meta.title || "untitled project"
     }
 }
+
+export let activeProject = null
 
 const exports = {
     active: null,

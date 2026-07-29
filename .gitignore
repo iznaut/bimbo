@@ -137,6 +137,6 @@ build/
 
 .DS_Store
 
-project-starters/*/_site
+resources/project-starters/*/_site
 
 tests/~temp

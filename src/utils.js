@@ -1,7 +1,7 @@
 import { platform } from "node:os"
 import * as fs from "node:fs"
 import * as path from "node:path"
-import winston from "winston"
+
 import { compareVersions } from "compare-versions"
 import tiny from "tiny-json-http"
 import { parse as yamlParse, stringify as yamlStringify } from "yaml"
@@ -11,7 +11,7 @@ import {
     USER_DATA_PATH,
     openExternalUrl,
     showNotification,
-} from "./electron/main.js"
+} from "./app/electron.js"
 
 import { IS_PLUS_MODE } from "./deploy.js"
 import strings from "./config/strings.js"
@@ -19,18 +19,7 @@ import urls from "./config/urls.js"
 import config from "./config/config.js"
 import validateSchema from "yaml-schema-validator/src/index.js"
 
-export const logger = winston.createLogger({
-    level: "info",
-    format: winston.format.json(),
-    transports: [
-        new winston.transports.Console({
-            format: winston.format.combine(
-                winston.format.simple(),
-                winston.format.colorize({ all: true }),
-            ),
-        }),
-    ],
-})
+
 
 export const CURRENT_VERSION = (function () {
     let version = fs

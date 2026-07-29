@@ -1,7 +1,7 @@
 // source: https://kulpinski.dev/posts/embed-card-links-on-bluesky/
 
 import { AtpAgent, RichText } from "@atproto/api"
-import projects from "../../projects.js"
+// import projects from "../../index.js" // TODO
 
 type Metadata = {
     title: string

@@ -1,6 +1,6 @@
 import * as fs from "node:fs"
 import * as path from "node:path"
-import { exec, spawn } from "node:child_process"
+import { spawn } from "node:child_process"
 import _ from "lodash"
 import prompt from "electron-prompt" // TODO replace with HtmlPopup
 import winston from "winston"
@@ -205,21 +205,13 @@ function updateTrayMenu(isDebugMode) {
                     strings.logMsg.tryEditor(APP_SETTINGS.get("editor")),
                 )
 
-                exec(
-                    `${APP_SETTINGS.get("editor")} "${loadedProjectRoot}"`,
-                    (error, stdout, stderr) => {
-                        if (error) {
-                            logger.error(error)
-                            showMessageBox(strings.popups.codiumError)
-                        }
-                        if (stdout) {
-                            logger.info(stdout)
-                        }
-                        if (stderr) {
-                            logger.error(stderr)
-                        }
-                    },
-                )
+                const editorProc = spawn(APP_SETTINGS.get("editor"), [loadedProjectRoot], { shell: false })
+                editorProc.on("error", (error) => {
+                    logger.error(error)
+                    showMessageBox(strings.popups.codiumError)
+                })
+                editorProc.stdout.on("data", (data) => { logger.info(data.toString()) })
+                editorProc.stderr.on("data", (data) => { logger.error(data.toString()) })
             },
         },
         {

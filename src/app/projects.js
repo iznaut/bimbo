@@ -1,7 +1,7 @@
 import { existsSync } from "fs"
 import { join as pathJoin } from "node:path"
 
-import config from "../config/config.js"
+import config from "../config/index.js"
 import { Project } from "../index.js"
 import { watch } from "../site-generator.js"
 import { APP_SETTINGS, showMessageBox, showNotification } from "./electron.js"

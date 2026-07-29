@@ -13,7 +13,7 @@ import {
 } from "electron"
 import { Conf } from "electron-conf/main"
 
-import config from "../config/config.js"
+import config from "../config/index.js"
 import { compile } from "../templater.js"
 import strings from "../config/strings.js"
 

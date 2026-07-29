@@ -1,4 +1,4 @@
-import config from "./config.js"
+import config from "./index.js"
 import { IS_PLUS_MODE } from "../deploy.js"
 
 export default {

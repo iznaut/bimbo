@@ -19,7 +19,7 @@ import { readingTime } from "reading-time-estimator"
 
 import { activeProject } from "./index.js"
 import { APP_SETTINGS, showMessageBox } from "./app/electron.js" // TODO eliminate
-import config from "./config/config.js"
+import config from "./config/index.js"
 import strings from "./config/strings.js" // TODO export separate categories? (e.g. {generator} from strings)
 import {
     queuePost,

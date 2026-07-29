@@ -4,7 +4,7 @@ import _ from "lodash"
 import winston from "winston"
 import { readConfigFile, updateConfigFile } from "./utils.js"
 
-import config from "./config/config.js"
+import config from "./config/index.js"
 import { watch } from "./site-generator.js"
 import strings from "./config/strings.js"
 import { PROJECT_CONFIG_OPTIONS } from "./front-matter.js"

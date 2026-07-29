@@ -24,7 +24,7 @@ import {
     buildMenu,
     LOG_PATH,
 } from "./electron.js"
-import config from "../config/config.js"
+import config from "../config/index.js"
 import projects from "./projects.js"
 import { deploy, configure, presets, IS_PLUS_MODE } from "../deploy.js"
 import strings from "../config/strings.js"
@@ -202,11 +202,11 @@ function updateTrayMenu(isDebugMode) {
             enabled: isProjectLoaded,
             click: function () {
                 logger.info(
-                    strings.logMsg.tryEditor(APP_SETTINGS.get("editor")),
+                    strings.logMsg.tryEditor(config.EDITOR_COMMAND),
                 )
 
                 exec(
-                    `${APP_SETTINGS.get("editor")} "${loadedProjectRoot}"`,
+                    `${config.EDITOR_COMMAND} "${loadedProjectRoot}"`,
                     (error, stdout, stderr) => {
                         if (error) {
                             logger.error(error)

@@ -14,7 +14,7 @@ import {
     showPrompt,
 } from "./app/electron.js"
 import strings from "./config/strings.js"
-import config from "./config/config.js"
+import config from "./config/index.js"
 import { arePostsQueued } from "./bluesky/main.js"
 import { build, pauseWatcher, watch } from "./site-generator.js"
 import { openExternalUrl } from "./app/electron.js"

@@ -27,6 +27,7 @@ let exports = {
         },
     },
     PROJECT_STARTERS_PATH: "../../resources/project-starters", // TODO
+    EDITOR_COMMAND: "codium",
 }
 
 exports.PROJECT_PATHS = {

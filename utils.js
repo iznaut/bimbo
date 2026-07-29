@@ -107,6 +107,7 @@ export function readConfigFile(filepath) {
 }
 
 export function updateConfigFile(filepath, newData = {}) {
+    console.log(newData)
     let configData = fs.existsSync(filepath) ? parseYamlFile(filepath) : {}
 
     fs.writeFileSync(filepath, yamlStringify(_.merge(configData, newData)))

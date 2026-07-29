@@ -76,11 +76,6 @@ const exports = {
     set list(value) {
         conf.set("projects", value)
     },
-    init() {
-        if (this.activeIndex > -1) {
-            this.active = new Project(this.list[this.activeIndex])
-        }
-    },
     cleanup() {
         // remove invalid paths
         const SAVED_PROJECT_PATHS = this.list.filter((rootPath) => {
@@ -108,17 +103,6 @@ const exports = {
     },
     getFromPath(rootPath) {
         return new Project(rootPath)
-    },
-    load(rootPath) {
-        this.active = new Project(rootPath)
-
-        watch(true)
-
-        showNotification(
-            index == -1
-                ? strings.projects.notLoaded
-                : strings.projects.loaded(this.active.title),
-        )
     },
     add(newRootPath) {
         let projectsList = this.list

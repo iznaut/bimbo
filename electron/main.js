@@ -7,7 +7,6 @@ import {
     Notification,
     shell,
     Tray,
-    ipcMain,
 } from "electron"
 import { join as pathJoin } from "node:path"
 import { Conf } from "electron-conf/main"

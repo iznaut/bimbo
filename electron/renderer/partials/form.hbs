@@ -1,6 +1,6 @@
 <form id="form" action="#" onsubmit="sendForm(event)">
+    <input id="id" class="input" value="{{ id }}" style="display:none" />
     {{#each fields}}
-        <input id="id" value="{{ id }}" style="display:none" />
         {{#if addon}}
             <div class="field is-horizontal">
                 <div class="field-body">

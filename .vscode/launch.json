@@ -2,7 +2,7 @@
     "configurations": [
         {
             "name": "Launch Electron App",
-            "program": "${workspaceFolder}/main.js",
+            "program": "${workspaceFolder}/app.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"

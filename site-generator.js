@@ -150,7 +150,7 @@ export async function build(isPostDeploy = false) {
 
     // quit if content folder is missing
     if (!fs.existsSync(PROJECT_PATHS.CONTENT)) {
-        showMessageBox(strings.generator.missingContentFolder)
+        showMessageBox(strings.generator.missingContentFolder) // return error (to app or main)
         return
     }
 

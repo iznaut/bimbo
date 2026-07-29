@@ -16,7 +16,7 @@ import {
     notifyUpdateAvailability,
     isPlatformMac,
     updateConfigFile,
-} from "./utils.js"
+} from "../utils.js"
 import {
     APP_PATH,
     USER_DATA_PATH,
@@ -31,12 +31,13 @@ import {
     createTray,
     buildMenu,
     LOG_PATH,
-} from "./electron/main.js"
-import config from "./config/config.js"
-import projects from "./projects.js"
-import { deploy, configure, presets, IS_PLUS_MODE } from "./deploy.js"
-import strings from "./config/strings.js"
-import urls from "./config/urls.js"
+} from "./main.js"
+import config from "../config/config.js"
+import projects from "../projects.js"
+import { deploy, configure, presets, IS_PLUS_MODE } from "../deploy.js"
+import strings from "../config/strings.js"
+import urls from "../config/urls.js"
+import { build } from "../site-generator.js"
 
 import {
     app,
@@ -45,7 +46,7 @@ import {
     ipcMain,
     clipboard,
 } from "electron" // TODO refactor into electron utils
-import { resolveHandle } from "./integrations/bluesky/main.js"
+import { resolveHandle as resolveBlueskyHandle } from "../integrations/bluesky/main.js"
 
 let bugsplat = null
 
@@ -545,3 +546,68 @@ function getProjectsSubmenu() {
 
     return buildMenu(menuTemplate)
 }
+
+ipcMain.handle("openExternalUrl", async function (_event, url) {
+    openExternalUrl(url)
+})
+
+ipcMain.handle("form", async function (_event, formData) {
+    let newSecrets = {}
+
+    switch (formData.id) {
+        case "nekoweb":
+            newSecrets = {
+                deployment: {
+                    provider: formData.id,
+                    domain: formData.domain,
+                    apiKey: formData.apiKey,
+                },
+            }
+            break
+        case "neocities":
+            const API_KEY = getNeocitiesApiKey()
+
+            if (!API_KEY) {
+                showMessageBox(strings.popups.deployFail(formData.id), "error")
+            }
+
+            newSecrets = {
+                deployment: {
+                    provider: formData.id,
+                    apiKey: API_KEY,
+                },
+            }
+            break
+        case "sftp": // TODO save secrets?
+            deploy(formData.password)
+            break
+        case "bluesky":
+            newSecrets = {
+                integrations: {
+                    bluesky: {
+                        handle: formData.handle, // TODO do we need this? will it break if changed?
+                        userId: await resolveBlueskyHandle(formData.handle),
+                        appPassword: formData.appPassword,
+                    },
+                },
+            }
+            break
+        default:
+            break
+    }
+
+    projects.active.updateSecrets(newSecrets)
+
+    if (newSecrets.deployment) {
+        // TODO oh god test this before shipping
+        await build() // .then?
+
+        // await setTimeout(1000) // HACK to get around build not finishing in time for deploy
+
+        try {
+            deploy()
+        } catch (err) {
+            logger.error(err)
+        }
+    }
+})

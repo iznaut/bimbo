@@ -1,4 +1,3 @@
-import { ipcMain, shell } from "electron"
 import { NeocitiesAPIClient } from "async-neocities"
 import NekowebAPI from "@indiefellas/nekoweb-api"
 import SftpClient from "ssh2-sftp-client"
@@ -55,7 +54,7 @@ export async function deploy(sftpPassword = null, isPostDeploy = false) {
     const DEPLOY_META = projects.active.secrets.deployment
 
     if (!DEPLOY_META) {
-        showHtmlPopup(DEPLOY_META.provider) // TODO 
+        showHtmlPopup(DEPLOY_META.provider) // TODO
     } else if (DEPLOY_META.host && !sftpPassword && !DEPLOY_META.keyPath) {
         showHtmlPopup(`popups/deployment/sftp-password.html`)
     } else {
@@ -120,12 +119,29 @@ export async function deploy(sftpPassword = null, isPostDeploy = false) {
         }
 
         if (success) {
-            if (conf.get("settings.bskyAutoPost") && !isPostDeploy) {
+            if (conf.get("settings.bskyAutoPost") && !isPostDeploy) { // TODO should be set at project level (in secrets?)
                 await postDeploy()
             }
         }
 
         watch()
+    }
+}
+
+export async function getNeocitiesApiKey(username, password) {
+    const RESPONSE = await NeocitiesAPIClient.getKey({
+        siteName: username,
+        ownerPassword: password,
+    })
+
+    if (RESPONSE.result == "success") {
+        logger.info(strings.deployment.auth.success("neocities"))
+
+        return RESPONSE.api_key
+    } else {
+        logger.info(strings.deployment.auth.fail("neocities"))
+
+        return null
     }
 }
 

@@ -17,8 +17,8 @@ import { createServer } from "vite"
 import chokidar from "chokidar"
 import { readingTime } from "reading-time-estimator"
 
-import { conf, showMessageBox } from "./app/electron.js"
-import projects from "./index.js"
+import { activeProject } from "./index.js"
+import { APP_SETTINGS, showMessageBox } from "./app/electron.js" // TODO eliminate
 import config from "./config/config.js"
 import strings from "./config/strings.js" // TODO export separate categories? (e.g. {generator} from strings)
 import {
@@ -29,29 +29,15 @@ import {
     resolveHandle,
 } from "./bluesky/main.js"
 
-// TODO idk why this doesn't work const ACTIVE_PROJECT = projects.active
-
 let server
 let watcher
 
 let buildData
 
-// TODO dedupe
-const PATHS = {
-    CONTENT: "content",
-    POSTS: "content/posts",
-    SNIPPETS: "content/snippets",
-    DATA: "data",
-    TEMPLATES: "templates",
-    PARTIALS: "templates/partials",
-    STATIC: "static",
-    OUTPUT: "_site",
-}
-
 export async function build(isPostDeploy = false) {
     logger.info(strings.generator.buildStart(isPostDeploy))
 
-    const PROJECT_PATHS = projects.active.paths
+    const PROJECT_PATHS = activeProject.paths
 
     buildData = { _pages: [] }
 
@@ -101,7 +87,7 @@ export async function build(isPostDeploy = false) {
         "isCollectionSortAscending",
         function (name, key) {
             const SORTS = _.find(
-                projects.active.collections_meta,
+                activeProject.collections_meta,
                 (v) => v.name == name,
             ).sort
 
@@ -174,7 +160,7 @@ export async function build(isPostDeploy = false) {
 
     buildData.collections = {}
 
-    _.each(projects.active.collections_meta, (ruleset) => {
+    _.each(activeProject.collections_meta, (ruleset) => {
         const NAME = config.PAGE_GROUP_PREFIX + ruleset.name
         const FILTERS = ruleset.filter
         const SORTS = ruleset.sort
@@ -272,7 +258,7 @@ export async function build(isPostDeploy = false) {
     })
 
     const RSS_GROUP_NAME = _.find(
-        projects.active.collections_meta,
+        activeProject.collections_meta,
         (g) => g.rss,
     ).name
 
@@ -283,7 +269,7 @@ export async function build(isPostDeploy = false) {
     // copy static pages
     fs.cp(
         PROJECT_PATHS.STATIC,
-        path.join(PROJECT_PATHS.OUTPUT, PATHS.STATIC),
+        path.join(PROJECT_PATHS.OUTPUT, config.PROJECT_PATHS.STATIC),
         { recursive: true },
         (err) => {
             if (err) {
@@ -297,9 +283,9 @@ export async function build(isPostDeploy = false) {
 
     if (bskyHandle) {
         // TODO never exists bc _site gets wiped every build
-        // if (!fs.existsSync(path.join(getJoinedPath(PATHS.OUTPUT), '.well-known/atproto-did'))) {
+        // if (!fs.existsSync(path.join(getJoinedPath(config.PROJECT_PATHS.OUTPUT), '.well-known/atproto-did'))) {
         //     try {
-        //         setupDomainVerification(bskyHandle, getJoinedPath(PATHS.OUTPUT))
+        //         setupDomainVerification(bskyHandle, getJoinedPath(config.PROJECT_PATHS.OUTPUT))
         //     } catch (err) {
         //         logger.warn(
         //             strings.generator.bsky.domainVerification.fail(bskyHandle),
@@ -312,7 +298,7 @@ export async function build(isPostDeploy = false) {
     logger.info(strings.generator.buildComplete(isPostDeploy))
 
     // TODO this is autoOpenPreview now and probably goes elsewhere
-    // if (conf.get("settings.openPreviewOnChange")) {
+    // if (APP_SETTINGS.get("settings.openPreviewOnChange")) {
     //     openBrowserPreview()
     // }
 }
@@ -328,9 +314,9 @@ export async function watch(initialBuild = false) {
         await server.close()
     }
 
-    if (projects.active) {
-        const PROJECT_PATHS = projects.active.paths
-        lastProjectMeta = projects.active.config
+    if (activeProject) {
+        const PROJECT_PATHS = activeProject.paths
+        lastProjectMeta = activeProject.config
 
         watcher = chokidar
             .watch(PROJECT_PATHS.ROOT, {
@@ -351,12 +337,12 @@ export async function watch(initialBuild = false) {
                 if (
                     path.basename(changedPath) ==
                         config.PROJECT_PATHS.SECRETS_FILE &&
-                    _.isEqual(projects.active.config, lastProjectMeta)
+                    _.isEqual(activeProject.config, lastProjectMeta)
                 ) {
                     return
                 }
 
-                lastProjectMeta = projects.active.config // TODO move this into build?
+                lastProjectMeta = activeProject.config // TODO move this into build?
                 build()
             })
 
@@ -364,7 +350,7 @@ export async function watch(initialBuild = false) {
 
         server = await createServer({
             configFile: false,
-            root: projects.active.paths.OUTPUT,
+            root: activeProject.paths.OUTPUT,
             publicDir: false,
             logLevel: "silent",
             server: {
@@ -390,7 +376,7 @@ export async function pauseWatcher() {
 }
 
 function getPageData(contentFilepath) {
-    const PROJECT_PATHS = projects.active.paths
+    const PROJECT_PATHS = activeProject.paths
     const ABSOLUTE_FILEPATH = path.join(PROJECT_PATHS.CONTENT, contentFilepath)
     const FRONT_MATTER = fm(fs.readFileSync(ABSOLUTE_FILEPATH, "utf-8"))
 
@@ -407,9 +393,9 @@ function getPageData(contentFilepath) {
         // _content added in generatePage()
     }
 
-    const CONTENT_DEFAULTS = _.omit(projects.active.defaults_meta, "subfolders")
+    const CONTENT_DEFAULTS = _.omit(activeProject.defaults_meta, "subfolders")
     const SUBFOLDER_DEFAULTS =
-        projects.active.defaults_meta.subfolders[pageMeta._subfolder] || {}
+        activeProject.defaults_meta.subfolders[pageMeta._subfolder] || {}
 
     _.merge(
         pageMeta, // base object with generated values
@@ -465,7 +451,7 @@ function getPageData(contentFilepath) {
 }
 
 function generatePage(pageMeta) {
-    const PROJECT_PATHS = projects.active.paths
+    const PROJECT_PATHS = activeProject.paths
 
     if (pageMeta.redirect) {
         return
@@ -482,10 +468,10 @@ function generatePage(pageMeta) {
     // render markdown to html
     pageMeta._content = MD.render(pageMeta._mdContent.body)
     // add globals and groups to page
-    pageMeta.globals = projects.active.globals_meta
+    pageMeta.globals = activeProject.globals_meta
     _.assign(pageMeta, buildData.collections) // TODO not sure if still works?
     // add full project meta
-    pageMeta._project_meta = projects.active.config // TODO _project_config?
+    pageMeta._project_meta = activeProject.config // TODO _project_config?
 
     let templatePath = path.join(PROJECT_PATHS.TEMPLATES, pageMeta.template)
 
@@ -524,14 +510,17 @@ function generatePage(pageMeta) {
     fs.writeFileSync(path.join(PROJECT_PATHS.OUTPUT, htmlFilename), htmlOutput)
 
     // queue bluesky post for after deploy
-    if (conf.get("settings.bskyAutoPost") && pageMeta.bskyPostId == "tbd") {
+    if (
+        APP_SETTINGS.get("settings.bskyAutoPost") &&
+        pageMeta.bskyPostId == "tbd"
+    ) {
         queuePost(pageMeta)
     }
 }
 
 async function processBlueskyPosts() {
     await pauseWatcher()
-    const { userId } = projects.active.secrets.integrations.bluesky
+    const { userId } = activeProject.secrets.integrations.bluesky
     const SKEETS_DATA = await submitQueuedPosts()
 
     let index = 0
@@ -565,7 +554,7 @@ async function processBlueskyPosts() {
 }
 
 function generateRssFeed(groupName) {
-    const PROJECT_GLOBALS = projects.active.globals_meta
+    const PROJECT_GLOBALS = activeProject.globals_meta
 
     const RSS_FEED = new Feed({
         title: PROJECT_GLOBALS.title,
@@ -605,7 +594,7 @@ function generateRssFeed(groupName) {
     })
 
     fs.writeFileSync(
-        path.join(projects.active.paths.OUTPUT, "feed.xml"),
+        path.join(activeProject.paths.OUTPUT, "feed.xml"),
         RSS_FEED.rss2(),
     )
 }

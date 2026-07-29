@@ -7,14 +7,13 @@ import { zip } from "zip-a-folder"
 import { setTimeout } from "timers/promises"
 
 import {
-    conf,
+    APP_SETTINGS,
     showHtmlPopup,
     showMessageBox,
     showNotification,
     showPrompt,
 } from "./app/electron.js"
 import strings from "./config/strings.js"
-import projects from "./index.js"
 import config from "./config/config.js"
 import { arePostsQueued } from "./bluesky/main.js"
 import { build, pauseWatcher, watch } from "./site-generator.js"
@@ -50,7 +49,7 @@ export async function deploy(sftpPassword = null, isPostDeploy = false) {
         logger.info(strings.logMsg.deployStart)
     }
 
-    const DEPLOY_META = projects.active.secrets.deployment
+    const DEPLOY_META = activeProject.secrets.deployment
 
     if (!DEPLOY_META) {
         showHtmlPopup(DEPLOY_META.provider) // TODO
@@ -68,7 +67,7 @@ export async function deploy(sftpPassword = null, isPostDeploy = false) {
 
             success = await deployViaSftp(
                 DEPLOY_META,
-                projects.active.paths.ROOT,
+                activeProject.paths.ROOT,
                 sftpPassword,
             )
 
@@ -83,7 +82,7 @@ export async function deploy(sftpPassword = null, isPostDeploy = false) {
             if (!isPostDeploy) {
                 clickedId = showPrompt(
                     strings.popups.confirmDeployment.message(
-                        projects.active.title,
+                        activeProject.title,
                         DEPLOY_META.provider,
                     ),
                     "warning",
@@ -118,7 +117,7 @@ export async function deploy(sftpPassword = null, isPostDeploy = false) {
         }
 
         if (success) {
-            if (conf.get("settings.bskyAutoPost") && !isPostDeploy) {
+            if (APP_SETTINGS.get("settings.bskyAutoPost") && !isPostDeploy) {
                 // TODO should be set at project level (in secrets?)
                 await postDeploy()
             }
@@ -150,7 +149,7 @@ async function deployToNeocities(deployMeta) {
         const client = new NeocitiesAPIClient(deployMeta.apiKey)
 
         let result = await client.deploy({
-            directory: projects.active.paths.OUTPUT,
+            directory: activeProject.paths.OUTPUT,
             cleanup: true, // Delete orphaned files
             includeUnsupportedFiles: false, // TODO - atproto-did unsupported, paid feature
         })
@@ -167,8 +166,8 @@ async function deployToNekoweb(deployMeta) {
         apiKey: deployMeta.apiKey,
     })
 
-    let sitePath = projects.active.paths.OUTPUT
-    let zipPath = path.join(projects.active.paths.ROOT, "upload.zip")
+    let sitePath = activeProject.paths.OUTPUT
+    let zipPath = path.join(activeProject.paths.ROOT, "upload.zip")
 
     await nekoweb.getSiteInfo(deployMeta.domain)
     await zip(sitePath, zipPath) // can we get as buffer?
@@ -211,7 +210,7 @@ async function deployViaSftp(deployMeta, projectRootPath, password = null) {
         await client.connect(connectConfig)
         await client.rmdir(deployMeta.siteRoot, true).catch(() => {}) // Fail silently if dir doesn't exist
         result = await client.uploadDir(
-            path.join(projectRootPath, "_site"),
+            path.join(projectRootPath, "_site"), // TODO use output path
             deployMeta.siteRoot,
         )
     } catch (err) {

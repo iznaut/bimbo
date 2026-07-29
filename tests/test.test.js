@@ -1,6 +1,6 @@
 import { expect, test } from "vitest"
-import { isPlatformMac } from "../utils.js"
+import { isPlatformMac } from "./src/utils.js"
 
-test("adds 1 + 2 to equal 3", () => {
+test("is platform mac", () => {
     expect(isPlatformMac()).toBe(true)
 })

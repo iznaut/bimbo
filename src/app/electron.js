@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs"
+import { dirname, join as pathJoin } from "node:path"
+import { fileURLToPath } from "url"
 import {
     app,
     BrowserWindow,
@@ -8,11 +11,7 @@ import {
     shell,
     Tray,
 } from "electron"
-import { join as pathJoin } from "node:path"
 import { Conf } from "electron-conf/main"
-import { fileURLToPath } from "url"
-import { dirname, join } from "node:path"
-import { readFileSync } from "node:fs"
 
 import config from "../config/config.js"
 import { compile } from "../templater.js"
@@ -25,9 +24,9 @@ const RENDERER_PATH = pathJoin(__dirname, "renderer")
 
 export const APP_PATH = app.getAppPath()
 export const USER_DATA_PATH = app.getPath("userData")
-export const LOG_PATH = join(app.getPath("userData"), config.LOG_FILENAME)
+export const LOG_PATH = pathJoin(app.getPath("userData"), config.LOG_FILENAME)
 
-export const conf = new Conf(config.USER_CONFIG_DEFAULTS)
+export const APP_SETTINGS = new Conf(config.USER_CONFIG_DEFAULTS)
 
 export function createTray() {
     return new Tray(nativeImage.createFromDataURL(config.ICON))

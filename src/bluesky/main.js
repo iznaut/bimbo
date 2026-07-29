@@ -6,7 +6,6 @@ import tiny from "tiny-json-http"
 import promiseAllProperties from "promise-all-properties"
 import { sendBlueskyPostWithEmbed } from "./utils.ts"
 
-import projects from "../index.js" // TODO
 import strings from "../config/strings.js"
 
 let queuedPosts = {}

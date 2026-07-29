@@ -6,20 +6,13 @@ import prompt from "electron-prompt" // TODO replace with HtmlPopup
 import winston from "winston"
 import Handlebars from "handlebars"
 import { BugSplatNode as BugSplat } from "bugsplat-node"
+import { compareVersions } from "compare-versions"
 
-import {
-    CURRENT_VERSION,
-    isDev,
-    versionIsCurrent,
-    getLatestVersion,
-    notifyUpdateAvailability,
-    isPlatformMac,
-    updateConfigFile,
-} from "../utils.js"
+import { isDev, isPlatformMac, updateConfigFile } from "../utils.js"
 import {
     APP_PATH,
     USER_DATA_PATH,
-    conf,
+    APP_SETTINGS,
     openExternalUrl,
     openPath,
     showHtmlPopup,
@@ -32,7 +25,7 @@ import {
     LOG_PATH,
 } from "./electron.js"
 import config from "../config/config.js"
-import projects from "../index.js"
+import projects from "./projects.js"
 import { deploy, configure, presets, IS_PLUS_MODE } from "../deploy.js"
 import strings from "../config/strings.js"
 import urls from "../config/urls.js"
@@ -47,12 +40,76 @@ import {
 } from "electron" // TODO refactor into electron utils
 import { resolveHandle as resolveBlueskyHandle } from "../bluesky/main.js"
 
-let bugsplat = null
+import { activeProject } from "../index.js"
 
-configureCrashReporting()
+let bugsplat = null
 
 let tray = null
 let trayMenu = null
+
+let latestVersion
+let versionIsCurrent = true
+let versionCheckError = false
+
+// TODO clean up version/update stuff
+const CURRENT_VERSION = (function () {
+    let version = fs
+        .readFileSync(path.join(APP_PATH, "version"), "utf-8")
+        .trim()
+
+    if (isDev()) {
+        version = version.replace("-beta", "-dev")
+    }
+
+    return version
+})()
+
+async function getLatestVersion() {
+    let results = [
+        {
+            versionIsCurrent: true,
+            versionCheckError: false,
+        },
+    ]
+
+    if (isDev()) {
+        latestVersion = "99.99.99-dev"
+    } else {
+        try {
+            latestVersion = (
+                await tiny.get({ url: urls.githubVersion })
+            ).body.trim()
+        } catch (e) {
+            logger.warn(strings.update.logError(e))
+            results.versionCheckError = false
+        }
+    }
+    if (latestVersion) {
+        versionCheckError = false
+        const versionComparison = compareVersions(
+            latestVersion,
+            CURRENT_VERSION,
+        )
+        results.versionIsCurrent = versionComparison === 0
+    }
+
+    return results
+}
+
+function notifyUpdateAvailability(
+    isNewVersionAvailable,
+    versionCheckError = false,
+) {
+    showNotification(
+        versionCheckError
+            ? strings.update.checkFailed
+            : versionIsCurrent
+              ? strings.update.none
+              : strings.update.available(latestVersion),
+    )
+}
+
+configureCrashReporting()
 
 app.whenReady().then(() => {
     logger.add(
@@ -103,13 +160,13 @@ app.whenReady().then(() => {
 })
 
 function updateTrayMenu(isDebugMode) {
-    const isProjectLoaded = !!projects.active
-    const loadedProjectMeta = isProjectLoaded ? projects.active.config : {}
-    const loadedProjectRoot = isProjectLoaded ? projects.active.paths.ROOT : ""
+    const isProjectLoaded = !!activeProject
+    const loadedProjectMeta = isProjectLoaded ? activeProject.config : {}
+    const loadedProjectRoot = isProjectLoaded ? activeProject.paths.ROOT : ""
 
     const deployMeta = isProjectLoaded && loadedProjectMeta.deployment
     const bskyMeta = isProjectLoaded && loadedProjectMeta.integrations?.bluesky
-    const bskyAutoPostEnabled = conf.get("settings.bskyAutoPost")
+    const bskyAutoPostEnabled = APP_SETTINGS.get("settings.bskyAutoPost")
 
     trayMenu = buildMenu([
         {
@@ -127,7 +184,7 @@ function updateTrayMenu(isDebugMode) {
         {
             id: "title",
             label: isProjectLoaded
-                ? projects.active.title
+                ? activeProject.title
                 : strings.projects.notLoaded,
             type: "submenu",
             submenu: getProjectsSubmenu(),
@@ -144,10 +201,12 @@ function updateTrayMenu(isDebugMode) {
             label: strings.menu.openEditor,
             enabled: isProjectLoaded,
             click: function () {
-                logger.info(strings.logMsg.tryEditor(conf.get("editor")))
+                logger.info(
+                    strings.logMsg.tryEditor(APP_SETTINGS.get("editor")),
+                )
 
                 exec(
-                    `${conf.get("editor")} "${loadedProjectRoot}"`,
+                    `${APP_SETTINGS.get("editor")} "${loadedProjectRoot}"`,
                     (error, stdout, stderr) => {
                         if (error) {
                             logger.error(error)
@@ -199,9 +258,9 @@ function updateTrayMenu(isDebugMode) {
                 : strings.menu.bskyAutoPost.disabled,
             visible: !!bskyMeta && IS_PLUS_MODE,
             click: () => {
-                conf.set(
+                APP_SETTINGS.set(
                     "settings.bskyAutoPost",
-                    !conf.get("settings.bskyAutoPost"),
+                    !APP_SETTINGS.get("settings.bskyAutoPost"),
                 )
             },
         },
@@ -281,7 +340,7 @@ function updateTrayMenu(isDebugMode) {
                 // {
                 //     label: strings.menu.debug.deleteSecrets,
                 //     click: () => {
-                //         fs.rmSync(projects.active.paths.SECRETS_FILE)
+                //         fs.rmSync(activeProject.paths.SECRETS_FILE)
                 //     },
                 // },
                 {
@@ -302,13 +361,15 @@ function updateTrayMenu(isDebugMode) {
 function updateTrayTitle() {
     let displayTitle = strings.projects.notLoaded
 
-    if (projects.active) {
-        displayTitle = projects.active.title
+    if (activeProject) {
+        displayTitle = activeProject.title
     }
 
     tray.setToolTip(displayTitle)
     tray.setTitle(
-        conf.get("settings.showProjectTitleInMenubar") ? displayTitle : "",
+        APP_SETTINGS.get("settings.showProjectTitleInMenubar")
+            ? displayTitle
+            : "",
     )
 }
 
@@ -335,7 +396,7 @@ async function initProjectStarter(projectRoot, starterPath) {
     projects.add(projectRoot)
     projects.activeIndex = projects.list.length - 1
 
-    updateConfigFile(projects.active.paths.CONFIG_FILE, {
+    updateConfigFile(activeProject.paths.CONFIG_FILE, {
         globals: {
             title: path.basename(projectRoot),
         },
@@ -350,7 +411,7 @@ function configureCrashReporting() {
         app.quit()
     }
 
-    bugsplat = conf.get("settings.submitCrashLogs")
+    bugsplat = APP_SETTINGS.get("settings.submitCrashLogs")
         ? new BugSplat("me-iznaut-com", "bimbo", CURRENT_VERSION)
         : null
 
@@ -379,7 +440,7 @@ function configureCrashReporting() {
 
 function clearConfig() {
     logger.info(strings.logMsg.configClearTry)
-    conf.clear()
+    APP_SETTINGS.clear()
     projects.activeIndex = -1
     tray.setToolTip(strings.projects.notLoaded)
     tray.setTitle(strings.projects.notLoaded)
@@ -391,7 +452,7 @@ function getSettingsMenu() {
     const callbacks = {
         showProjectTitleInMenubar: updateTrayTitle,
         submitCrashLogs: () => {
-            if (conf.get("settings.submitCrashLogs")) {
+            if (APP_SETTINGS.get("settings.submitCrashLogs")) {
                 let clickedId = showPrompt(
                     strings.popups.disableCrashReporting.message,
                     "warning",
@@ -402,11 +463,11 @@ function getSettingsMenu() {
                 )
 
                 if (clickedId == 0) {
-                    conf.set("settings.submitCrashLogs", false)
+                    APP_SETTINGS.set("settings.submitCrashLogs", false)
                     configureCrashReporting()
                 }
             } else {
-                conf.set("settings.submitCrashLogs", true)
+                APP_SETTINGS.set("settings.submitCrashLogs", true)
                 configureCrashReporting()
             }
         },
@@ -415,7 +476,7 @@ function getSettingsMenu() {
     const requireConfirmation = ["submitCrashLogs"]
     const hidden = ["showAssistant", "bskyAutoPost"]
 
-    let items = _.map(conf.defaultValues.settings, (v, k) => {
+    let items = _.map(APP_SETTINGS.defaultValues.settings, (v, k) => {
         if (hidden.includes(k)) {
             return
         }
@@ -423,10 +484,13 @@ function getSettingsMenu() {
         return {
             label: strings.menu.settings[k],
             type: "checkbox",
-            checked: conf.get(`settings.${k}`),
+            checked: APP_SETTINGS.get(`settings.${k}`),
             click: () => {
                 if (!requireConfirmation.includes(k)) {
-                    conf.set(`settings.${k}`, !conf.get(`settings.${k}`))
+                    APP_SETTINGS.set(
+                        `settings.${k}`,
+                        !APP_SETTINGS.get(`settings.${k}`),
+                    )
                 }
 
                 if (k in callbacks) {
@@ -465,7 +529,7 @@ function getProjectsSubmenu() {
                 projects.activeIndex = index
 
                 // TODO dedupe
-                let displayTitle = conf.get(
+                let displayTitle = APP_SETTINGS.get(
                     "settings.showProjectTitleInMenubar",
                 )
                     ? PROJECT_TITLE
@@ -595,7 +659,7 @@ ipcMain.handle("form", async function (_event, formData) {
             break
     }
 
-    projects.active.updateSecrets(newSecrets)
+    activeProject.updateSecrets(newSecrets)
 
     if (newSecrets.deployment) {
         // TODO oh god test this before shipping

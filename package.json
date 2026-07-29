@@ -59,7 +59,8 @@
     },
     "electronmon": {
         "patterns": [
-            "!project-starters/**"
+            "!project-starters/**",
+            "!tests/~temp/**"
         ]
     }
 }

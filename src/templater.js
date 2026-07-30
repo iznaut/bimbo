@@ -10,6 +10,8 @@ import electronHelpers from "./handlebars/electron-helpers.js"
 import siteHelpers from "./handlebars/site-helpers.js"
 import { join as joinPath } from "node:path"
 
+Handlebars.logger.log = logger.info
+
 const MD = markdownit({
     html: true,
 })
@@ -20,6 +22,10 @@ const MD = markdownit({
 
 export function getFrontMatterFromFile(filepath) {
     return fm(readFileSync(filepath, "utf-8"))
+}
+
+export function renderMdToHtml(mdBody) {
+    return MD.render(mdBody)
 }
 
 export function compileHandlebarsTemplate(
@@ -54,21 +60,31 @@ export function getHandlebarsHelpersFromPath(path) {
 
 export function compile(
     templateFilepath,
-    contentFilepath,
+    data,
     partialsPath,
     isInternalUse = false,
 ) {
     const HANDLEBARS_HELPERS = isInternalUse ? electronHelpers : siteHelpers
     const HANDLEBARS_PARTIALS = getHandlebarsHelpersFromPath(partialsPath)
-    const FRONT_MATTER = getFrontMatterFromFile(contentFilepath)
+    
 
-    return compileHandlebarsTemplate(
-        templateFilepath,
-        {
-            ...FRONT_MATTER.attributes,
-            _content: MD.render(FRONT_MATTER.body),
-        },
-        HANDLEBARS_HELPERS,
-        HANDLEBARS_PARTIALS,
-    )
+    try {
+        return compileHandlebarsTemplate(
+            templateFilepath,
+            data,
+            HANDLEBARS_HELPERS,
+            HANDLEBARS_PARTIALS,
+        )
+    } catch (error) {
+        // TODO move compile fail message?
+        // logger.error(strings.generator.compileFail(pageMeta.template))
+        logger.error(error.message)
+        const ENCODED_ERROR = error.message.replace(
+            /[\u00A0-\u9999<>\&]/gim,
+            function (i) {
+                return "&#" + i.charCodeAt(0) + ";"
+            },
+        )
+        return `<pre>${ENCODED_ERROR}</pre>`
+    }
 }

@@ -1,14 +1,8 @@
 import * as path from "node:path"
 import * as fs from "node:fs"
+
 import _ from "lodash"
 import { parse as yamlParse } from "yaml"
-import markdownit from "markdown-it" // TODO move md/fm/handlebars stuff into shared file
-import markdownItFootnote from "markdown-it-footnote"
-import markdownItHighlightjs from "markdown-it-highlightjs"
-import { attrs } from "@mdit/plugin-attrs"
-import { imgSize } from "@mdit/plugin-img-size"
-import fm from "front-matter"
-import Handlebars from "handlebars"
 import moment from "moment"
 import { Feed } from "feed"
 import * as cheerio from "cheerio"
@@ -27,6 +21,7 @@ import {
     submitQueuedPosts,
     resolveHandle,
 } from "./bluesky/main.js"
+import { compile, getFrontMatterFromFile, renderMdToHtml } from "./templater.js"
 
 let server
 let watcher
@@ -39,71 +34,21 @@ export async function build(isPostDeploy = false) {
 
     const PROJECT_PATHS = activeProject.paths
 
-    buildData = { _pages: [] }
-
-    // register Handlebars partials
-    if (fs.existsSync(PROJECT_PATHS.PARTIALS)) {
-        const partials = fs.readdirSync(PROJECT_PATHS.PARTIALS)
-
-        partials.forEach(function (filename) {
-            var matches = /^([^.]+).hbs$/.exec(filename)
-            if (!matches) {
-                return
-            }
-            var name = matches[1]
-            var template = fs.readFileSync(
-                path.join(PROJECT_PATHS.PARTIALS, filename),
-                "utf-8",
-            )
-            Handlebars.registerPartial(name, template)
-        })
+    // quit if content folder is missing
+    // TODO probably other required folders to check for
+    if (!fs.existsSync(PROJECT_PATHS.CONTENT)) {
+        logger(strings.generator.missingContentFolder)
+        // TODO showMessageBox() // return error (to app or main)
+        return
     }
 
-    // TODO make separate js for handlebars helpers
-    Handlebars.registerHelper("formatDate", function (date) {
-        return moment(date).utc().format(buildData.site.dateFormat) // TODO point to validator
-    })
-
-    Handlebars.registerHelper("getIcon", function (name, options) {
-        let icon = feather.icons[name]
-        icon.attrs = { ...icon.attrs, ...options.hash }
-        return icon.toSvg()
-    })
-
-    // TODO maybe get rid of this
-    Handlebars.registerHelper("useFirstValid", function () {
-        const valid = _.filter(arguments, (arg) => {
-            return _.isString(arg)
-        })
-
-        return valid[0]
-    })
-
-    Handlebars.registerHelper("logInBrowser", function (obj) {
-        return `<script>console.log(${JSON.stringify(obj)})</script>`
-    })
-
-    Handlebars.registerHelper(
-        "isCollectionSortAscending",
-        function (name, key) {
-            const SORTS = _.find(
-                activeProject.collections_meta,
-                (v) => v.name == name,
-            ).sort
-
-            const ORDER = _.find(SORTS, (v) => v.key == key).order
-
-            return ORDER == "ascending"
-        },
-    )
+    buildData = { _pages: [], _data: {}, collections: {} }
 
     // delete previous build
     if (fs.existsSync(PROJECT_PATHS.OUTPUT)) {
         fs.rmSync(PROJECT_PATHS.OUTPUT, { recursive: true, force: true })
     }
     fs.mkdirSync(PROJECT_PATHS.OUTPUT)
-
-    buildData._data = {}
 
     if (fs.existsSync(PROJECT_PATHS.DATA)) {
         // TODO - find out why i'm using promise readdir sometimes
@@ -131,13 +76,6 @@ export async function build(isPostDeploy = false) {
         })
     }
 
-    // quit if content folder is missing
-    if (!fs.existsSync(PROJECT_PATHS.CONTENT)) {
-        logger(strings.generator.missingContentFolder)
-        // TODO showMessageBox() // return error (to app or main)
-        return
-    }
-
     const CONTENT_FILEPATHS = await fs.promises.readdir(PROJECT_PATHS.CONTENT, {
         recursive: true,
     })
@@ -158,8 +96,6 @@ export async function build(isPostDeploy = false) {
     if (isPostDeploy && arePostsQueued()) {
         await processBlueskyPosts()
     }
-
-    buildData.collections = {}
 
     _.each(activeProject.collections_meta, (ruleset) => {
         const NAME = config.PAGE_GROUP_PREFIX + ruleset.name
@@ -279,6 +215,7 @@ export async function build(isPostDeploy = false) {
         },
     )
 
+    // TODO move this stuff out
     const bskyHandle = buildData.integrations?.bluesky?.handle
     let bskyUserId = buildData.integrations?.bluesky?.userId
 
@@ -379,7 +316,7 @@ export async function pauseWatcher() {
 function getPageData(contentFilepath) {
     const PROJECT_PATHS = activeProject.paths
     const ABSOLUTE_FILEPATH = path.join(PROJECT_PATHS.CONTENT, contentFilepath)
-    const FRONT_MATTER = fm(fs.readFileSync(ABSOLUTE_FILEPATH, "utf-8"))
+    const FRONT_MATTER = getFrontMatterFromFile(ABSOLUTE_FILEPATH)
 
     let pageMeta = {
         _filepath: ABSOLUTE_FILEPATH,
@@ -458,57 +395,32 @@ function generatePage(pageMeta) {
         return
     }
 
-    const MD = markdownit({
-        html: true,
-    })
-        .use(markdownItFootnote)
-        .use(markdownItHighlightjs)
-        .use(attrs)
-        .use(imgSize)
-
-    // render markdown to html
-    pageMeta._content = MD.render(pageMeta._mdContent.body)
-    // add globals and groups to page
     pageMeta.globals = activeProject.globals_meta
-    _.assign(pageMeta, buildData.collections) // TODO not sure if still works?
-    // add full project meta
+    pageMeta._content = renderMdToHtml(pageMeta._mdContent.body)
     pageMeta._project_meta = activeProject.config // TODO _project_config?
+    _.assign(pageMeta, buildData.collections) // TODO not sure if still works?
 
-    let templatePath = path.join(PROJECT_PATHS.TEMPLATES, pageMeta.template)
+    const TEMPLATE_FILEPATH = path.join(PROJECT_PATHS.TEMPLATES, pageMeta.template)
 
     // get html template
-    if (!fs.existsSync(templatePath)) {
+    if (!fs.existsSync(TEMPLATE_FILEPATH)) {
         logger.warn(strings.generator.missingTemplate)
-        pageMeta.template = "default.hbs"
-        templatePath = path.join(PROJECT_PATHS.TEMPLATES, pageMeta.template) // TODO hardcode this? require it in yaml?
-    }
-    let htmlOutput = fs.readFileSync(templatePath, "utf-8")
-    const HANDLEBARS_TEMPLATE = Handlebars.compile(htmlOutput)
-
-    try {
-        htmlOutput = HANDLEBARS_TEMPLATE(pageMeta)
-    } catch (error) {
-        logger.error(strings.generator.compileFail(pageMeta.template))
-        logger.error(error.message)
-        let encodedError = error.message.replace(
-            /[\u00A0-\u9999<>\&]/gim,
-            function (i) {
-                return "&#" + i.charCodeAt(0) + ";"
-            },
-        )
-        htmlOutput = "<pre>" + encodedError + "</pre>"
+        return // TODO missing template handling (skip page?)
     }
 
-    let htmlFilename = pageMeta._relativeUrl
-    let outputDir = path.dirname(htmlFilename)
+    const HTML_FILEPATH = pageMeta._relativeUrl
+    const OUTPUT_PATH = path.dirname(HTML_FILEPATH)
 
-    if (!fs.existsSync(outputDir)) {
-        fs.mkdirSync(path.join(PROJECT_PATHS.OUTPUT, outputDir), {
+    if (!fs.existsSync(OUTPUT_PATH)) {
+        fs.mkdirSync(path.join(PROJECT_PATHS.OUTPUT, OUTPUT_PATH), {
             recursive: true,
         })
     }
 
-    fs.writeFileSync(path.join(PROJECT_PATHS.OUTPUT, htmlFilename), htmlOutput)
+    fs.writeFileSync(
+        path.join(PROJECT_PATHS.OUTPUT, HTML_FILEPATH),
+        compile(TEMPLATE_FILEPATH, pageMeta, PROJECT_PATHS.PARTIALS),
+    )
 
     // TODO auto post should be project-level setting
     // queue bluesky post for after deploy

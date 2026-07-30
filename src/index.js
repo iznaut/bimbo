@@ -52,8 +52,6 @@ export const createNewProject = function (destinationPath, starterPath) {
         fs.writeFileSync(path.join(destinationPath, data.filePath), data.text)
     })
 
-    console.log(destinationPath)
-
     const NEW_PROJECT = new Project(destinationPath)
 
     NEW_PROJECT.updateConfig({

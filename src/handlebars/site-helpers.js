@@ -2,6 +2,8 @@ import _ from "lodash"
 import moment from "moment"
 import * as feather from "feather-icons"
 
+import { activeProject } from "../index.js"
+
 export default {
     formatDate: function (date) {
         return moment(date).utc().format(buildData.site.dateFormat) // TODO point to validator
@@ -21,7 +23,7 @@ export default {
     },
     isCollectionSortAscending: function (name, key) {
         const SORTS = _.find(
-            projects.active.collections_meta,
+            activeProject.collections_meta, // TODO better way of doing this?
             (v) => v.name == name,
         ).sort
 

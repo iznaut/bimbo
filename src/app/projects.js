@@ -67,8 +67,6 @@ const exports = {
         projectsList.push(newPath)
         this.list = projectsList
 
-        console.log(this.list)
-
         return this.list.length - 1
     },
 }

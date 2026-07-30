@@ -91,9 +91,15 @@ export function showHtmlPopup(type, contentName) {
         },
     })
 
+    const FRONT_MATTER = getFrontMatterFromFile(
+        pathJoin(RENDERER_PATH, type, `${contentName}.md`),
+    )
     const HTML = compile(
         pathJoin(RENDERER_PATH, type, "base.hbs"),
-        pathJoin(RENDERER_PATH, type, `${contentName}.md`),
+        {
+            ...FRONT_MATTER.attributes,
+            _content: MD.render(FRONT_MATTER.body),
+        },
         pathJoin(RENDERER_PATH, `partials`),
         true,
     )

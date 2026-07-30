@@ -18,7 +18,6 @@ import chokidar from "chokidar"
 import { readingTime } from "reading-time-estimator"
 
 import { activeProject } from "./index.js"
-import { APP_SETTINGS, showMessageBox } from "./app/electron.js" // TODO eliminate
 import config from "./config/index.js"
 import strings from "./config/strings.js" // TODO export separate categories? (e.g. {generator} from strings)
 import {
@@ -34,6 +33,7 @@ let watcher
 
 let buildData
 
+// TODO use helper functions in templater.js
 export async function build(isPostDeploy = false) {
     logger.info(strings.generator.buildStart(isPostDeploy))
 
@@ -133,7 +133,8 @@ export async function build(isPostDeploy = false) {
 
     // quit if content folder is missing
     if (!fs.existsSync(PROJECT_PATHS.CONTENT)) {
-        showMessageBox(strings.generator.missingContentFolder) // return error (to app or main)
+        logger(strings.generator.missingContentFolder)
+        // TODO showMessageBox() // return error (to app or main)
         return
     }
 
@@ -509,13 +510,14 @@ function generatePage(pageMeta) {
 
     fs.writeFileSync(path.join(PROJECT_PATHS.OUTPUT, htmlFilename), htmlOutput)
 
+    // TODO auto post should be project-level setting
     // queue bluesky post for after deploy
-    if (
-        APP_SETTINGS.get("settings.bskyAutoPost") &&
-        pageMeta.bskyPostId == "tbd"
-    ) {
-        queuePost(pageMeta)
-    }
+    // if (
+    //     APP_SETTINGS.get("settings.bskyAutoPost") &&
+    //     pageMeta.bskyPostId == "tbd"
+    // ) {
+    //     queuePost(pageMeta)
+    // }
 }
 
 async function processBlueskyPosts() {

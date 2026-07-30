@@ -6,18 +6,10 @@ import * as fs from "node:fs"
 import { zip } from "zip-a-folder"
 import { setTimeout } from "timers/promises"
 
-import {
-    APP_SETTINGS,
-    showHtmlPopup,
-    showMessageBox,
-    showNotification,
-    showPrompt,
-} from "./app/electron.js"
 import strings from "./config/strings.js"
 import config from "./config/index.js"
 import { arePostsQueued } from "./bluesky/main.js"
 import { build, pauseWatcher, watch } from "./site-generator.js"
-import { openExternalUrl } from "./app/electron.js"
 
 export const IS_PLUS_MODE = true
 
@@ -38,10 +30,6 @@ export const presets = {
     },
 }
 
-export function configure(provider) {
-    showHtmlPopup("forms", provider)
-}
-
 export async function deploy(sftpPassword = null, isPostDeploy = false) {
     if (isPostDeploy) {
         logger.info(strings.logMsg.postDeployStart)
@@ -49,82 +37,49 @@ export async function deploy(sftpPassword = null, isPostDeploy = false) {
         logger.info(strings.logMsg.deployStart)
     }
 
+    await pauseWatcher()
+
     const DEPLOY_META = activeProject.secrets.deployment
 
-    if (!DEPLOY_META) {
-        showHtmlPopup(DEPLOY_META.provider) // TODO
-    } else if (DEPLOY_META.host && !sftpPassword && !DEPLOY_META.keyPath) {
-        showHtmlPopup(`popups/deployment/sftp-password.html`)
+    let success = false
+    let startMsg = strings.deployment.start(DEPLOY_META.provider)
+    logger.info(startMsg)
+    // TODO how to surface these to electron
+    // showNotification(startMsg)
+
+    if (sftpPassword || DEPLOY_META.keyPath) {
+        success = await deployViaSftp(
+            DEPLOY_META,
+            activeProject.paths.ROOT,
+            sftpPassword,
+        )
     } else {
-        let success = false
-
-        if (sftpPassword || DEPLOY_META.keyPath) {
-            // TODO dedupe
-            await pauseWatcher()
-            let startMsg = strings.deployment.start(DEPLOY_META.provider)
-            logger.info(startMsg)
-            showNotification(startMsg)
-
-            success = await deployViaSftp(
-                DEPLOY_META,
-                activeProject.paths.ROOT,
-                sftpPassword,
-            )
-
-            let resultMsg = success
-                ? strings.deployment.finish.success(isPostDeploy)
-                : strings.deployment.finish.fail
-            logger.info(resultMsg)
-            showNotification(resultMsg)
-        } else {
-            let clickedId = 0
-
-            if (!isPostDeploy) {
-                clickedId = showPrompt(
-                    strings.popups.confirmDeployment.message(
-                        activeProject.title,
-                        DEPLOY_META.provider,
-                    ),
-                    "warning",
-                )
-            }
-
-            if (clickedId == 0) {
-                await pauseWatcher()
-                let startMsg = strings.deployment.start(DEPLOY_META.provider)
-                logger.info(startMsg)
-                showNotification(startMsg)
-
-                switch (DEPLOY_META.provider) {
-                    case "nekoweb":
-                        success = await deployToNekoweb(DEPLOY_META)
-                        break
-                    case "neocities":
-                        success = await deployToNeocities(DEPLOY_META)
-                        break
-                    default:
-                        break
-                }
-
-                let resultMsg = success
-                    ? strings.deployment.finish.success(isPostDeploy)
-                    : strings.deployment.finish.fail
-                logger.info(resultMsg)
-                showNotification(resultMsg)
-            } else {
-                logger.info(strings.deployment.finish.cancel)
-            }
+        switch (DEPLOY_META.provider) {
+            case "nekoweb":
+                success = await deployToNekoweb(DEPLOY_META)
+                break
+            case "neocities":
+                success = await deployToNeocities(DEPLOY_META)
+                break
+            default:
+                break
         }
-
-        if (success) {
-            if (APP_SETTINGS.get("settings.bskyAutoPost") && !isPostDeploy) {
-                // TODO should be set at project level (in secrets?)
-                await postDeploy()
-            }
-        }
-
-        watch()
     }
+
+    let resultMsg = success
+        ? strings.deployment.finish.success(isPostDeploy)
+        : strings.deployment.finish.fail
+    logger.info(resultMsg)
+    // showNotification(resultMsg)
+
+    // TODO should be set at project level (in secrets?)
+    // if (success) {
+    //     if (APP_SETTINGS.get("settings.bskyAutoPost") && !isPostDeploy) {
+    //         await postDeploy()
+    //     }
+    // }
+
+    watch()
 }
 
 export async function getNeocitiesApiKey(username, password) {

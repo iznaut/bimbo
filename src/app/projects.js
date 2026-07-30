@@ -56,16 +56,20 @@ const exports = {
     getFromPath(rootPath) {
         return new Project(rootPath)
     },
-    add(newRootPath) {
+    add(newPath) {
         let projectsList = this.list
 
-        if (projectsList.includes(newRootPath)) {
+        if (projectsList.includes(newPath)) {
             showNotification(strings.projects.alreadyImported)
             return
         }
 
-        projectsList.push(newRootPath)
+        projectsList.push(newPath)
         this.list = projectsList
+
+        console.log(this.list)
+
+        return this.list.length - 1
     },
 }
 

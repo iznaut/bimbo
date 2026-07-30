@@ -26,7 +26,7 @@ export const APP_PATH = app.getAppPath()
 export const USER_DATA_PATH = app.getPath("userData")
 export const LOG_PATH = pathJoin(app.getPath("userData"), config.LOG_FILENAME)
 
-export const APP_SETTINGS = new Conf(config.USER_CONFIG_DEFAULTS)
+export const APP_SETTINGS = new Conf(config.APP_SETTINGS_DEFAULTS)
 
 export function createTray() {
     return new Tray(nativeImage.createFromDataURL(config.ICON))

@@ -1,14 +1,15 @@
 import * as fs from "node:fs"
 import * as path from "node:path"
-import { exec, spawn } from "node:child_process"
+import { exec } from "node:child_process"
+import { platform } from "node:os"
+
 import _ from "lodash"
 import prompt from "electron-prompt" // TODO replace with HtmlPopup
 import winston from "winston"
-import Handlebars from "handlebars"
 import { BugSplatNode as BugSplat } from "bugsplat-node"
 import { compareVersions } from "compare-versions"
+import tiny from "tiny-json-http"
 
-import { isDev, isPlatformMac, updateConfigFile } from "../utils.js"
 import {
     APP_PATH,
     USER_DATA_PATH,
@@ -26,7 +27,7 @@ import {
 } from "./electron.js"
 import config from "../config/index.js"
 import projects from "./projects.js"
-import { deploy, configure, presets, IS_PLUS_MODE } from "../deploy.js"
+import { deploy, presets, IS_PLUS_MODE } from "../deploy.js"
 import strings from "../config/strings.js"
 import urls from "../config/urls.js"
 import { build } from "../site-generator.js"
@@ -39,8 +40,15 @@ import {
     clipboard,
 } from "electron" // TODO refactor into electron utils
 import { resolveHandle as resolveBlueskyHandle } from "../bluesky/main.js"
+import { createNewProject, activeProject } from "../index.js"
 
-import { activeProject } from "../index.js"
+const IS_DEV_MODE = app.isPackaged
+
+// update PROJECT_STARTERS_PATH based on packaged status
+config.PROJECT_STARTERS_PATH = path.join(
+    app.isPackaged ? app.getAppPath() : "../../resources",
+    config.PROJECT_STARTERS_PATH,
+)
 
 let bugsplat = null
 
@@ -57,7 +65,7 @@ const CURRENT_VERSION = (function () {
         .readFileSync(path.join(APP_PATH, "version"), "utf-8")
         .trim()
 
-    if (isDev()) {
+    if (IS_DEV_MODE) {
         version = version.replace("-beta", "-dev")
     }
 
@@ -72,7 +80,7 @@ async function getLatestVersion() {
         },
     ]
 
-    if (isDev()) {
+    if (IS_DEV_MODE) {
         latestVersion = "99.99.99-dev"
     } else {
         try {
@@ -123,9 +131,12 @@ app.whenReady().then(() => {
     logger.info(strings.logMsg.logPath(LOG_PATH))
     logger.info(strings.app.titleWithVersion(CURRENT_VERSION))
 
-    if (isPlatformMac()) {
+    // hide dock icon on mac
+    if (platform() === "darwin") {
         app.dock.hide()
     }
+
+    projects.cleanup()
 
     tray = createTray()
     tray.on("click", (event) => {
@@ -137,7 +148,7 @@ app.whenReady().then(() => {
     // keeps app open with no real windows
     app.on("window-all-closed", () => {})
 
-    if (projects.activeIndex == -1 && !isDev()) {
+    if (projects.activeIndex == -1 && IS_DEV_MODE) {
         openExternalUrl(urls.tutorial)
     }
 
@@ -155,8 +166,6 @@ app.whenReady().then(() => {
     })
 
     logger.info(strings.logMsg.ready)
-
-    projects.cleanup() // TODO should do this as needed?
 })
 
 function updateTrayMenu(isDebugMode) {
@@ -201,9 +210,7 @@ function updateTrayMenu(isDebugMode) {
             label: strings.menu.openEditor,
             enabled: isProjectLoaded,
             click: function () {
-                logger.info(
-                    strings.logMsg.tryEditor(config.EDITOR_COMMAND),
-                )
+                logger.info(strings.logMsg.tryEditor(config.EDITOR_COMMAND))
 
                 exec(
                     `${config.EDITOR_COMMAND} "${loadedProjectRoot}"`,
@@ -234,7 +241,22 @@ function updateTrayMenu(isDebugMode) {
             id: "deploy",
             label: strings.menu.deploy(deployMeta?.provider),
             visible: !!deployMeta && Object.keys(presets).length > 0,
-            click: () => deploy(), // don't change this again dummy it needs to be like this
+            click: () => {
+                // TODO project-level setting to turn off confirmation prompt?
+                const CLICKED_ID = showPrompt(
+                    strings.popups.confirmDeployment.message(
+                        activeProject.title,
+                        DEPLOY_META.provider,
+                    ),
+                    "warning",
+                )
+
+                if (CLICKED_ID == 0) {
+                    deploy()
+                } else {
+                    logger.info(strings.deployment.finish.cancel)
+                }
+            },
         },
         {
             label: strings.menu.configDeployment,
@@ -246,7 +268,7 @@ function updateTrayMenu(isDebugMode) {
                     return {
                         label: key,
                         click: (menuItem) => {
-                            configure(key)
+                            showHtmlPopup("forms", key)
                         },
                     }
                 }),
@@ -371,38 +393,6 @@ function updateTrayTitle() {
             ? displayTitle
             : "",
     )
-}
-
-// TODO move to projects.js?
-async function initProjectStarter(projectRoot, starterPath) {
-    fs.cpSync(starterPath, projectRoot, {
-        // TODO undefined
-        recursive: true,
-    })
-
-    _.each(config.EXTRA_INIT_FILES, (data) => {
-        if (data.json) {
-            data.text = JSON.stringify(data.json, null, true)
-        }
-
-        if (data.filePath.includes(".vscode")) {
-            // TODO why is this hardcoded
-            fs.mkdirSync(path.join(projectRoot, ".vscode"))
-        }
-
-        fs.writeFileSync(path.join(projectRoot, data.filePath), data.text)
-    })
-
-    projects.add(projectRoot)
-    projects.activeIndex = projects.list.length - 1
-
-    updateConfigFile(activeProject.paths.CONFIG_FILE, {
-        globals: {
-            title: path.basename(projectRoot),
-        },
-    })
-
-    updateTrayTitle()
 }
 
 function configureCrashReporting() {
@@ -551,7 +541,7 @@ function getProjectsSubmenu() {
                     return {
                         label: path.basename(starterPath),
                         click: async function () {
-                            const title = await prompt({
+                            const PROJECT_TITLE = await prompt({
                                 title: strings.popups.createProject.title,
                                 buttonLabels: {
                                     ok: strings.popups.createProject.confirm,
@@ -562,7 +552,7 @@ function getProjectsSubmenu() {
                                 type: "input",
                             }).catch(logger.error)
 
-                            if (!title) {
+                            if (!PROJECT_TITLE) {
                                 return
                             }
 
@@ -574,10 +564,18 @@ function getProjectsSubmenu() {
                                 return
                             }
 
-                            initProjectStarter(
-                                path.join(pickedPaths[0], title),
-                                starterPath,
+                            const DESTINATION_PATH = path.join(
+                                pickedPaths[0],
+                                PROJECT_TITLE,
                             )
+
+                            // TODO throw error if fails
+                            createNewProject(DESTINATION_PATH, starterPath)
+
+                            projects.activeIndex =
+                                projects.add(DESTINATION_PATH)
+
+                            updateTrayTitle()
                         },
                     }
                 }),

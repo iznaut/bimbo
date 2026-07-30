@@ -1,13 +1,11 @@
-<div id="taggedpostlistdiv">
+<div id="taggedPostList">
     {{#each $tagged}}
         <h2>
             {{ @key }}
         </h2>
         <ul>
             {{#each this}}
-                <li>
-                    <a href="{{ this._relativeUrl }}">{{ this.date }} » {{ this.title }}</a>
-                </li>
+                {{> post-list-item}}
             {{/each}}
         </ul>
     {{/each}}

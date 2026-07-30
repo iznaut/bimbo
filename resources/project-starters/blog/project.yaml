@@ -34,8 +34,3 @@ collections:
     - name: tagged
       group:
         - key: tags
-
-validators:
-    - key: url                              # check if the value is a valid URL and make sure the target page isn't down
-    - key: date
-      format: YYYY-MM-DD

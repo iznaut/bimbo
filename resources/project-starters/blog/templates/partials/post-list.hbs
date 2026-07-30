@@ -1,9 +1,7 @@
-<div id="postlistdiv">
+<div id="postList">
     <ul>
         {{#each $allPosts}}
-            <li>
-                <a href="{{ this._relativeUrl }}">{{ this.date }} » {{ this.title }}</a>
-            </li>
+            {{> post-list-item}}
         {{/each}}
     </ul>
 </div>

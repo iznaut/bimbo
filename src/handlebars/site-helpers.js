@@ -2,11 +2,11 @@ import _ from "lodash"
 import moment from "moment"
 import * as feather from "feather-icons"
 
-import { activeProject } from "../index.js"
+// TODO copy over to user data and load dynamically
 
 export default {
-    formatDate: function (date) {
-        return moment(date).utc().format(buildData.site.dateFormat) // TODO point to validator
+    formatDate: function (date, format) {
+        return moment(date).utc().format(format) // TODO point to validator
     },
     getIcon: function (name, options) {
         let icon = feather.icons[name]
@@ -21,9 +21,9 @@ export default {
 
         return valid[0]
     },
-    isCollectionSortAscending: function (name, key) {
+    isCollectionSortAscending: function (name, key, options) {
         const SORTS = _.find(
-            activeProject.collections_meta, // TODO better way of doing this?
+            options.data.root._project_meta.collections, // options.data.root == all page data
             (v) => v.name == name,
         ).sort
 

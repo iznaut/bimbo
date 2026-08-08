@@ -3,10 +3,11 @@
     "description": "static site generator for dumb girls",
     "author": "izzy kestrel",
     "license": "MIT",
+    "version": "0.12.0-beta",
     "type": "module",
-    "main": "main.js",
+    "main": "./src/app/index.js",
     "scripts": {
-        "build": "npx @electron/packager . --extra-resource project-starters/ --ignore project-starters/ --out build/ --overwrite",
+        "build": "npx @electron/packager . --appVersion $(cat package.json | jq '.version') --extra-resource resources/project-starters/ --out build/ --overwrite",
         "test": "vitest"
     },
     "dependencies": {

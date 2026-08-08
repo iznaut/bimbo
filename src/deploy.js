@@ -11,6 +11,8 @@ import config from "./config/index.js"
 import { arePostsQueued } from "./bluesky/main.js"
 import { build, pauseWatcher, watch } from "./site-generator.js"
 
+import { activeProject } from "./index.js"
+
 export const IS_PLUS_MODE = true
 
 export const presets = {
@@ -124,20 +126,29 @@ async function deployToNekoweb(deployMeta) {
     let sitePath = activeProject.paths.OUTPUT
     let zipPath = path.join(activeProject.paths.ROOT, "upload.zip")
 
-    await nekoweb.getSiteInfo(deployMeta.domain)
-    await zip(sitePath, zipPath) // can we get as buffer?
-    let bigfile = await nekoweb.createBigFile()
-    let file = fs.readFileSync(zipPath)
-    await bigfile.append(file)
-    let response = await bigfile.import(path.join("/", deployMeta.domain))
+    try {
+        await nekoweb.getSiteInfo(deployMeta.domain)
+    }
+    catch {
+        logger.error("failed to get site info - check API key is valid") // TODO move string
+    }
+    try {
+        await zip(sitePath, zipPath) // TODO can we get as buffer?
+        let bigfile = await nekoweb.createBigFile()
+        let file = fs.readFileSync(zipPath)
+        await bigfile.append(file)
+        let response = await bigfile.import(path.join("/", deployMeta.domain))
 
-    fs.rmSync(zipPath)
+        fs.rmSync(zipPath)
 
-    // TODO atproto thing not uploading - need to do separately?
-    // let atfile = fs.readFileSync(path.join(sitePath, '.well-known/atproto-did'))
-    // await nekoweb.upload('/.well-known/atproto-did', atfile)
+        // TODO atproto thing not uploading - need to do separately?
+        // let atfile = fs.readFileSync(path.join(sitePath, '.well-known/atproto-did'))
+        // await nekoweb.upload('/.well-known/atproto-did', atfile)
 
-    return response == "Imported"
+        return response == "Imported"
+    } catch (err) {
+        logger.error(err)
+    }
     // try {
     // }
     // catch(err) {

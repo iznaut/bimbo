@@ -6,7 +6,7 @@ import * as feather from "feather-icons"
 
 export default {
     formatDate: function (date, format) {
-        return moment(date).utc().format(format) // TODO point to validator
+        return moment(date).utc().format(format)
     },
     getIcon: function (name, options) {
         let icon = feather.icons[name]

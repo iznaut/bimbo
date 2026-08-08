@@ -27,7 +27,7 @@ import {
 } from "./electron.js"
 import config from "../config/index.js"
 import projects from "./projects.js"
-import { deploy, presets, IS_PLUS_MODE } from "../deploy.js"
+import { deploy, presets, IS_PLUS_MODE, getNeocitiesApiKey } from "../deploy.js"
 import strings from "../config/strings.js"
 import urls from "../config/urls.js"
 import { build } from "../site-generator.js"
@@ -42,11 +42,15 @@ import {
 import { resolveHandle as resolveBlueskyHandle } from "../bluesky/main.js"
 import { createNewProject, activeProject } from "../index.js"
 
-const IS_DEV_MODE = app.isPackaged
+const IS_DEV_MODE = !app.isPackaged
+
+config.APP_NAME = IS_DEV_MODE ? "bimbo" : app.name
+config.LOG_FILENAME = config.APP_NAME + config.LOG_FILENAME
+
 
 // update PROJECT_STARTERS_PATH based on packaged status
 config.PROJECT_STARTERS_PATH = path.join(
-    app.isPackaged ? app.getAppPath() : "../../resources",
+    IS_DEV_MODE ? `${process.cwd()}/resources` : process.resourcesPath,
     config.PROJECT_STARTERS_PATH,
 )
 
@@ -61,9 +65,10 @@ let versionCheckError = false
 
 // TODO clean up version/update stuff
 const CURRENT_VERSION = (function () {
-    let version = fs
-        .readFileSync(path.join(APP_PATH, "version"), "utf-8")
-        .trim()
+    // let version = fs
+    //     .readFileSync(path.join(APP_PATH, "version"), "utf-8")
+    //     .trim()
+    let version = app.getVersion()
 
     if (IS_DEV_MODE) {
         version = version.replace("-beta", "-dev")
@@ -173,8 +178,8 @@ function updateTrayMenu(isDebugMode) {
     const loadedProjectMeta = isProjectLoaded ? activeProject.config : {}
     const loadedProjectRoot = isProjectLoaded ? activeProject.paths.ROOT : ""
 
-    const deployMeta = isProjectLoaded && loadedProjectMeta.deployment
-    const bskyMeta = isProjectLoaded && loadedProjectMeta.integrations?.bluesky
+    const DEPLOY_META = isProjectLoaded && activeProject.secrets?.deployment
+    const BSKY_META = isProjectLoaded && activeProject.secrets?.integrations?.bluesky
     const bskyAutoPostEnabled = APP_SETTINGS.get("settings.bskyAutoPost")
 
     trayMenu = buildMenu([
@@ -239,8 +244,8 @@ function updateTrayMenu(isDebugMode) {
         { type: "separator" },
         {
             id: "deploy",
-            label: strings.menu.deploy(deployMeta?.provider),
-            visible: !!deployMeta && Object.keys(presets).length > 0,
+            label: strings.menu.deploy(DEPLOY_META?.provider),
+            visible: !!DEPLOY_META && Object.keys(presets).length > 0,
             click: () => {
                 // TODO project-level setting to turn off confirmation prompt?
                 const CLICKED_ID = showPrompt(
@@ -262,7 +267,7 @@ function updateTrayMenu(isDebugMode) {
             label: strings.menu.configDeployment,
             type: "submenu",
             enabled: Object.keys(presets).length > 0 && isProjectLoaded,
-            visible: !deployMeta,
+            visible: !DEPLOY_META,
             submenu: buildMenu(
                 Object.keys(presets).map((key) => {
                     return {
@@ -276,9 +281,9 @@ function updateTrayMenu(isDebugMode) {
         },
         {
             label: bskyAutoPostEnabled
-                ? strings.menu.bskyAutoPost.enabled(bskyMeta?.handle)
+                ? strings.menu.bskyAutoPost.enabled(BSKY_META?.handle)
                 : strings.menu.bskyAutoPost.disabled,
-            visible: !!bskyMeta && IS_PLUS_MODE,
+            visible: !!BSKY_META && IS_PLUS_MODE,
             click: () => {
                 APP_SETTINGS.set(
                     "settings.bskyAutoPost",
@@ -289,7 +294,7 @@ function updateTrayMenu(isDebugMode) {
         {
             label: strings.menu.configBsky,
             enabled: IS_PLUS_MODE && isProjectLoaded,
-            visible: !bskyMeta,
+            visible: !BSKY_META,
             click: () => {
                 showHtmlPopup("forms", "bluesky")
             },
@@ -498,7 +503,7 @@ function getSettingsMenu() {
 function getProjectsSubmenu() {
     // TODO move to projects.js?
     const PROJECT_STARTERS_PATHS = fs
-        .readdirSync(path.join(APP_PATH, config.PROJECT_STARTERS_PATH), {
+        .readdirSync(config.PROJECT_STARTERS_PATH, {
             withFileTypes: true,
         })
         .filter((dirent) => dirent.isDirectory())
@@ -626,7 +631,7 @@ ipcMain.handle("form", async function (_event, formData) {
             }
             break
         case "neocities":
-            const API_KEY = getNeocitiesApiKey()
+            const API_KEY = await getNeocitiesApiKey(formData.username, formData.password) // TODO no css?
 
             if (!API_KEY) {
                 showMessageBox(strings.popups.deployFail(formData.id), "error")

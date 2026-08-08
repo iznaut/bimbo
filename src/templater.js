@@ -1,16 +1,16 @@
-import markdownit from "markdown-it" // TODO move md/fm/handlebars stuff into shared file
+import { readFileSync, readdirSync, existsSync } from "node:fs"
+import { join as joinPath } from "node:path"
+
+import Handlebars from "handlebars"
+import fm from "front-matter"
+import markdownit from "markdown-it"
 import markdownItFootnote from "markdown-it-footnote"
 import markdownItHighlightjs from "markdown-it-highlightjs"
 import { attrs } from "@mdit/plugin-attrs"
 import { imgSize } from "@mdit/plugin-img-size"
-import fm from "front-matter"
-import Handlebars from "handlebars"
-import { readFileSync, readdirSync, existsSync } from "node:fs"
+
 import electronHelpers from "./handlebars/electron-helpers.js"
 import siteHelpers from "./handlebars/site-helpers.js"
-import { join as joinPath } from "node:path"
-
-Handlebars.logger.log = logger.info
 
 const MD = markdownit({
     html: true,

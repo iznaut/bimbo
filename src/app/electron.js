@@ -14,7 +14,7 @@ import {
 import { Conf } from "electron-conf/main"
 
 import config from "../config/index.js"
-import { compile } from "../templater.js"
+import { compile, getFrontMatterFromFile, renderMdToHtml } from "../templater.js"
 import strings from "../config/strings.js"
 
 const __filename = fileURLToPath(import.meta.url)
@@ -98,7 +98,7 @@ export function showHtmlPopup(type, contentName) {
         pathJoin(RENDERER_PATH, type, "base.hbs"),
         {
             ...FRONT_MATTER.attributes,
-            _content: MD.render(FRONT_MATTER.body),
+            _content: renderMdToHtml(FRONT_MATTER.body),
         },
         pathJoin(RENDERER_PATH, `partials`),
         true,

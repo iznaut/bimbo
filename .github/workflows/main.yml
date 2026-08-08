@@ -3,12 +3,12 @@ name: build and deploy
 permissions:
   contents: write
   
-on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'version'
+# on:
+#   push:
+#     branches:
+#       - main
+#     paths:
+#       - 'version'
 
 env:
   ITCH_USERNAME: iznaut

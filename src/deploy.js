@@ -130,14 +130,17 @@ async function deployToNekoweb(deployMeta) {
     try {
         await nekoweb.getSiteInfo(deployMeta.domain)
     } catch {
-        logger.error("failed to get site info - check API key is valid") // TODO move string
+        logger.error(strings.deployment.nekowebSiteInfoFail)
     }
     try {
         await zip(sitePath, zipPath) // TODO can we get as buffer?
-        let bigfile = await nekoweb.createBigFile()
-        let file = fs.readFileSync(zipPath)
-        await bigfile.append(file)
-        let response = await bigfile.import(path.join("/", deployMeta.domain))
+        const bigfile = await nekoweb.createBigFile()
+        const zipFile = fs.readFileSync(zipPath)
+        await bigfile.append(zipFile)
+        // Delete and recreate domain root to clean up old files
+        await nekoweb.delete("/" + deployMeta.domain)
+        await nekoweb.create("/" + deployMeta.domain, true)
+        const response = await bigfile.import("/" + deployMeta.domain)
 
         fs.rmSync(zipPath)
 

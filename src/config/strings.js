@@ -125,6 +125,7 @@ export default {
         },
         queuedPosts: "found queued Bluesky posts, beginning post-deploy",
         bskyPostSkipped: "skipping Bluesky post for unresolved page",
+        nekowebSiteInfoFail: "failed to get site info - check API key is valid",
     },
     generator: {
         bsky: {

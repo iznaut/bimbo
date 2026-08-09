@@ -121,7 +121,7 @@ async function deployToNeocities(deployMeta) {
 async function deployToNekoweb(deployMeta) {
     let nekoweb = new NekowebAPI({
         apiKey: deployMeta.apiKey,
-        logging: (logType, logMessage) => logger.info(logMessage),
+        logging: (logType, logMessage) => logger.info(logMessage), // TODO use logType? https://github.com/indiefellas/nekoweb-api/blob/main/src/types.ts
     })
 
     let sitePath = activeProject.paths.OUTPUT

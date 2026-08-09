@@ -121,6 +121,7 @@ async function deployToNeocities(deployMeta) {
 async function deployToNekoweb(deployMeta) {
     let nekoweb = new NekowebAPI({
         apiKey: deployMeta.apiKey,
+        logging: (logType, logMessage) => logger.info(logMessage),
     })
 
     let sitePath = activeProject.paths.OUTPUT
@@ -128,8 +129,7 @@ async function deployToNekoweb(deployMeta) {
 
     try {
         await nekoweb.getSiteInfo(deployMeta.domain)
-    }
-    catch {
+    } catch {
         logger.error("failed to get site info - check API key is valid") // TODO move string
     }
     try {

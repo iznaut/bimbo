@@ -83,7 +83,6 @@ async function getLatestVersion() {
         try {
             const packageJson = await tiny.get({ url: urls.githubPackage })
             latestVersion = JSON.parse(packageJson.body).version
-            logger.info(`got version from package ${latestVersion}`)
         } catch (e) {
             logger.warn(strings.update.logError(e))
             versionCheckError = false

@@ -603,7 +603,7 @@ ipcMain.handle("openExternalUrl", async function (_event, url) {
 
 ipcMain.handle("form", async function (_event, formData) {
     let newSecrets = {}
-
+    // TODO form does not submit if any fields left blank (see formHandler.js)
     switch (formData.id) {
         case "nekoweb":
             newSecrets = {
@@ -631,8 +631,18 @@ ipcMain.handle("form", async function (_event, formData) {
                 },
             }
             break
-        case "sftp": // TODO save secrets?
-            deploy(formData.password)
+        case "other":
+            newSecrets = {
+                deployment: {
+                    provider: formData.id,
+                    host: formData.host,
+                    port: formData.port,
+                    siteRoot: formData.siteRoot,
+                    username: formData.username,
+                    password: formData.password,
+                    // TODO keypath
+                },
+            }
             break
         case "bluesky":
             newSecrets = {

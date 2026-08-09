@@ -16,6 +16,7 @@ import { activeProject } from "./index.js"
 export const IS_PLUS_MODE = true
 
 export const presets = {
+    // TODO these values aren't being used anywhere
     nekoweb: {
         apiKey: "",
         domain: "",
@@ -32,7 +33,7 @@ export const presets = {
     },
 }
 
-export async function deploy(sftpPassword = null, isPostDeploy = false) {
+export async function deploy(isPostDeploy = false) {
     if (isPostDeploy) {
         logger.info(strings.logMsg.postDeployStart)
     } else {
@@ -49,12 +50,11 @@ export async function deploy(sftpPassword = null, isPostDeploy = false) {
     // TODO how to surface these to electron
     // showNotification(startMsg)
 
-    if (sftpPassword || DEPLOY_META.keyPath) {
-        success = await deployViaSftp(
-            DEPLOY_META,
-            activeProject.paths.ROOT,
-            sftpPassword,
-        )
+    if (
+        DEPLOY_META.provider === "other" &&
+        (DEPLOY_META.password || DEPLOY_META.keyPath)
+    ) {
+        success = await deployViaSftp(DEPLOY_META, activeProject.paths.ROOT)
     } else {
         switch (DEPLOY_META.provider) {
             case "nekoweb":
@@ -157,9 +157,8 @@ async function deployToNekoweb(deployMeta) {
     // }
 }
 
-async function deployViaSftp(deployMeta, projectRootPath, password = null) {
+async function deployViaSftp(deployMeta, projectRootPath) {
     let result = false
-
     const client = new SftpClient()
     try {
         const connectConfig = {
@@ -167,7 +166,7 @@ async function deployViaSftp(deployMeta, projectRootPath, password = null) {
             username: deployMeta.username,
         }
         if (deployMeta.port) connectConfig.port = deployMeta.port
-        if (password) connectConfig.password = password
+        if (deployMeta.password) connectConfig.password = deployMeta.password
         if (deployMeta.keyPath)
             connectConfig.privateKey = fs.readFileSync(
                 deployMeta.keyPath,
@@ -184,7 +183,6 @@ async function deployViaSftp(deployMeta, projectRootPath, password = null) {
     }
     client.end()
 
-    logger.info(result)
     return result
 }
 
@@ -192,6 +190,6 @@ async function postDeploy() {
     if (arePostsQueued()) {
         logger.info(strings.deployment.queuedPosts)
         await build(true)
-        await deploy(null, true)
+        await deploy(true)
     }
 }

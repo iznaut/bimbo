@@ -24,6 +24,10 @@ fields:
           id: username,
           helpText: "your SFTP-enabled username (may or may not be different than what you use to login your host's web interface)",
       }
+    - {
+          id: password,
+          helpText: "password for your SFTP-enabled username (again, may be different than your host's web login)",
+      }
 ---
 
 most web hosting providers support SFTP (Secure File Transfer Protocol) as an option for uploading files. if your provider supports SFTP, you can configure here:

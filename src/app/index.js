@@ -242,6 +242,7 @@ function updateTrayMenu(isDebugMode) {
                 )
 
                 if (CLICKED_ID == 0) {
+                    // TODO prompt for password if necessary
                     deploy()
                 } else {
                     logger.info(strings.deployment.finish.cancel)
@@ -639,7 +640,7 @@ ipcMain.handle("form", async function (_event, formData) {
                     port: formData.port,
                     siteRoot: formData.siteRoot,
                     username: formData.username,
-                    password: formData.password,
+                    password: formData.password, // TODO never save passwords
                     // TODO keypath
                 },
             }

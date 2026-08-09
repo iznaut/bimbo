@@ -47,7 +47,6 @@ const IS_DEV_MODE = !app.isPackaged
 config.APP_NAME = IS_DEV_MODE ? "bimbo" : app.name
 config.LOG_FILENAME = config.APP_NAME + config.LOG_FILENAME
 
-
 // update PROJECT_STARTERS_PATH based on packaged status
 config.PROJECT_STARTERS_PATH = path.join(
     IS_DEV_MODE ? `${process.cwd()}/resources` : process.resourcesPath,
@@ -78,23 +77,16 @@ const CURRENT_VERSION = (function () {
 })()
 
 async function getLatestVersion() {
-    let results = [
-        {
-            versionIsCurrent: true,
-            versionCheckError: false,
-        },
-    ]
-
     if (IS_DEV_MODE) {
         latestVersion = "99.99.99-dev"
     } else {
         try {
-            latestVersion = (
-                await tiny.get({ url: urls.githubVersion })
-            ).body.trim()
+            const packageJson = await tiny.get({ url: urls.githubPackage })
+            latestVersion = JSON.parse(packageJson.body).version
+            logger.info(`got version from package ${latestVersion}`)
         } catch (e) {
             logger.warn(strings.update.logError(e))
-            results.versionCheckError = false
+            versionCheckError = false
         }
     }
     if (latestVersion) {
@@ -103,16 +95,11 @@ async function getLatestVersion() {
             latestVersion,
             CURRENT_VERSION,
         )
-        results.versionIsCurrent = versionComparison === 0
+        versionIsCurrent = versionComparison === 0
     }
-
-    return results
 }
 
-function notifyUpdateAvailability(
-    isNewVersionAvailable,
-    versionCheckError = false,
-) {
+function notifyUpdateAvailability() {
     showNotification(
         versionCheckError
             ? strings.update.checkFailed
@@ -160,13 +147,10 @@ app.whenReady().then(() => {
     updateTrayTitle()
     updateTrayMenu()
 
-    getLatestVersion().then((results) => {
-        if (!results.versionIsCurrent) {
+    getLatestVersion().then(() => {
+        if (!versionIsCurrent) {
             logger.warn(strings.logMsg.updateAvailable)
-            notifyUpdateAvailability(
-                results.versionIsCurrent,
-                results.versionCheckError,
-            )
+            notifyUpdateAvailability()
         }
     })
 
@@ -179,7 +163,8 @@ function updateTrayMenu(isDebugMode) {
     const loadedProjectRoot = isProjectLoaded ? activeProject.paths.ROOT : ""
 
     const DEPLOY_META = isProjectLoaded && activeProject.secrets?.deployment
-    const BSKY_META = isProjectLoaded && activeProject.secrets?.integrations?.bluesky
+    const BSKY_META =
+        isProjectLoaded && activeProject.secrets?.integrations?.bluesky
     const bskyAutoPostEnabled = APP_SETTINGS.get("settings.bskyAutoPost")
 
     trayMenu = buildMenu([
@@ -320,13 +305,12 @@ function updateTrayMenu(isDebugMode) {
                     label: strings.menu.support.checkForUpdates,
                     click: () => {
                         // TODO dedupe
-                        getLatestVersion().then((results) => {
-                            if (!results.versionIsCurrent) {
-                                logger.warn(strings.update.available)
-                                notifyUpdateAvailability(
-                                    results.versionIsCurrent,
-                                    results.versionCheckError,
+                        getLatestVersion().then(() => {
+                            if (!versionIsCurrent) {
+                                logger.warn(
+                                    strings.update.available(latestVersion),
                                 )
+                                notifyUpdateAvailability()
                             }
                         })
                     },
@@ -631,7 +615,10 @@ ipcMain.handle("form", async function (_event, formData) {
             }
             break
         case "neocities":
-            const API_KEY = await getNeocitiesApiKey(formData.username, formData.password) // TODO no css?
+            const API_KEY = await getNeocitiesApiKey(
+                formData.username,
+                formData.password,
+            ) // TODO no css?
 
             if (!API_KEY) {
                 showMessageBox(strings.popups.deployFail(formData.id), "error")

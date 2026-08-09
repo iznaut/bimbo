@@ -8,5 +8,7 @@ export default {
     supportMailto: "mailto:bimbo@iznaut.com",
     githubVersion:
         "https://raw.githubusercontent.com/iznaut/bimbo/refs/heads/main/version",
+    githubPackage:
+        "https://raw.githubusercontent.com/iznaut/bimbo/refs/heads/main/package.json",
     bugsplat: "https://me-iznaut-com.bugsplat.com/post/electron/v2/crash.php",
 }

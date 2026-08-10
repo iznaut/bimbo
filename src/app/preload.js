@@ -1,6 +1,7 @@
-import { contextBridge, ipcRenderer } from "electron"
+const electron = require("electron") // need to use require() in web views
 
-contextBridge.exposeInMainWorld("electron", {
-    formSubmission: (data) => ipcRenderer.invoke("form", data),
-    openExternalUrl: (url) => ipcRenderer.invoke("openExternalUrl", url),
+electron.contextBridge.exposeInMainWorld("electron", {
+    formSubmission: (data) => electron.ipcRenderer.invoke("form", data),
+    openExternalUrl: (url) =>
+        electron.ipcRenderer.invoke("openExternalUrl", url),
 })

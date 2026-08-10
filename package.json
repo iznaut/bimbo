@@ -8,7 +8,8 @@
     "main": "./src/app/index.js",
     "scripts": {
         "build": "npx @electron/packager . --extra-resource resources/project-starters/ --out build/ --overwrite",
-        "test": "vitest"
+        "test": "vitest",
+        "dev": "npx electronmon . --dev --trace-warnings"
     },
     "dependencies": {
         "@atproto/api": "^0.14.20",

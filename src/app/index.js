@@ -4,7 +4,7 @@ import { exec } from "node:child_process"
 import { platform } from "node:os"
 
 import _ from "lodash"
-import prompt from "electron-prompt" // TODO replace with HtmlPopup
+import prompt from "electron-prompt"
 import winston from "winston"
 import { BugSplatNode as BugSplat } from "bugsplat-node"
 import { compareVersions } from "compare-versions"
@@ -42,17 +42,6 @@ import {
 import { resolveHandle as resolveBlueskyHandle } from "../bluesky/main.js"
 import { createNewProject, activeProject } from "../index.js"
 
-const IS_DEV_MODE = !app.isPackaged
-
-config.APP_NAME = IS_DEV_MODE ? "bimbo" : app.name
-config.LOG_FILENAME = config.APP_NAME + config.LOG_FILENAME
-
-// update PROJECT_STARTERS_PATH based on packaged status
-config.PROJECT_STARTERS_PATH = path.join(
-    IS_DEV_MODE ? `${process.cwd()}/resources` : process.resourcesPath,
-    config.PROJECT_STARTERS_PATH,
-)
-
 let bugsplat = null
 
 let tray = null
@@ -69,7 +58,7 @@ const CURRENT_VERSION = (function () {
     //     .trim()
     let version = app.getVersion()
 
-    if (IS_DEV_MODE) {
+    if (config.DEV_MODE) {
         version = version.replace("-beta", "-dev")
     }
 
@@ -77,7 +66,7 @@ const CURRENT_VERSION = (function () {
 })()
 
 async function getLatestVersion() {
-    if (IS_DEV_MODE) {
+    if (config.DEV_MODE) {
         latestVersion = "99.99.99-dev"
     } else {
         try {
@@ -130,8 +119,8 @@ app.whenReady().then(() => {
     projects.cleanup()
 
     tray = createTray()
-    tray.on("click", (event) => {
-        updateTrayMenu(event.shiftKey)
+    tray.on(platform() === "win32" ? "right-click" : "click", (event) => {
+        updateTrayMenu(event.shiftKey || config.DEV_MODE)
     })
 
     globalShortcut.register("CommandOrControl+Alt+R", clearConfig)
@@ -139,7 +128,7 @@ app.whenReady().then(() => {
     // keeps app open with no real windows
     app.on("window-all-closed", () => {})
 
-    if (projects.activeIndex == -1 && IS_DEV_MODE) {
+    if (projects.activeIndex == -1 && !config.DEV_MODE) {
         openExternalUrl(urls.tutorial)
     }
 
@@ -156,7 +145,7 @@ app.whenReady().then(() => {
     logger.info(strings.logMsg.ready)
 })
 
-function updateTrayMenu(isDebugMode) {
+function updateTrayMenu(isDebugMode = config.DEV_MODE) {
     const isProjectLoaded = !!activeProject
     const loadedProjectMeta = isProjectLoaded ? activeProject.config : {}
     const loadedProjectRoot = isProjectLoaded ? activeProject.paths.ROOT : ""
@@ -348,12 +337,22 @@ function updateTrayMenu(isDebugMode) {
                         openPath(USER_DATA_PATH)
                     },
                 },
-                // {
-                //     label: strings.menu.debug.deleteSecrets,
-                //     click: () => {
-                //         fs.rmSync(activeProject.paths.SECRETS_FILE)
-                //     },
-                // },
+                {
+                    label: strings.menu.debug.deleteSecrets,
+                    click: () => {
+                        const CLICKED_ID = showPrompt(
+                            strings.popups.confirmDeleteSecrets.message,
+                            "warning",
+                            [
+                                strings.popups.confirmDeleteSecrets.confirm,
+                                strings.popups.confirmDeleteSecrets.cancel,
+                            ],
+                        )
+                        if (CLICKED_ID == 0) {
+                            fs.rmSync(activeProject.paths.SECRETS_FILE)
+                        }
+                    },
+                },
                 {
                     label: strings.menu.debug.clearConfig,
                     click: clearConfig,
@@ -394,7 +393,7 @@ function configureCrashReporting() {
         ? new BugSplat("me-iznaut-com", "bimbo", CURRENT_VERSION)
         : null
 
-    if (bugsplat) {
+    if (bugsplat && !config.DEV_MODE) {
         bugsplat.setDefaultAdditionalFilePaths([LOG_PATH])
 
         crashReporter.start({
@@ -530,6 +529,7 @@ function getProjectsSubmenu() {
                     return {
                         label: path.basename(starterPath),
                         click: async function () {
+                            // TODO replace with HtmlPopup
                             const PROJECT_TITLE = await prompt({
                                 title: strings.popups.createProject.title,
                                 buttonLabels: {

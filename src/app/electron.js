@@ -14,7 +14,11 @@ import {
 import { Conf } from "electron-conf/main"
 
 import config from "../config/index.js"
-import { compile, getFrontMatterFromFile, renderMdToHtml } from "../templater.js"
+import {
+    compile,
+    getFrontMatterFromFile,
+    renderMdToHtml,
+} from "../templater.js"
 import strings from "../config/strings.js"
 
 const __filename = fileURLToPath(import.meta.url)

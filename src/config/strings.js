@@ -51,7 +51,7 @@ export default {
             title: "🔧 debug",
             copyLog: `copy ${config.LOG_FILENAME} to clipboard`,
             openUserData: "open user data folder",
-            deleteSecrets: `delete ${config.SECRETS_FILENAME}`,
+            deleteSecrets: `delete ${config.PROJECT_PATHS.SECRETS_FILE}`,
             clearConfig: "clear projects and config",
         },
         exit: "quit",
@@ -105,6 +105,11 @@ export default {
                 `are you sure you want to deploy ${title} to ${provider}?`,
             confirm: "yeah!!",
             cancel: "not yet...",
+        },
+        confirmDeleteSecrets: {
+            message: `are you sure you want to delete ${config.PROJECT_PATHS.SECRETS_FILE} in the current project?`,
+            confirm: "do it",
+            cancel: "nevermind",
         },
     },
     deployment: {

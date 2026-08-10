@@ -1,7 +1,6 @@
-const electron = require("electron")
+import { contextBridge, ipcRenderer } from "electron"
 
-electron.contextBridge.exposeInMainWorld("electron", {
-    formSubmission: (data) => electron.ipcRenderer.invoke("form", data),
-    openExternalUrl: (url) =>
-        electron.ipcRenderer.invoke("openExternalUrl", url),
+contextBridge.exposeInMainWorld("electron", {
+    formSubmission: (data) => ipcRenderer.invoke("form", data),
+    openExternalUrl: (url) => ipcRenderer.invoke("openExternalUrl", url),
 })

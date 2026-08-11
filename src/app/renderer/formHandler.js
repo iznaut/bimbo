@@ -12,13 +12,3 @@ function sendForm(event) {
     }
     window.close()
 }
-
-document.body.addEventListener("click", (event) => {
-    if (
-        event.target.tagName.toLowerCase() === "a" &&
-        event.target.protocol != "file:"
-    ) {
-        event.preventDefault()
-        window.electron.openExternalUrl(event.target.href)
-    }
-})

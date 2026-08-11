@@ -20,6 +20,7 @@ import {
     renderMdToHtml,
 } from "../templater.js"
 import strings from "../config/strings.js"
+import { trustedExternalURLs } from "../config/urls.js"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -41,7 +42,11 @@ export function buildMenu(template) {
 }
 
 export function openExternalUrl(url) {
-    shell.openExternal(url)
+    if (trustedExternalURLs.includes(url)) {
+        shell.openExternal(url)
+    } else {
+        logger.warn(`tried to open non-trusted URL ${url}`)
+    }
 }
 
 export function openPath(path) {

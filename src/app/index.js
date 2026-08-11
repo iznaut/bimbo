@@ -53,9 +53,6 @@ let versionCheckError = false
 
 // TODO clean up version/update stuff
 const CURRENT_VERSION = (function () {
-    // let version = fs
-    //     .readFileSync(path.join(APP_PATH, "version"), "utf-8")
-    //     .trim()
     let version = app.getVersion()
 
     if (config.DEV_MODE) {
@@ -143,6 +140,19 @@ app.whenReady().then(() => {
     })
 
     logger.info(strings.logMsg.ready)
+})
+
+app.on("web-contents-created", (event, contents) => {
+    // prevents navigation within BrowserWindow
+    contents.on("will-navigate", (event, navigationUrl) => {
+        event.preventDefault()
+        openExternalUrl(navigationUrl)
+    })
+    // prevents new BrowserWindow opening
+    contents.setWindowOpenHandler(({ url }) => {
+        openExternalUrl(url)
+        return { action: "deny" }
+    })
 })
 
 function updateTrayMenu(isDebugMode = config.DEV_MODE) {
@@ -597,11 +607,9 @@ function getProjectsSubmenu() {
     return buildMenu(menuTemplate)
 }
 
-ipcMain.handle("openExternalUrl", async function (_event, url) {
-    openExternalUrl(url)
-})
-
-ipcMain.handle("form", async function (_event, formData) {
+ipcMain.on("form", async function (event, formData) {
+    // TODO check event.senderFrame to validate it's coming from the right URL
+    logger.info(`form event from ${event.senderFrame.url}`)
     let newSecrets = {}
     // TODO form does not submit if any fields left blank (see formHandler.js)
     switch (formData.id) {

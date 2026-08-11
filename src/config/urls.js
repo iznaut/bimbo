@@ -1,6 +1,6 @@
 import config from "./index.js"
 
-export default {
+const urls = {
     localPreview: `http://localhost:${config.VITE_PORT}`,
     itch: "https://iznaut.itch.io/bimbo",
     tutorial: "https://bimbo.nekoweb.org/posts/2-getting-started.html",
@@ -10,3 +10,12 @@ export default {
         "https://raw.githubusercontent.com/iznaut/bimbo/refs/heads/main/package.json",
     bugsplat: "https://me-iznaut-com.bugsplat.com/post/electron/v2/crash.php",
 }
+
+export default urls
+
+export const trustedExternalURLs = [
+    urls.itch,
+    urls.tutorial,
+    urls.discord,
+    urls.supportMailto,
+]

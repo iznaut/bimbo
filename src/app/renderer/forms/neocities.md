@@ -1,5 +1,6 @@
 ---
 title: one-click upload to Neocities
+formType: deploy
 id: neocities
 fields:
     - { id: "username", placeholder: "Neocities username" }

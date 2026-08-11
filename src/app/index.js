@@ -16,7 +16,7 @@ import {
     APP_SETTINGS,
     openExternalUrl,
     openPath,
-    showHtmlPopup,
+    showHtmlForm,
     showMessageBox,
     showNotification,
     showPrompt,
@@ -40,7 +40,7 @@ import {
     clipboard,
 } from "electron" // TODO refactor into electron utils
 import { resolveHandle as resolveBlueskyHandle } from "../bluesky/main.js"
-import { createNewProject, activeProject } from "../index.js"
+import { createNewProject, activeProject, setActiveProject } from "../index.js"
 
 let bugsplat = null
 
@@ -257,7 +257,7 @@ function updateTrayMenu(isDebugMode = config.DEV_MODE) {
                     return {
                         label: key,
                         click: (menuItem) => {
-                            showHtmlPopup("forms", key)
+                            showHtmlForm(key)
                         },
                     }
                 }),
@@ -280,7 +280,7 @@ function updateTrayMenu(isDebugMode = config.DEV_MODE) {
             enabled: IS_PLUS_MODE && isProjectLoaded,
             visible: !BSKY_META,
             click: () => {
-                showHtmlPopup("forms", "bluesky")
+                showHtmlForm("bluesky")
             },
         },
         {
@@ -494,14 +494,6 @@ function getSettingsMenu() {
 }
 
 function getProjectsSubmenu() {
-    // TODO move to projects.js?
-    const PROJECT_STARTERS_PATHS = fs
-        .readdirSync(config.PROJECT_STARTERS_PATH, {
-            withFileTypes: true,
-        })
-        .filter((dirent) => dirent.isDirectory())
-        .map((dirent) => path.join(dirent.path, dirent.name))
-
     const PROJECT_MENU_ITEM = (projectPath, index) => {
         const PROJECT = projects.getFromPath(projectPath)
         const RELATIVE_PATH = path.relative(APP_PATH, PROJECT.paths.ROOT)
@@ -533,52 +525,9 @@ function getProjectsSubmenu() {
         { type: "separator" },
         {
             label: strings.menu.projects.create,
-            type: "submenu",
-            submenu: buildMenu(
-                PROJECT_STARTERS_PATHS.map((starterPath) => {
-                    return {
-                        label: path.basename(starterPath),
-                        click: async function () {
-                            // TODO replace with HtmlPopup
-                            const PROJECT_TITLE = await prompt({
-                                title: strings.popups.createProject.title,
-                                buttonLabels: {
-                                    ok: strings.popups.createProject.confirm,
-                                    cancel: strings.popups.createProject.cancel,
-                                },
-                                label: strings.popups.createProject.label,
-                                value: path.basename(starterPath),
-                                type: "input",
-                            }).catch(logger.error)
-
-                            if (!PROJECT_TITLE) {
-                                return
-                            }
-
-                            let pickedPaths = showFilePicker({
-                                properties: ["openDirectory"],
-                            })
-
-                            if (!pickedPaths) {
-                                return
-                            }
-
-                            const DESTINATION_PATH = path.join(
-                                pickedPaths[0],
-                                PROJECT_TITLE,
-                            )
-
-                            // TODO throw error if fails
-                            createNewProject(DESTINATION_PATH, starterPath)
-
-                            projects.activeIndex =
-                                projects.add(DESTINATION_PATH)
-
-                            updateTrayTitle()
-                        },
-                    }
-                }),
-            ),
+            click: function () {
+                showHtmlForm("new-project")
+            },
         },
         {
             label: strings.menu.projects.import,
@@ -608,10 +557,52 @@ function getProjectsSubmenu() {
 }
 
 ipcMain.on("form", async function (event, formData) {
-    // TODO check event.senderFrame to validate it's coming from the right URL
-    logger.info(`form event from ${event.senderFrame.url}`)
+    if (event.senderFrame.origin !== "file://") {
+        logger.warn(
+            `received form submission from external URL ${event.senderFrame.url}`,
+        )
+        return
+    }
+
+    if (formData.id === "new-project") {
+        handleNewProjectForm(formData)
+    } else if (formData.formType === "deploy") {
+        handleDeployForm(formData)
+    } else {
+        logger.warn(
+            `unknown form id "${formData.id}" with type "${formData.formType}"`,
+        )
+    }
+})
+
+function handleNewProjectForm(formData) {
+    // TODO invoke file picker from a button in form and pass back chosen path
+    // https://www.electronjs.org/docs/latest/tutorial/ipc#pattern-2-renderer-to-main-two-way
+    let pickedPaths = showFilePicker({
+        properties: ["openDirectory"],
+    })
+    if (!pickedPaths) {
+        return
+    }
+
+    // TODO validate project title as valid folder name
+    const destinationPath = path.join(pickedPaths[0], formData.title)
+
+    logger.info(`destinationPath ${destinationPath}`)
+
+    // TODO throw error if fails
+    createNewProject(destinationPath, formData.template)
+
+    projects.activeIndex = projects.add(destinationPath)
+
+    // TODO bug: tray title and project list not being updated
+
+    updateTrayTitle()
+}
+
+async function handleDeployForm(formData) {
     let newSecrets = {}
-    // TODO form does not submit if any fields left blank (see formHandler.js)
+
     switch (formData.id) {
         case "nekoweb":
             newSecrets = {
@@ -681,4 +672,4 @@ ipcMain.on("form", async function (event, formData) {
             logger.error(err)
         }
     }
-})
+}

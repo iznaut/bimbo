@@ -81,12 +81,6 @@ export default {
         configDeploymentTitle: `set up deployment - ${config.APP_NAME}`,
         codiumError:
             "VSCodium was not found - if it's installed, please open it and go to View > Command Palette... > Shell Command: Install 'codium' command in PATH",
-        createProject: {
-            title: `create new ${config.APP_NAME} project`,
-            confirm: "let's go",
-            cancel: "nevermind",
-            label: "title:",
-        },
         disableCrashReporting: {
             title: "disable crash reporting",
             message:

@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync, existsSync } from "node:fs"
-import { join as joinPath } from "node:path"
+import { join as pathJoin } from "node:path"
 
 import Handlebars from "handlebars"
 import fm from "front-matter"
@@ -50,7 +50,7 @@ export function getHandlebarsHelpersFromPath(path) {
                 return
             }
             let name = matches[1]
-            let template = readFileSync(joinPath(path, filename), "utf-8")
+            let template = readFileSync(pathJoin(path, filename), "utf-8")
             partials[name] = template
         })
     }
@@ -66,7 +66,6 @@ export function compile(
 ) {
     const HANDLEBARS_HELPERS = isInternalUse ? electronHelpers : siteHelpers
     const HANDLEBARS_PARTIALS = getHandlebarsHelpersFromPath(partialsPath)
-    
 
     try {
         return compileHandlebarsTemplate(
@@ -87,4 +86,20 @@ export function compile(
         )
         return `<pre>${ENCODED_ERROR}</pre>`
     }
+}
+
+export function renderFormToHtml(formName, rendererPath) {
+    const frontMatter = getFrontMatterFromFile(
+        pathJoin(rendererPath, "forms", `${formName}.md`),
+    )
+    const html = compile(
+        pathJoin(rendererPath, "forms", "base.hbs"),
+        {
+            ...frontMatter.attributes,
+            _content: renderMdToHtml(frontMatter.body),
+        },
+        pathJoin(rendererPath, `partials`),
+        true,
+    )
+    return html
 }

@@ -15,9 +15,9 @@ import { Conf } from "electron-conf/main"
 
 import config from "../config/index.js"
 import {
-    compile,
     getFrontMatterFromFile,
     renderMdToHtml,
+    renderFormToHtml,
 } from "../templater.js"
 import strings from "../config/strings.js"
 import { trustedExternalURLs } from "../config/urls.js"
@@ -91,7 +91,28 @@ export function showFilePicker(config) {
     return dialog.showOpenDialogSync(config)
 }
 
-export function showHtmlPopup(type, contentName) {
+// export function showHtmlPopup(contentName) {
+//     const window = new BrowserWindow({
+//         useContentSize: true,
+//         alwaysOnTop: true,
+//         webPreferences: {
+//             preload: pathJoin(__dirname, "preload.js"),
+//             devTools: !app.isPackaged,
+//         },
+//     })
+
+//     const html = renderFormToHtml(contentName, RENDERER_PATH)
+
+//     window.loadURL("data:text/html;charset=UTF-8," + encodeURIComponent(HTML), {
+//         baseURLForDataURL: `file://${RENDERER_PATH}/`,
+//     })
+
+//     // if (!app.isPackaged) {
+//     //     window.webContents.openDevTools()
+//     // }
+// }
+
+export function showHtmlForm(formName) {
     const window = new BrowserWindow({
         useContentSize: true,
         alwaysOnTop: true,
@@ -100,20 +121,9 @@ export function showHtmlPopup(type, contentName) {
         },
     })
 
-    const FRONT_MATTER = getFrontMatterFromFile(
-        pathJoin(RENDERER_PATH, type, `${contentName}.md`),
-    )
-    const HTML = compile(
-        pathJoin(RENDERER_PATH, type, "base.hbs"),
-        {
-            ...FRONT_MATTER.attributes,
-            _content: renderMdToHtml(FRONT_MATTER.body),
-        },
-        pathJoin(RENDERER_PATH, `partials`),
-        true,
-    )
+    const html = renderFormToHtml(formName, RENDERER_PATH)
 
-    window.loadURL("data:text/html;charset=UTF-8," + encodeURIComponent(HTML), {
+    window.loadURL("data:text/html;charset=UTF-8," + encodeURIComponent(html), {
         baseURLForDataURL: `file://${RENDERER_PATH}/`,
     })
 

@@ -1,5 +1,6 @@
 ---
 title: one-click upload via SFTP
+formType: deploy
 id: other
 fields:
     - {
@@ -14,11 +15,13 @@ fields:
     - {
           id: "port",
           helpText: "port 22 is default for SFTP. don't change this unless your provider uses a different number",
+          optional: true,
       }
     - {
           id: siteRoot,
           placeholder: "root path",
           helpText: "path to your site's root directory on the hosting server (e.g. /home/public)",
+          optional: true,
       }
     - {
           id: username,

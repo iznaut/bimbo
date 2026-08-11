@@ -1,5 +1,8 @@
 <form id="form" action="#" onsubmit="sendForm(event)">
     <input id="id" class="input" value="{{ id }}" style="display:none" />
+    {{#if formType}}
+        <input id="formType" class="input" value="{{ formType }}" style="display:none" />
+    {{/if}}
     {{#each fields}}
         {{#if addon}}
             <div class="field is-horizontal">
@@ -13,6 +16,9 @@
                                     class="input"
                                     placeholder="{{#if placeholder}}{{ placeholder }}{{else}}{{ id }}{{/if}}"
                                     type="{{#if type}}{{ type }}{{else}}text{{/if}}"
+                                    {{#unless optional}}
+                                        required
+                                    {{/unless}}
                                 />
                             </p>
                         </div>
@@ -23,12 +29,25 @@
         {{else}}
             <div class="field">
                 <div class="control">
-                    <input
-                        id="{{ id }}"
-                        class="input"
-                        placeholder="{{#if placeholder}}{{ placeholder }}{{else}}{{ id }}{{/if}}"
-                        type="{{#if type}}{{ type }}{{else}}text{{/if}}"
-                    />
+                    {{#if options}}
+                        <select id="{{ id }}" class="input">
+                            {{#each options}}
+                                <option id="{{ this }}">
+                                    {{ this }}
+                                </option>
+                            {{/each}}
+                        </select>
+                    {{else}}
+                        <input
+                            id="{{ id }}"
+                            class="input"
+                            placeholder="{{#if placeholder}}{{ placeholder }}{{else}}{{ id }}{{/if}}"
+                            type="{{#if type}}{{ type }}{{else}}text{{/if}}"
+                            {{#unless optional}}
+                                required
+                            {{/unless}}
+                        />
+                    {{/if}}
                     {{#if helpText}}
                         <p class="help">
                             {{{ helpText }}}

@@ -112,8 +112,8 @@ export function showFilePicker(config) {
 //     // }
 // }
 
-export function showHtmlForm(formName) {
-    const window = new BrowserWindow({
+export async function showHtmlForm(formName) {
+    const browserWindow = new BrowserWindow({
         useContentSize: true,
         alwaysOnTop: true,
         webPreferences: {
@@ -121,13 +121,17 @@ export function showHtmlForm(formName) {
         },
     })
 
-    const html = renderFormToHtml(formName, RENDERER_PATH)
+    const html = renderFormToHtml(formName, RENDERER_PATH, { starters: [] })
 
-    window.loadURL("data:text/html;charset=UTF-8," + encodeURIComponent(html), {
-        baseURLForDataURL: `file://${RENDERER_PATH}/`,
-    })
+    await browserWindow.loadURL(
+        "data:text/html;charset=UTF-8," + encodeURIComponent(html),
+        {
+            baseURLForDataURL: `file://${RENDERER_PATH}/`,
+        },
+    )
 
     if (!app.isPackaged) {
-        window.webContents.openDevTools()
+        browserWindow.webContents.openDevTools()
     }
+    return browserWindow
 }

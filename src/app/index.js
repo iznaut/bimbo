@@ -40,7 +40,12 @@ import {
     clipboard,
 } from "electron" // TODO refactor into electron utils
 import { resolveHandle as resolveBlueskyHandle } from "../bluesky/main.js"
-import { createNewProject, activeProject, setActiveProject } from "../index.js"
+import {
+    createNewProject,
+    activeProject,
+    setActiveProject,
+    getProjectStarters,
+} from "../index.js"
 
 let bugsplat = null
 
@@ -525,8 +530,13 @@ function getProjectsSubmenu() {
         { type: "separator" },
         {
             label: strings.menu.projects.create,
-            click: function () {
-                showHtmlForm("new-project")
+            click: async function () {
+                const browserWindow = await showHtmlForm("new-project")
+                // Send list of starters to form
+                browserWindow.webContents.send(
+                    "starters-list",
+                    Object.keys(getProjectStarters()),
+                )
             },
         },
         {
@@ -591,7 +601,7 @@ function handleNewProjectForm(formData) {
     logger.info(`destinationPath ${destinationPath}`)
 
     // TODO throw error if fails
-    createNewProject(destinationPath, formData.template)
+    createNewProject(destinationPath, formData.starter)
 
     projects.activeIndex = projects.add(destinationPath)
 

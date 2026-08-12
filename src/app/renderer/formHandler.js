@@ -12,3 +12,17 @@ function sendForm(event) {
     // }
     window.close()
 }
+
+// Listen for list of starters sent from main process
+window.electron.onStartersList((starters) => {
+    const startersSelect = document.getElementById("starter")
+    if (!startersSelect) {
+        return
+    }
+    starters.forEach((starter) => {
+        const option = document.createElement("option")
+        option.value = starter
+        option.text = starter
+        startersSelect.add(option)
+    })
+})

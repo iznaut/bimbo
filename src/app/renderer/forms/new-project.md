@@ -8,9 +8,9 @@ fields:
           helpText: "this will also be the name of the project folder",
       }
     - {
-          id: "template",
+          id: "starter",
           helpText: "pick a template to start from",
-          options: ["blog", "landing", "minimal", "portfolio"],
+          options: true,
       }
 ---
 

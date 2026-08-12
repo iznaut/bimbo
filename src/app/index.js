@@ -16,7 +16,6 @@ import {
     APP_SETTINGS,
     openExternalUrl,
     openPath,
-    showHtmlForm,
     showMessageBox,
     showNotification,
     showPrompt,
@@ -25,6 +24,7 @@ import {
     buildMenu,
     LOG_PATH,
 } from "./electron.js"
+import { renderFormInWindow, openPageInWindow } from "./window.js"
 import config from "../config/index.js"
 import projects from "./projects.js"
 import { deploy, presets, IS_PLUS_MODE, getNeocitiesApiKey } from "../deploy.js"
@@ -38,6 +38,7 @@ import {
     crashReporter,
     ipcMain,
     clipboard,
+    dialog,
 } from "electron" // TODO refactor into electron utils
 import { resolveHandle as resolveBlueskyHandle } from "../bluesky/main.js"
 import {
@@ -261,8 +262,8 @@ function updateTrayMenu(isDebugMode = config.DEV_MODE) {
                 Object.keys(presets).map((key) => {
                     return {
                         label: key,
-                        click: (menuItem) => {
-                            showHtmlForm(key)
+                        click: () => {
+                            renderFormInWindow(key)
                         },
                     }
                 }),
@@ -531,11 +532,17 @@ function getProjectsSubmenu() {
         {
             label: strings.menu.projects.create,
             click: async function () {
-                const browserWindow = await showHtmlForm("new-project")
+                const browserWindow = await openPageInWindow("new-project")
                 // Send list of starters to form
                 browserWindow.webContents.send(
                     "starters-list",
                     Object.keys(getProjectStarters()),
+                )
+                ipcMain.handle("pick-directory", () =>
+                    handlePickDirectory(browserWindow),
+                )
+                browserWindow.on("closed", () =>
+                    ipcMain.removeHandler("pick-directory"),
                 )
             },
         },
@@ -566,6 +573,18 @@ function getProjectsSubmenu() {
     return buildMenu(menuTemplate)
 }
 
+async function handlePickDirectory(attachToWindow) {
+    const { canceled, filePaths } = await dialog.showOpenDialog(
+        attachToWindow,
+        {
+            properties: ["openDirectory"],
+        },
+    )
+    if (!canceled) {
+        return filePaths[0]
+    }
+}
+
 ipcMain.on("form", async function (event, formData) {
     if (event.senderFrame.origin !== "file://") {
         logger.warn(
@@ -586,19 +605,8 @@ ipcMain.on("form", async function (event, formData) {
 })
 
 function handleNewProjectForm(formData) {
-    // TODO invoke file picker from a button in form and pass back chosen path
-    // https://www.electronjs.org/docs/latest/tutorial/ipc#pattern-2-renderer-to-main-two-way
-    let pickedPaths = showFilePicker({
-        properties: ["openDirectory"],
-    })
-    if (!pickedPaths) {
-        return
-    }
-
     // TODO validate project title as valid folder name
-    const destinationPath = path.join(pickedPaths[0], formData.title)
-
-    logger.info(`destinationPath ${destinationPath}`)
+    const destinationPath = path.join(formData.projectRoot, formData.title)
 
     // TODO throw error if fails
     createNewProject(destinationPath, formData.starter)

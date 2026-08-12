@@ -1,9 +1,7 @@
 import { readFileSync } from "node:fs"
-import { dirname, join as pathJoin } from "node:path"
-import { fileURLToPath } from "url"
+import * as path from "node:path"
 import {
     app,
-    BrowserWindow,
     dialog,
     Menu,
     nativeImage,
@@ -22,14 +20,9 @@ import {
 import strings from "../config/strings.js"
 import { trustedExternalURLs } from "../config/urls.js"
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
-
-const RENDERER_PATH = pathJoin(__dirname, "renderer")
-
 export const APP_PATH = app.getAppPath()
 export const USER_DATA_PATH = app.getPath("userData")
-export const LOG_PATH = pathJoin(app.getPath("userData"), config.LOG_FILENAME)
+export const LOG_PATH = path.join(app.getPath("userData"), config.LOG_FILENAME)
 
 export const APP_SETTINGS = new Conf(config.APP_SETTINGS_DEFAULTS)
 
@@ -89,49 +82,4 @@ export function showPrompt(message, type = "none", buttons = null) {
 
 export function showFilePicker(config) {
     return dialog.showOpenDialogSync(config)
-}
-
-// export function showHtmlPopup(contentName) {
-//     const window = new BrowserWindow({
-//         useContentSize: true,
-//         alwaysOnTop: true,
-//         webPreferences: {
-//             preload: pathJoin(__dirname, "preload.js"),
-//             devTools: !app.isPackaged,
-//         },
-//     })
-
-//     const html = renderFormToHtml(contentName, RENDERER_PATH)
-
-//     window.loadURL("data:text/html;charset=UTF-8," + encodeURIComponent(HTML), {
-//         baseURLForDataURL: `file://${RENDERER_PATH}/`,
-//     })
-
-//     // if (!app.isPackaged) {
-//     //     window.webContents.openDevTools()
-//     // }
-// }
-
-export async function showHtmlForm(formName) {
-    const browserWindow = new BrowserWindow({
-        useContentSize: true,
-        alwaysOnTop: true,
-        webPreferences: {
-            preload: pathJoin(__dirname, "preload.js"),
-        },
-    })
-
-    const html = renderFormToHtml(formName, RENDERER_PATH, { starters: [] })
-
-    await browserWindow.loadURL(
-        "data:text/html;charset=UTF-8," + encodeURIComponent(html),
-        {
-            baseURLForDataURL: `file://${RENDERER_PATH}/`,
-        },
-    )
-
-    if (!app.isPackaged) {
-        browserWindow.webContents.openDevTools()
-    }
-    return browserWindow
 }

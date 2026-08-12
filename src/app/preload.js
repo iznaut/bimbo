@@ -6,6 +6,5 @@ electron.contextBridge.exposeInMainWorld("electron", {
         electron.ipcRenderer.on("starters-list", (_event, value) =>
             callback(value),
         ),
+    pickDirectory: () => electron.ipcRenderer.invoke("pick-directory"),
 })
-
-// TODO use .invoke to get data back from main process, e.g. selecting a local folder for a new project

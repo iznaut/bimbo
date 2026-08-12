@@ -29,25 +29,15 @@
         {{else}}
             <div class="field">
                 <div class="control">
-                    {{#if options}}
-                        <select id="{{ id }}" class="input">
-                            {{#each options}}
-                                <option id="{{ this }}">
-                                    {{ this }}
-                                </option>
-                            {{/each}}
-                        </select>
-                    {{else}}
-                        <input
-                            id="{{ id }}"
-                            class="input"
-                            placeholder="{{#if placeholder}}{{ placeholder }}{{else}}{{ id }}{{/if}}"
-                            type="{{#if type}}{{ type }}{{else}}text{{/if}}"
-                            {{#unless optional}}
-                                required
-                            {{/unless}}
-                        />
-                    {{/if}}
+                    <input
+                        id="{{ id }}"
+                        class="input"
+                        placeholder="{{#if placeholder}}{{ placeholder }}{{else}}{{ id }}{{/if}}"
+                        type="{{#if type}}{{ type }}{{else}}text{{/if}}"
+                        {{#unless optional}}
+                            required
+                        {{/unless}}
+                    />
                     {{#if helpText}}
                         <p class="help">
                             {{{ helpText }}}
@@ -62,7 +52,7 @@
             <button class="button is-link">Submit</button>
         </div>
         <div class="control">
-            <button class="button is-link is-light">Cancel</button>
+            <button class="button is-link is-light" type="button">Cancel</button>
         </div>
     </div>
 </form>

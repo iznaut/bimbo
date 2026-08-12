@@ -21,5 +21,5 @@ browseRootButton.addEventListener("click", async (event) => {
     projectRootInput.value = projectRoot
     const slash = projectRoot.includes("\\") ? "\\" : "/"
     const projectPath = projectRoot + slash + projectTitle
-    projectPathHint.innerHTML = `your project will be created at <code>${projectPath}</code>`
+    projectPathHint.innerHTML = `your project will be created at <code class="has-text-info">${projectPath}</code>`
 })

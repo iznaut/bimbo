@@ -1,0 +1,93 @@
+<!doctype html>
+<html>
+    <head>
+        <link rel="stylesheet" href="../bulma.css" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+    </head>
+    <body>
+        <section class="section">
+            <div class="container">
+                <h1 class="title">new project</h1>
+                <div class="block">let's go</div>
+                <div class="block">
+                    <form id="form" action="#" onsubmit="sendForm(event)">
+                        <input
+                            id="id"
+                            class="input"
+                            value="new-project"
+                            style="display: none"
+                        />
+                        <div class="field">
+                            <div class="control">
+                                <input
+                                    id="title"
+                                    class="input"
+                                    placeholder="project title"
+                                    type="text"
+                                    required
+                                />
+                                <p class="help">
+                                    this will also be the name of the project
+                                    folder
+                                </p>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <div class="control">
+                                <div class="select">
+                                    <select id="starter" required></select>
+                                </div>
+                                <p class="help">
+                                    pick a template to start from
+                                </p>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <div class="field is-grouped">
+                                <div class="control">
+                                    <input
+                                        id="projectRoot"
+                                        class="input has-text-grey-light"
+                                        placeholder="project root"
+                                        type="text"
+                                        required
+                                        readonly
+                                    />
+                                </div>
+                                <div class="control">
+                                    <button
+                                        id="browseRoot"
+                                        class="button"
+                                        type="button"
+                                    >
+                                        browse
+                                    </button>
+                                </div>
+                            </div>
+                            <p id="projectPathHint" class="help">
+                                choose where the project folder will be created
+                            </p>
+                        </div>
+                        <div class="field is-grouped">
+                            <div class="control">
+                                <button class="button is-link" type="submit">
+                                    Create
+                                </button>
+                            </div>
+                            <div class="control">
+                                <button
+                                    class="button is-link is-light"
+                                    type="button"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </section>
+        <script src="../formHandler.js"></script>
+        <script src="../newProject.js"></script>
+    </body>
+</html>

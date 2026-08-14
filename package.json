@@ -7,8 +7,9 @@
     "type": "module",
     "main": "./src/app/index.js",
     "scripts": {
-        "build": "npx @electron/packager . --appVersion $(cat package.json | jq '.version') --extra-resource resources/project-starters/ --out build/ --overwrite",
-        "test": "vitest"
+        "build": "npx @electron/packager . --extra-resource resources/project-starters/ --out build/ --overwrite",
+        "test": "vitest",
+        "dev": "npx electronmon . --dev --trace-warnings"
     },
     "dependencies": {
         "@atproto/api": "^0.14.20",
@@ -34,7 +35,6 @@
         "markdown-it-highlightjs": "^4.2.0",
         "moment": "^2.30.1",
         "promise-all-properties": "^6.0.0",
-        "read-pkg": "^10.1.0",
         "reading-time-estimator": "^2.9.0",
         "ssh2-sftp-client": "^12.1.1",
         "tiny-json-http": "^7.5.1",

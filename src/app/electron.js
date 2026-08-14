@@ -1,9 +1,7 @@
 import { readFileSync } from "node:fs"
-import { dirname, join as pathJoin } from "node:path"
-import { fileURLToPath } from "url"
+import * as path from "node:path"
 import {
     app,
-    BrowserWindow,
     dialog,
     Menu,
     nativeImage,
@@ -14,17 +12,17 @@ import {
 import { Conf } from "electron-conf/main"
 
 import config from "../config/index.js"
-import { compile, getFrontMatterFromFile, renderMdToHtml } from "../templater.js"
+import {
+    getFrontMatterFromFile,
+    renderMdToHtml,
+    renderFormToHtml,
+} from "../templater.js"
 import strings from "../config/strings.js"
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
-
-const RENDERER_PATH = pathJoin(__dirname, "renderer")
+import { trustedExternalURLs } from "../config/urls.js"
 
 export const APP_PATH = app.getAppPath()
 export const USER_DATA_PATH = app.getPath("userData")
-export const LOG_PATH = pathJoin(app.getPath("userData"), config.LOG_FILENAME)
+export const LOG_PATH = path.join(app.getPath("userData"), config.LOG_FILENAME)
 
 export const APP_SETTINGS = new Conf(config.APP_SETTINGS_DEFAULTS)
 
@@ -32,16 +30,12 @@ export function createTray() {
     return new Tray(nativeImage.createFromDataURL(config.ICON))
 }
 
-export function buildMenu(template) {
-    return Menu.buildFromTemplate(template)
-}
-
 export function openExternalUrl(url) {
-    shell.openExternal(url)
-}
-
-export function openPath(path) {
-    shell.openPath(path)
+    if (trustedExternalURLs.includes(url)) {
+        shell.openExternal(url)
+    } else {
+        logger.warn(`tried to open non-trusted URL ${url}`)
+    }
 }
 
 export function showNotification(body) {
@@ -80,35 +74,4 @@ export function showPrompt(message, type = "none", buttons = null) {
 
 export function showFilePicker(config) {
     return dialog.showOpenDialogSync(config)
-}
-
-export function showHtmlPopup(type, contentName) {
-    const window = new BrowserWindow({
-        useContentSize: true,
-        alwaysOnTop: true,
-        webPreferences: {
-            preload: pathJoin(__dirname, "preload.js"),
-        },
-    })
-
-    const FRONT_MATTER = getFrontMatterFromFile(
-        pathJoin(RENDERER_PATH, type, `${contentName}.md`),
-    )
-    const HTML = compile(
-        pathJoin(RENDERER_PATH, type, "base.hbs"),
-        {
-            ...FRONT_MATTER.attributes,
-            _content: renderMdToHtml(FRONT_MATTER.body),
-        },
-        pathJoin(RENDERER_PATH, `partials`),
-        true,
-    )
-
-    window.loadURL("data:text/html;charset=UTF-8," + encodeURIComponent(HTML), {
-        baseURLForDataURL: `file://${RENDERER_PATH}/`,
-    })
-
-    if (!app.isPackaged) {
-        window.webContents.openDevTools()
-    }
 }

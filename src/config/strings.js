@@ -51,7 +51,7 @@ export default {
             title: "🔧 debug",
             copyLog: `copy ${config.LOG_FILENAME} to clipboard`,
             openUserData: "open user data folder",
-            deleteSecrets: `delete ${config.SECRETS_FILENAME}`,
+            deleteSecrets: `delete ${config.PROJECT_PATHS.SECRETS_FILE}`,
             clearConfig: "clear projects and config",
         },
         exit: "quit",
@@ -61,7 +61,6 @@ export default {
         logPath: (path) => `writing log to ${path}`,
         configClearTry: "attempting config clear",
         configClearSuccess: "config cleared",
-        updateAvailable: "newer version available",
         tryEditor: (editor) => `user requested editor ${editor}`,
         missingProject: (path) =>
             `unable to find project, removing from list: ${path}`,
@@ -81,12 +80,6 @@ export default {
         configDeploymentTitle: `set up deployment - ${config.APP_NAME}`,
         codiumError:
             "VSCodium was not found - if it's installed, please open it and go to View > Command Palette... > Shell Command: Install 'codium' command in PATH",
-        createProject: {
-            title: `create new ${config.APP_NAME} project`,
-            confirm: "let's go",
-            cancel: "nevermind",
-            label: "title:",
-        },
         disableCrashReporting: {
             title: "disable crash reporting",
             message:
@@ -105,6 +98,11 @@ export default {
                 `are you sure you want to deploy ${title} to ${provider}?`,
             confirm: "yeah!!",
             cancel: "not yet...",
+        },
+        confirmDeleteSecrets: {
+            message: `are you sure you want to delete ${config.PROJECT_PATHS.SECRETS_FILE} in the current project?`,
+            confirm: "do it",
+            cancel: "nevermind",
         },
     },
     deployment: {
@@ -125,6 +123,7 @@ export default {
         },
         queuedPosts: "found queued Bluesky posts, beginning post-deploy",
         bskyPostSkipped: "skipping Bluesky post for unresolved page",
+        nekowebSiteInfoFail: "failed to get site info - check API key is valid",
     },
     generator: {
         bsky: {

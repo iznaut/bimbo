@@ -4,10 +4,9 @@ import { exec } from "node:child_process"
 import { platform } from "node:os"
 
 import _ from "lodash"
-import prompt from "electron-prompt" // TODO replace with HtmlPopup
+import prompt from "electron-prompt"
 import winston from "winston"
 import { BugSplatNode as BugSplat } from "bugsplat-node"
-import { compareVersions } from "compare-versions"
 import tiny from "tiny-json-http"
 
 import {
@@ -15,112 +14,43 @@ import {
     USER_DATA_PATH,
     APP_SETTINGS,
     openExternalUrl,
-    openPath,
-    showHtmlPopup,
     showMessageBox,
     showNotification,
     showPrompt,
     showFilePicker,
     createTray,
-    buildMenu,
     LOG_PATH,
 } from "./electron.js"
+import { renderFormInWindow, openPageInWindow } from "./window.js"
 import config from "../config/index.js"
 import projects from "./projects.js"
 import { deploy, presets, IS_PLUS_MODE, getNeocitiesApiKey } from "../deploy.js"
 import strings from "../config/strings.js"
 import urls from "../config/urls.js"
 import { build } from "../site-generator.js"
-
 import {
     app,
     globalShortcut,
     crashReporter,
     ipcMain,
     clipboard,
-} from "electron" // TODO refactor into electron utils
+    dialog,
+    shell,
+    Menu,
+} from "electron"
 import { resolveHandle as resolveBlueskyHandle } from "../bluesky/main.js"
-import { createNewProject, activeProject } from "../index.js"
-
-const IS_DEV_MODE = !app.isPackaged
-
-config.APP_NAME = IS_DEV_MODE ? "bimbo" : app.name
-config.LOG_FILENAME = config.APP_NAME + config.LOG_FILENAME
-
-
-// update PROJECT_STARTERS_PATH based on packaged status
-config.PROJECT_STARTERS_PATH = path.join(
-    IS_DEV_MODE ? `${process.cwd()}/resources` : process.resourcesPath,
-    config.PROJECT_STARTERS_PATH,
-)
+import {
+    createNewProject,
+    activeProject,
+    setActiveProject,
+    getProjectStarters,
+} from "../index.js"
+import { checkVersion, CURRENT_VERSION, versionIsCurrent } from "./version.js"
 
 let bugsplat = null
 
 let tray = null
 let trayMenu = null
-
-let latestVersion
-let versionIsCurrent = true
-let versionCheckError = false
-
-// TODO clean up version/update stuff
-const CURRENT_VERSION = (function () {
-    // let version = fs
-    //     .readFileSync(path.join(APP_PATH, "version"), "utf-8")
-    //     .trim()
-    let version = app.getVersion()
-
-    if (IS_DEV_MODE) {
-        version = version.replace("-beta", "-dev")
-    }
-
-    return version
-})()
-
-async function getLatestVersion() {
-    let results = [
-        {
-            versionIsCurrent: true,
-            versionCheckError: false,
-        },
-    ]
-
-    if (IS_DEV_MODE) {
-        latestVersion = "99.99.99-dev"
-    } else {
-        try {
-            latestVersion = (
-                await tiny.get({ url: urls.githubVersion })
-            ).body.trim()
-        } catch (e) {
-            logger.warn(strings.update.logError(e))
-            results.versionCheckError = false
-        }
-    }
-    if (latestVersion) {
-        versionCheckError = false
-        const versionComparison = compareVersions(
-            latestVersion,
-            CURRENT_VERSION,
-        )
-        results.versionIsCurrent = versionComparison === 0
-    }
-
-    return results
-}
-
-function notifyUpdateAvailability(
-    isNewVersionAvailable,
-    versionCheckError = false,
-) {
-    showNotification(
-        versionCheckError
-            ? strings.update.checkFailed
-            : versionIsCurrent
-              ? strings.update.none
-              : strings.update.available(latestVersion),
-    )
-}
 
 configureCrashReporting()
 
@@ -145,54 +75,64 @@ app.whenReady().then(() => {
 
     tray = createTray()
     tray.on("click", (event) => {
-        updateTrayMenu(event.shiftKey)
+        // TODO rework tray updates so that we don't to do this on click, because it doesn't work on windows right-click
+        updateTrayMenu(event.shiftKey || config.DEV_MODE)
+        // allow opening context menu with left click on windows
+        if (platform() === "win32") {
+            tray.popUpContextMenu()
+        }
     })
+    tray.setIgnoreDoubleClickEvents(true)
 
     globalShortcut.register("CommandOrControl+Alt+R", clearConfig)
 
     // keeps app open with no real windows
     app.on("window-all-closed", () => {})
 
-    if (projects.activeIndex == -1 && IS_DEV_MODE) {
+    if (projects.activeIndex == -1 && !config.DEV_MODE) {
         openExternalUrl(urls.tutorial)
     }
 
     updateTrayTitle()
     updateTrayMenu()
 
-    getLatestVersion().then((results) => {
-        if (!results.versionIsCurrent) {
-            logger.warn(strings.logMsg.updateAvailable)
-            notifyUpdateAvailability(
-                results.versionIsCurrent,
-                results.versionCheckError,
-            )
-        }
-    })
+    checkVersion()
 
     logger.info(strings.logMsg.ready)
 })
 
-function updateTrayMenu(isDebugMode) {
+app.on("web-contents-created", (event, contents) => {
+    // prevents navigation within BrowserWindow
+    contents.on("will-navigate", (event, navigationUrl) => {
+        event.preventDefault()
+        openExternalUrl(navigationUrl)
+    })
+    // prevents new BrowserWindow opening
+    contents.setWindowOpenHandler(({ url }) => {
+        openExternalUrl(url)
+        return { action: "deny" }
+    })
+})
+
+function updateTrayMenu(isDebugMode = config.DEV_MODE) {
     const isProjectLoaded = !!activeProject
     const loadedProjectMeta = isProjectLoaded ? activeProject.config : {}
     const loadedProjectRoot = isProjectLoaded ? activeProject.paths.ROOT : ""
 
     const DEPLOY_META = isProjectLoaded && activeProject.secrets?.deployment
-    const BSKY_META = isProjectLoaded && activeProject.secrets?.integrations?.bluesky
+    const BSKY_META =
+        isProjectLoaded && activeProject.secrets?.integrations?.bluesky
     const bskyAutoPostEnabled = APP_SETTINGS.get("settings.bskyAutoPost")
 
-    trayMenu = buildMenu([
+    trayMenu = Menu.buildFromTemplate([
         {
             label: strings.app.titleWithVersion(CURRENT_VERSION),
             enabled: false,
         },
         {
             label: strings.menu.updateAvailable,
-            visible: !versionIsCurrent,
-            click: () => {
-                openExternalUrl(urls.itch)
-            },
+            visible: !versionIsCurrent(),
+            click: () => openExternalUrl(urls.itch),
         },
         { type: "separator" },
         {
@@ -206,15 +146,13 @@ function updateTrayMenu(isDebugMode) {
         {
             label: strings.menu.openPreview,
             enabled: isProjectLoaded,
-            click: () => {
-                openExternalUrl(urls.localPreview)
-            },
+            click: () => openExternalUrl(urls.localPreview),
         },
         { type: "separator" },
         {
             label: strings.menu.openEditor,
             enabled: isProjectLoaded,
-            click: function () {
+            click: () => {
                 logger.info(strings.logMsg.tryEditor(config.EDITOR_COMMAND))
 
                 exec(
@@ -237,9 +175,7 @@ function updateTrayMenu(isDebugMode) {
         {
             label: strings.menu.openFolder,
             enabled: isProjectLoaded,
-            click: function () {
-                openPath(loadedProjectRoot)
-            },
+            click: () => shell.openPath(loadedProjectRoot),
         },
         { type: "separator" },
         {
@@ -257,6 +193,7 @@ function updateTrayMenu(isDebugMode) {
                 )
 
                 if (CLICKED_ID == 0) {
+                    // TODO prompt for password if necessary
                     deploy()
                 } else {
                     logger.info(strings.deployment.finish.cancel)
@@ -268,13 +205,11 @@ function updateTrayMenu(isDebugMode) {
             type: "submenu",
             enabled: Object.keys(presets).length > 0 && isProjectLoaded,
             visible: !DEPLOY_META,
-            submenu: buildMenu(
+            submenu: Menu.buildFromTemplate(
                 Object.keys(presets).map((key) => {
                     return {
                         label: key,
-                        click: (menuItem) => {
-                            showHtmlPopup("forms", key)
-                        },
+                        click: () => renderFormInWindow(key),
                     }
                 }),
             ),
@@ -284,27 +219,22 @@ function updateTrayMenu(isDebugMode) {
                 ? strings.menu.bskyAutoPost.enabled(BSKY_META?.handle)
                 : strings.menu.bskyAutoPost.disabled,
             visible: !!BSKY_META && IS_PLUS_MODE,
-            click: () => {
+            click: () =>
                 APP_SETTINGS.set(
                     "settings.bskyAutoPost",
                     !APP_SETTINGS.get("settings.bskyAutoPost"),
-                )
-            },
+                ),
         },
         {
             label: strings.menu.configBsky,
             enabled: IS_PLUS_MODE && isProjectLoaded,
             visible: !BSKY_META,
-            click: () => {
-                showHtmlPopup("forms", "bluesky")
-            },
+            click: () => showHtmlForm("bluesky"),
         },
         {
             label: strings.menu.upgrade,
             visible: Object.keys(presets).length == 0,
-            click: function () {
-                openExternalUrl(urls.itch)
-            },
+            click: () => openExternalUrl(urls.itch),
         },
         { type: "separator" },
         {
@@ -315,21 +245,10 @@ function updateTrayMenu(isDebugMode) {
         {
             label: strings.menu.support.title,
             type: "submenu",
-            submenu: buildMenu([
+            submenu: Menu.buildFromTemplate([
                 {
                     label: strings.menu.support.checkForUpdates,
-                    click: () => {
-                        // TODO dedupe
-                        getLatestVersion().then((results) => {
-                            if (!results.versionIsCurrent) {
-                                logger.warn(strings.update.available)
-                                notifyUpdateAvailability(
-                                    results.versionIsCurrent,
-                                    results.versionCheckError,
-                                )
-                            }
-                        })
-                    },
+                    click: () => checkVersion(),
                 },
                 {
                     label: strings.menu.support.openDiscord,
@@ -350,7 +269,7 @@ function updateTrayMenu(isDebugMode) {
             label: strings.menu.debug.title,
             visible: isDebugMode,
             type: "submenu",
-            submenu: buildMenu([
+            submenu: Menu.buildFromTemplate([
                 {
                     label: strings.menu.debug.copyLog,
                     click: () => {
@@ -360,16 +279,24 @@ function updateTrayMenu(isDebugMode) {
                 },
                 {
                     label: strings.menu.debug.openUserData,
+                    click: () => shell.openPath(USER_DATA_PATH),
+                },
+                {
+                    label: strings.menu.debug.deleteSecrets,
                     click: () => {
-                        openPath(USER_DATA_PATH)
+                        const CLICKED_ID = showPrompt(
+                            strings.popups.confirmDeleteSecrets.message,
+                            "warning",
+                            [
+                                strings.popups.confirmDeleteSecrets.confirm,
+                                strings.popups.confirmDeleteSecrets.cancel,
+                            ],
+                        )
+                        if (CLICKED_ID == 0) {
+                            fs.rmSync(activeProject.paths.SECRETS_FILE)
+                        }
                     },
                 },
-                // {
-                //     label: strings.menu.debug.deleteSecrets,
-                //     click: () => {
-                //         fs.rmSync(activeProject.paths.SECRETS_FILE)
-                //     },
-                // },
                 {
                     label: strings.menu.debug.clearConfig,
                     click: clearConfig,
@@ -410,7 +337,7 @@ function configureCrashReporting() {
         ? new BugSplat("me-iznaut-com", "bimbo", CURRENT_VERSION)
         : null
 
-    if (bugsplat) {
+    if (bugsplat && !config.DEV_MODE) {
         bugsplat.setDefaultAdditionalFilePaths([LOG_PATH])
 
         crashReporter.start({
@@ -497,18 +424,10 @@ function getSettingsMenu() {
 
     items = _.without(items, undefined)
 
-    return buildMenu(items)
+    return Menu.buildFromTemplate(items)
 }
 
 function getProjectsSubmenu() {
-    // TODO move to projects.js?
-    const PROJECT_STARTERS_PATHS = fs
-        .readdirSync(config.PROJECT_STARTERS_PATH, {
-            withFileTypes: true,
-        })
-        .filter((dirent) => dirent.isDirectory())
-        .map((dirent) => path.join(dirent.path, dirent.name))
-
     const PROJECT_MENU_ITEM = (projectPath, index) => {
         const PROJECT = projects.getFromPath(projectPath)
         const RELATIVE_PATH = path.relative(APP_PATH, PROJECT.paths.ROOT)
@@ -540,55 +459,24 @@ function getProjectsSubmenu() {
         { type: "separator" },
         {
             label: strings.menu.projects.create,
-            type: "submenu",
-            submenu: buildMenu(
-                PROJECT_STARTERS_PATHS.map((starterPath) => {
-                    return {
-                        label: path.basename(starterPath),
-                        click: async function () {
-                            const PROJECT_TITLE = await prompt({
-                                title: strings.popups.createProject.title,
-                                buttonLabels: {
-                                    ok: strings.popups.createProject.confirm,
-                                    cancel: strings.popups.createProject.cancel,
-                                },
-                                label: strings.popups.createProject.label,
-                                value: path.basename(starterPath),
-                                type: "input",
-                            }).catch(logger.error)
-
-                            if (!PROJECT_TITLE) {
-                                return
-                            }
-
-                            let pickedPaths = showFilePicker({
-                                properties: ["openDirectory"],
-                            })
-
-                            if (!pickedPaths) {
-                                return
-                            }
-
-                            const DESTINATION_PATH = path.join(
-                                pickedPaths[0],
-                                PROJECT_TITLE,
-                            )
-
-                            // TODO throw error if fails
-                            createNewProject(DESTINATION_PATH, starterPath)
-
-                            projects.activeIndex =
-                                projects.add(DESTINATION_PATH)
-
-                            updateTrayTitle()
-                        },
-                    }
-                }),
-            ),
+            click: async function () {
+                const browserWindow = await openPageInWindow("new-project")
+                // Send list of starters to form
+                browserWindow.webContents.send(
+                    "starters-list",
+                    Object.keys(getProjectStarters()),
+                )
+                ipcMain.handle("pick-directory", () =>
+                    handlePickDirectory(browserWindow),
+                )
+                browserWindow.on("closed", () =>
+                    ipcMain.removeHandler("pick-directory"),
+                )
+            },
         },
         {
             label: strings.menu.projects.import,
-            click: function () {
+            click: () => {
                 let pickedPaths = showFilePicker({
                     filters: [
                         { name: strings.app.projectFile, extensions: ["yaml"] },
@@ -610,14 +498,55 @@ function getProjectsSubmenu() {
     //     menuTemplate.unshift(PROJECT_STARTERS.map(PROJECT_MENU_ITEM)) // no index?
     // }
 
-    return buildMenu(menuTemplate)
+    return Menu.buildFromTemplate(menuTemplate)
 }
 
-ipcMain.handle("openExternalUrl", async function (_event, url) {
-    openExternalUrl(url)
+async function handlePickDirectory(attachToWindow) {
+    const { canceled, filePaths } = await dialog.showOpenDialog(
+        attachToWindow,
+        {
+            properties: ["openDirectory"],
+        },
+    )
+    if (!canceled) {
+        return filePaths[0]
+    }
+}
+
+ipcMain.on("form", async function (event, formData) {
+    if (event.senderFrame.origin !== "file://") {
+        logger.warn(
+            `received form submission from external URL ${event.senderFrame.url}`,
+        )
+        return
+    }
+
+    if (formData.id === "new-project") {
+        handleNewProjectForm(formData)
+    } else if (formData.formType === "deploy") {
+        handleDeployForm(formData)
+    } else {
+        logger.warn(
+            `unknown form id "${formData.id}" with type "${formData.formType}"`,
+        )
+    }
 })
 
-ipcMain.handle("form", async function (_event, formData) {
+function handleNewProjectForm(formData) {
+    // TODO validate project title as valid folder name
+    const destinationPath = path.join(formData.projectRoot, formData.title)
+
+    // TODO throw error if fails
+    createNewProject(destinationPath, formData.starter)
+
+    projects.activeIndex = projects.add(destinationPath)
+
+    // TODO bug: tray title and project list not being updated
+
+    updateTrayTitle()
+}
+
+async function handleDeployForm(formData) {
     let newSecrets = {}
 
     switch (formData.id) {
@@ -631,7 +560,10 @@ ipcMain.handle("form", async function (_event, formData) {
             }
             break
         case "neocities":
-            const API_KEY = await getNeocitiesApiKey(formData.username, formData.password) // TODO no css?
+            const API_KEY = await getNeocitiesApiKey(
+                formData.username,
+                formData.password,
+            ) // TODO no css?
 
             if (!API_KEY) {
                 showMessageBox(strings.popups.deployFail(formData.id), "error")
@@ -644,8 +576,18 @@ ipcMain.handle("form", async function (_event, formData) {
                 },
             }
             break
-        case "sftp": // TODO save secrets?
-            deploy(formData.password)
+        case "other":
+            newSecrets = {
+                deployment: {
+                    provider: formData.id,
+                    host: formData.host,
+                    port: formData.port,
+                    siteRoot: formData.siteRoot,
+                    username: formData.username,
+                    password: formData.password, // TODO never save passwords
+                    // TODO keypath
+                },
+            }
             break
         case "bluesky":
             newSecrets = {
@@ -676,4 +618,4 @@ ipcMain.handle("form", async function (_event, formData) {
             logger.error(err)
         }
     }
-})
+}

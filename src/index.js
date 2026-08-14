@@ -31,7 +31,27 @@ export const setActiveProject = function (project) {
     activeProject = project
 }
 
-export const createNewProject = function (destinationPath, starterPath) {
+export function getProjectStarters() {
+    const projectStartersPaths = {}
+    fs.readdirSync(config.PROJECT_STARTERS_PATH, {
+        withFileTypes: true,
+    }).forEach((dirent) => {
+        if (dirent.isDirectory()) {
+            projectStartersPaths[dirent.name] = path.join(
+                dirent.path,
+                dirent.name,
+            )
+        }
+    })
+    return projectStartersPaths
+}
+
+export const createNewProject = function (destinationPath, starter) {
+    const starterPath = path.join(config.PROJECT_STARTERS_PATH, starter)
+    if (!fs.existsSync(starterPath)) {
+        logger.error(`path not found for starter "${starter}"`)
+        return
+    }
     fs.cpSync(starterPath, destinationPath, {
         recursive: true,
     })

@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync, existsSync } from "node:fs"
-import { join as joinPath } from "node:path"
+import { join as pathJoin } from "node:path"
 
 import Handlebars from "handlebars"
 import fm from "front-matter"
@@ -28,19 +28,7 @@ export function renderMdToHtml(mdBody) {
     return MD.render(mdBody)
 }
 
-export function compileHandlebarsTemplate(
-    templateFilepath,
-    data,
-    helpers,
-    partials,
-) {
-    return Handlebars.compile(readFileSync(templateFilepath, "utf-8"))(data, {
-        helpers: helpers,
-        partials: partials,
-    })
-}
-
-export function getHandlebarsHelpersFromPath(path) {
+export function getHandlebarsPartialsFromPath(path) {
     let partials = {}
 
     if (existsSync(path)) {
@@ -50,7 +38,7 @@ export function getHandlebarsHelpersFromPath(path) {
                 return
             }
             let name = matches[1]
-            let template = readFileSync(joinPath(path, filename), "utf-8")
+            let template = readFileSync(pathJoin(path, filename), "utf-8")
             partials[name] = template
         })
     }
@@ -64,27 +52,43 @@ export function compile(
     partialsPath,
     isInternalUse = false,
 ) {
-    const HANDLEBARS_HELPERS = isInternalUse ? electronHelpers : siteHelpers
-    const HANDLEBARS_PARTIALS = getHandlebarsHelpersFromPath(partialsPath)
-    
+    const handlebarsHelpers = isInternalUse ? electronHelpers : siteHelpers
+    const handlebarsPartials = getHandlebarsPartialsFromPath(partialsPath)
 
     try {
-        return compileHandlebarsTemplate(
-            templateFilepath,
-            data,
-            HANDLEBARS_HELPERS,
-            HANDLEBARS_PARTIALS,
+        const template = Handlebars.compile(
+            readFileSync(templateFilepath, "utf-8"),
         )
+        return template(data, {
+            helpers: handlebarsHelpers,
+            partials: handlebarsPartials,
+        })
     } catch (error) {
         // TODO move compile fail message?
         // logger.error(strings.generator.compileFail(pageMeta.template))
         logger.error(error.message)
-        const ENCODED_ERROR = error.message.replace(
+        const encodedError = error.message.replace(
             /[\u00A0-\u9999<>\&]/gim,
             function (i) {
                 return "&#" + i.charCodeAt(0) + ";"
             },
         )
-        return `<pre>${ENCODED_ERROR}</pre>`
+        return `<pre>${encodedError}</pre>`
     }
+}
+
+export function renderFormToHtml(formName, rendererPath) {
+    const frontMatter = getFrontMatterFromFile(
+        pathJoin(rendererPath, "forms", `${formName}.md`),
+    )
+    const html = compile(
+        pathJoin(rendererPath, "forms", "base.hbs"),
+        {
+            ...frontMatter.attributes,
+            _content: renderMdToHtml(frontMatter.body),
+        },
+        pathJoin(rendererPath, `partials`),
+        true,
+    )
+    return html
 }

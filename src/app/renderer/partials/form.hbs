@@ -1,5 +1,8 @@
 <form id="form" action="#" onsubmit="sendForm(event)">
     <input id="id" class="input" value="{{ id }}" style="display:none" />
+    {{#if formType}}
+        <input id="formType" class="input" value="{{ formType }}" style="display:none" />
+    {{/if}}
     {{#each fields}}
         {{#if addon}}
             <div class="field is-horizontal">
@@ -13,6 +16,9 @@
                                     class="input"
                                     placeholder="{{#if placeholder}}{{ placeholder }}{{else}}{{ id }}{{/if}}"
                                     type="{{#if type}}{{ type }}{{else}}text{{/if}}"
+                                    {{#unless optional}}
+                                        required
+                                    {{/unless}}
                                 />
                             </p>
                         </div>
@@ -28,6 +34,9 @@
                         class="input"
                         placeholder="{{#if placeholder}}{{ placeholder }}{{else}}{{ id }}{{/if}}"
                         type="{{#if type}}{{ type }}{{else}}text{{/if}}"
+                        {{#unless optional}}
+                            required
+                        {{/unless}}
                     />
                     {{#if helpText}}
                         <p class="help">
@@ -43,7 +52,7 @@
             <button class="button is-link">Submit</button>
         </div>
         <div class="control">
-            <button class="button is-link is-light">Cancel</button>
+            <button class="button is-link is-light" type="button">Cancel</button>
         </div>
     </div>
 </form>

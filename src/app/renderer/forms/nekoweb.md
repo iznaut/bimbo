@@ -1,5 +1,6 @@
 ---
 title: one-click upload to Nekoweb
+formType: deploy
 id: nekoweb
 fields:
     - { id: "apiKey", placeholder: "Nekoweb API key" }

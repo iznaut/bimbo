@@ -4,6 +4,9 @@ import { showNotification } from "./electron.js"
 import config from "../config/index.js"
 import strings from "../config/strings.js"
 
+import pkg from "../../package.json" with { type: "json" }
+
+
 // TODO clean up version/update stuff
 
 let latestVersion
@@ -13,7 +16,7 @@ let versionCheckError = false
 export const versionIsCurrent = () => _versionIsCurrent
 
 export const CURRENT_VERSION = (() => {
-    let version = app.getVersion()
+    let version = pkg.version
 
     if (config.DEV_MODE) {
         version = version.replace("-beta", "-dev")

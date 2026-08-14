@@ -1,0 +1,22 @@
+[
+    {
+        "name": "Teena Merry",
+        "image": "static/img/characters/teena.png",
+        "description": "She's just your average everyday teenage girl! Reading magazines, chasing boys, you know! girl stuff!"
+    },
+    {
+        "name": "Pipsie Squeakie",
+        "image": "static/img/characters/pipsie.png",
+        "description": "Teena's partner in crime! She has short black hair also which is cool"
+    },
+    {
+        "name": "Gwendolyn",
+        "image": "static/img/characters/gwendolyn.png",
+        "description": "A precocious, smart mouthed little girl from across the street that Teena and Pipsie like to hang out with. Teena's way into her older brother."
+    },
+    {
+        "name": "Goro Majima",
+        "image": "static/img/characters/majima.png",
+        "description": "After losing his eye and the trust of his sworn brother in a botched assassination, Majima clawed his way out of debt and through the ranks of the Yakuza to become Captain of the Shimano Family, where his ferocity and unpredictability in battle earned him the title \"The Mad Dog of Shimano\". He's now the patriarch of the Majima Family, a direct subsidiary of the Tojo Clan."
+    }
+]

@@ -1,0 +1,1 @@
+**snippets** are useful when you want content that doesn't need a _whole page_ to itself!

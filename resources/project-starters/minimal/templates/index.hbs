@@ -1,0 +1,20 @@
+<!doctype html>
+<html>
+    {{> head}}
+    <body>
+        {{{ _content }}}
+        <h2>snippets</h2>
+        <p>{{{ _snippets.example }}}</p>
+        <p>just don't forget that `_content` and `_snippets` need triple curly braces or the generated HTML tags won't render:</p>
+        <p>{{ _snippets.example }}</p>
+        <p>you can also use data like this:</p>
+        <ul>
+            {{#each _data.fruit}}
+                <li>
+                    {{ this }}
+                </li>
+            {{/each}}
+        </ul>
+
+    </body>
+</html>

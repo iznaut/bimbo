@@ -403,6 +403,7 @@ function generatePage(pageMeta) {
     pageMeta.globals = activeProject.globals_meta
     pageMeta._content = renderMdToHtml(pageMeta._mdContent.body)
     pageMeta._project_meta = activeProject.config // TODO _project_config?
+    pageMeta._data = buildData._data // TODO not sure if this is best way to do this
     _.assign(pageMeta, buildData.collections) // TODO not sure if still works?
 
     const TEMPLATE_FILEPATH = path.join(PROJECT_PATHS.TEMPLATES, pageMeta.template)

@@ -14,6 +14,7 @@ const urls = {
 export default urls
 
 export const trustedExternalURLs = [
+    urls.localPreview,
     urls.itch,
     urls.tutorial,
     urls.discord,

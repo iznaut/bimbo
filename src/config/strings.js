@@ -61,7 +61,6 @@ export default {
         logPath: (path) => `writing log to ${path}`,
         configClearTry: "attempting config clear",
         configClearSuccess: "config cleared",
-        updateAvailable: "newer version available",
         tryEditor: (editor) => `user requested editor ${editor}`,
         missingProject: (path) =>
             `unable to find project, removing from list: ${path}`,

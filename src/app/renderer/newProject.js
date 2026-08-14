@@ -19,7 +19,7 @@ browseRootButton.addEventListener("click", async (event) => {
     const projectRoot = await window.electron.pickDirectory()
     const projectTitle = document.getElementById("title").value
     projectRootInput.value = projectRoot
-    const slash = projectRoot.includes("\\") ? "\\" : "/"
+    const slash = projectRoot.includes("/") ? "/" : "\\"
     const projectPath = projectRoot + slash + projectTitle
     projectPathHint.innerHTML = `your project will be created at <code class="has-text-info">${projectPath}</code>`
 })

@@ -30,20 +30,12 @@ export function createTray() {
     return new Tray(nativeImage.createFromDataURL(config.ICON))
 }
 
-export function buildMenu(template) {
-    return Menu.buildFromTemplate(template)
-}
-
 export function openExternalUrl(url) {
     if (trustedExternalURLs.includes(url)) {
         shell.openExternal(url)
     } else {
         logger.warn(`tried to open non-trusted URL ${url}`)
     }
-}
-
-export function openPath(path) {
-    shell.openPath(path)
 }
 
 export function showNotification(body) {

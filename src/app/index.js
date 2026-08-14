@@ -7,7 +7,6 @@ import _ from "lodash"
 import prompt from "electron-prompt"
 import winston from "winston"
 import { BugSplatNode as BugSplat } from "bugsplat-node"
-import { compareVersions } from "compare-versions"
 import tiny from "tiny-json-http"
 
 import {
@@ -15,13 +14,11 @@ import {
     USER_DATA_PATH,
     APP_SETTINGS,
     openExternalUrl,
-    openPath,
     showMessageBox,
     showNotification,
     showPrompt,
     showFilePicker,
     createTray,
-    buildMenu,
     LOG_PATH,
 } from "./electron.js"
 import { renderFormInWindow, openPageInWindow } from "./window.js"
@@ -31,7 +28,6 @@ import { deploy, presets, IS_PLUS_MODE, getNeocitiesApiKey } from "../deploy.js"
 import strings from "../config/strings.js"
 import urls from "../config/urls.js"
 import { build } from "../site-generator.js"
-
 import {
     app,
     globalShortcut,
@@ -39,7 +35,9 @@ import {
     ipcMain,
     clipboard,
     dialog,
-} from "electron" // TODO refactor into electron utils
+    shell,
+    Menu,
+} from "electron"
 import { resolveHandle as resolveBlueskyHandle } from "../bluesky/main.js"
 import {
     createNewProject,
@@ -47,58 +45,12 @@ import {
     setActiveProject,
     getProjectStarters,
 } from "../index.js"
+import { checkVersion, CURRENT_VERSION, versionIsCurrent } from "./version.js"
 
 let bugsplat = null
 
 let tray = null
 let trayMenu = null
-
-let latestVersion
-let versionIsCurrent = true
-let versionCheckError = false
-
-// TODO clean up version/update stuff
-const CURRENT_VERSION = (function () {
-    let version = app.getVersion()
-
-    if (config.DEV_MODE) {
-        version = version.replace("-beta", "-dev")
-    }
-
-    return version
-})()
-
-async function getLatestVersion() {
-    if (config.DEV_MODE) {
-        latestVersion = "99.99.99-dev"
-    } else {
-        try {
-            const packageJson = await tiny.get({ url: urls.githubPackage })
-            latestVersion = JSON.parse(packageJson.body).version
-        } catch (e) {
-            logger.warn(strings.update.logError(e))
-            versionCheckError = false
-        }
-    }
-    if (latestVersion) {
-        versionCheckError = false
-        const versionComparison = compareVersions(
-            latestVersion,
-            CURRENT_VERSION,
-        )
-        versionIsCurrent = versionComparison === 0
-    }
-}
-
-function notifyUpdateAvailability() {
-    showNotification(
-        versionCheckError
-            ? strings.update.checkFailed
-            : versionIsCurrent
-              ? strings.update.none
-              : strings.update.available(latestVersion),
-    )
-}
 
 configureCrashReporting()
 
@@ -122,9 +74,15 @@ app.whenReady().then(() => {
     projects.cleanup()
 
     tray = createTray()
-    tray.on(platform() === "win32" ? "right-click" : "click", (event) => {
+    tray.on("click", (event) => {
+        // TODO rework tray updates so that we don't to do this on click, because it doesn't work on windows right-click
         updateTrayMenu(event.shiftKey || config.DEV_MODE)
+        // allow opening context menu with left click on windows
+        if (platform() === "win32") {
+            tray.popUpContextMenu()
+        }
     })
+    tray.setIgnoreDoubleClickEvents(true)
 
     globalShortcut.register("CommandOrControl+Alt+R", clearConfig)
 
@@ -138,12 +96,7 @@ app.whenReady().then(() => {
     updateTrayTitle()
     updateTrayMenu()
 
-    getLatestVersion().then(() => {
-        if (!versionIsCurrent) {
-            logger.warn(strings.logMsg.updateAvailable)
-            notifyUpdateAvailability()
-        }
-    })
+    checkVersion()
 
     logger.info(strings.logMsg.ready)
 })
@@ -171,17 +124,15 @@ function updateTrayMenu(isDebugMode = config.DEV_MODE) {
         isProjectLoaded && activeProject.secrets?.integrations?.bluesky
     const bskyAutoPostEnabled = APP_SETTINGS.get("settings.bskyAutoPost")
 
-    trayMenu = buildMenu([
+    trayMenu = Menu.buildFromTemplate([
         {
             label: strings.app.titleWithVersion(CURRENT_VERSION),
             enabled: false,
         },
         {
             label: strings.menu.updateAvailable,
-            visible: !versionIsCurrent,
-            click: () => {
-                openExternalUrl(urls.itch)
-            },
+            visible: !versionIsCurrent(),
+            click: () => openExternalUrl(urls.itch),
         },
         { type: "separator" },
         {
@@ -195,15 +146,13 @@ function updateTrayMenu(isDebugMode = config.DEV_MODE) {
         {
             label: strings.menu.openPreview,
             enabled: isProjectLoaded,
-            click: () => {
-                openExternalUrl(urls.localPreview)
-            },
+            click: () => openExternalUrl(urls.localPreview),
         },
         { type: "separator" },
         {
             label: strings.menu.openEditor,
             enabled: isProjectLoaded,
-            click: function () {
+            click: () => {
                 logger.info(strings.logMsg.tryEditor(config.EDITOR_COMMAND))
 
                 exec(
@@ -226,9 +175,7 @@ function updateTrayMenu(isDebugMode = config.DEV_MODE) {
         {
             label: strings.menu.openFolder,
             enabled: isProjectLoaded,
-            click: function () {
-                openPath(loadedProjectRoot)
-            },
+            click: () => shell.openPath(loadedProjectRoot),
         },
         { type: "separator" },
         {
@@ -258,13 +205,11 @@ function updateTrayMenu(isDebugMode = config.DEV_MODE) {
             type: "submenu",
             enabled: Object.keys(presets).length > 0 && isProjectLoaded,
             visible: !DEPLOY_META,
-            submenu: buildMenu(
+            submenu: Menu.buildFromTemplate(
                 Object.keys(presets).map((key) => {
                     return {
                         label: key,
-                        click: () => {
-                            renderFormInWindow(key)
-                        },
+                        click: () => renderFormInWindow(key),
                     }
                 }),
             ),
@@ -274,27 +219,22 @@ function updateTrayMenu(isDebugMode = config.DEV_MODE) {
                 ? strings.menu.bskyAutoPost.enabled(BSKY_META?.handle)
                 : strings.menu.bskyAutoPost.disabled,
             visible: !!BSKY_META && IS_PLUS_MODE,
-            click: () => {
+            click: () =>
                 APP_SETTINGS.set(
                     "settings.bskyAutoPost",
                     !APP_SETTINGS.get("settings.bskyAutoPost"),
-                )
-            },
+                ),
         },
         {
             label: strings.menu.configBsky,
             enabled: IS_PLUS_MODE && isProjectLoaded,
             visible: !BSKY_META,
-            click: () => {
-                showHtmlForm("bluesky")
-            },
+            click: () => showHtmlForm("bluesky"),
         },
         {
             label: strings.menu.upgrade,
             visible: Object.keys(presets).length == 0,
-            click: function () {
-                openExternalUrl(urls.itch)
-            },
+            click: () => openExternalUrl(urls.itch),
         },
         { type: "separator" },
         {
@@ -305,20 +245,10 @@ function updateTrayMenu(isDebugMode = config.DEV_MODE) {
         {
             label: strings.menu.support.title,
             type: "submenu",
-            submenu: buildMenu([
+            submenu: Menu.buildFromTemplate([
                 {
                     label: strings.menu.support.checkForUpdates,
-                    click: () => {
-                        // TODO dedupe
-                        getLatestVersion().then(() => {
-                            if (!versionIsCurrent) {
-                                logger.warn(
-                                    strings.update.available(latestVersion),
-                                )
-                                notifyUpdateAvailability()
-                            }
-                        })
-                    },
+                    click: () => checkVersion(),
                 },
                 {
                     label: strings.menu.support.openDiscord,
@@ -339,7 +269,7 @@ function updateTrayMenu(isDebugMode = config.DEV_MODE) {
             label: strings.menu.debug.title,
             visible: isDebugMode,
             type: "submenu",
-            submenu: buildMenu([
+            submenu: Menu.buildFromTemplate([
                 {
                     label: strings.menu.debug.copyLog,
                     click: () => {
@@ -349,9 +279,7 @@ function updateTrayMenu(isDebugMode = config.DEV_MODE) {
                 },
                 {
                     label: strings.menu.debug.openUserData,
-                    click: () => {
-                        openPath(USER_DATA_PATH)
-                    },
+                    click: () => shell.openPath(USER_DATA_PATH),
                 },
                 {
                     label: strings.menu.debug.deleteSecrets,
@@ -496,7 +424,7 @@ function getSettingsMenu() {
 
     items = _.without(items, undefined)
 
-    return buildMenu(items)
+    return Menu.buildFromTemplate(items)
 }
 
 function getProjectsSubmenu() {
@@ -548,7 +476,7 @@ function getProjectsSubmenu() {
         },
         {
             label: strings.menu.projects.import,
-            click: function () {
+            click: () => {
                 let pickedPaths = showFilePicker({
                     filters: [
                         { name: strings.app.projectFile, extensions: ["yaml"] },
@@ -570,7 +498,7 @@ function getProjectsSubmenu() {
     //     menuTemplate.unshift(PROJECT_STARTERS.map(PROJECT_MENU_ITEM)) // no index?
     // }
 
-    return buildMenu(menuTemplate)
+    return Menu.buildFromTemplate(menuTemplate)
 }
 
 async function handlePickDirectory(attachToWindow) {

@@ -37,7 +37,7 @@ export async function build(isPostDeploy = false) {
     // quit if content folder is missing
     // TODO probably other required folders to check for
     if (!fs.existsSync(PROJECT_PATHS.CONTENT)) {
-        logger(strings.generator.missingContentFolder)
+        logger.info(strings.generator.missingContentFolder)
         // TODO showMessageBox() // return error (to app or main)
         return
     }
@@ -64,14 +64,19 @@ export async function build(isPostDeploy = false) {
             const dataName = path.basename(filepath, path.extname(filepath))
 
             // TODO clean this up
-            if (path.extname(filepath) == ".json") {
-                buildData._data[dataName] = JSON.parse(rawData)
+            try {
+                if (path.extname(filepath) == ".json") {
+                    buildData._data[dataName] = JSON.parse(rawData)
+                }
+                if (path.extname(filepath) == ".yaml") {
+                    buildData._data[dataName] = yamlParse(rawData)
+                }
+                if (path.extname(filepath) == ".txt") {
+                    buildData._data[dataName] = rawData.split("\n")
+                }
             }
-            if (path.extname(filepath) == ".yaml") {
-                buildData._data[dataName] = yamlParse(rawData)
-            }
-            if (path.extname(filepath) == ".txt") {
-                buildData._data[dataName] = rawData.split("\n")
+            catch(e) {
+                logger.warn('failed to parse data from ' + dataName) // TODO string
             }
         })
     }

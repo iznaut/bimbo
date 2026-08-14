@@ -74,9 +74,8 @@ export async function build(isPostDeploy = false) {
                 if (path.extname(filepath) == ".txt") {
                     buildData._data[dataName] = rawData.split("\n")
                 }
-            }
-            catch(e) {
-                logger.warn('failed to parse data from ' + dataName) // TODO string
+            } catch (e) {
+                logger.warn("failed to parse data from " + dataName) // TODO string
             }
         })
     }
@@ -184,16 +183,17 @@ export async function build(isPostDeploy = false) {
     })
 
     // TODO do something with snippets idk
-    // buildData.site.snippets = _.chain(buildData._pages)
-    //     .filter((v) => {
-    //         return path.dirname(v.path) == PROJECT_PATHS.SNIPPETS
-    //     })
-    //     .map((v) => {
-    //         const key = path.basename(v.path, ".md")
-    //         return [key, v.content]
-    //     })
-    //     .fromPairs()
-    //     .value()
+    buildData._snippets = _.chain(fs.readdirSync(PROJECT_PATHS.SNIPPETS))
+        .map((filename) => {
+            const key = path.basename(filename, ".md")
+            const mdContent = fs.readFileSync(
+                path.join(PROJECT_PATHS.SNIPPETS, filename),
+                "utf-8",
+            )
+            return [key, renderMdToHtml(mdContent)]
+        })
+        .fromPairs()
+        .value()
 
     _.each(buildData._pages, (pageMeta) => {
         generatePage(pageMeta)
@@ -202,7 +202,7 @@ export async function build(isPostDeploy = false) {
     const RSS_GROUP_NAME = _.find(
         activeProject.collections_meta,
         (g) => g.rss,
-    ).name
+    )?.name
 
     if (RSS_GROUP_NAME) {
         generateRssFeed(config.PAGE_GROUP_PREFIX + RSS_GROUP_NAME)
@@ -338,7 +338,7 @@ function getPageData(contentFilepath) {
 
     const CONTENT_DEFAULTS = _.omit(activeProject.defaults_meta, "subfolders")
     const SUBFOLDER_DEFAULTS =
-        activeProject.defaults_meta.subfolders[pageMeta._subfolder] || {}
+        activeProject.defaults_meta?.subfolders[pageMeta._subfolder] || {}
 
     _.merge(
         pageMeta, // base object with generated values
@@ -404,9 +404,17 @@ function generatePage(pageMeta) {
     pageMeta._content = renderMdToHtml(pageMeta._mdContent.body)
     pageMeta._project_meta = activeProject.config // TODO _project_config?
     pageMeta._data = buildData._data // TODO not sure if this is best way to do this
+    pageMeta._snippets = buildData._snippets // review all of this lol
     _.assign(pageMeta, buildData.collections) // TODO not sure if still works?
 
-    const TEMPLATE_FILEPATH = path.join(PROJECT_PATHS.TEMPLATES, pageMeta.template)
+    if (!pageMeta.template) {
+        pageMeta.template = path.basename(pageMeta._filepath, ".md") + ".hbs"
+    }
+
+    const TEMPLATE_FILEPATH = path.join(
+        PROJECT_PATHS.TEMPLATES,
+        pageMeta.template,
+    )
 
     // get html template
     if (!fs.existsSync(TEMPLATE_FILEPATH)) {

@@ -1,6 +1,5 @@
 // Listen for list of starters sent from main process
 window.electron.onStartersList((starters) => {
-    console.log("received starters", starters)
     const startersSelect = document.getElementById("starter")
     starters.forEach((starter) => {
         const option = document.createElement("option")

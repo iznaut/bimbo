@@ -428,6 +428,7 @@ function generatePage(pageMeta) {
     const OUTPUT_PATH = path.dirname(HTML_FILEPATH)
 
     if (!fs.existsSync(OUTPUT_PATH)) {
+        // TODO catch potential permission errors
         fs.mkdirSync(path.join(PROJECT_PATHS.OUTPUT, OUTPUT_PATH), {
             recursive: true,
         })

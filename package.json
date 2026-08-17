@@ -46,7 +46,7 @@
     "devDependencies": {
         "@electron/packager": "^18.4.4",
         "@poliklot/prettier-plugin-handlebars": "^0.3.2",
-        "electron": "^39.2.7",
+        "electron": "^40.10.6",
         "electronmon": "^2.0.4",
         "prettier": "^3.9.6",
         "vitest": "^4.1.10"

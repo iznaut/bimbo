@@ -1,8 +1,9 @@
 import { existsSync } from "fs"
 import { join as pathJoin } from "node:path"
+import EventEmitter from "node:events"
 
 import config from "../config/index.js"
-import { Project } from "../index.js"
+import { activeProject, Project } from "../index.js"
 import { watch } from "../site-generator.js"
 import { APP_SETTINGS, showMessageBox, showNotification } from "./electron.js"
 import strings from "../config/strings.js"
@@ -21,7 +22,12 @@ const exports = {
         } else {
             setActiveProject(null)
         }
+        this.events.emit("activeProjectChanged")
     },
+    getActiveTitle() {
+        return activeProject?.title || strings.projects.notLoaded
+    },
+    events: new EventEmitter(),
     get list() {
         return APP_SETTINGS.get("projects")
     },

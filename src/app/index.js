@@ -4,6 +4,7 @@ import { platform } from "node:os"
 
 import winston from "winston"
 import { BugSplatNode as BugSplat } from "bugsplat-node"
+import { app, globalShortcut, crashReporter, ipcMain, Menu } from "electron"
 
 import {
     APP_SETTINGS,
@@ -18,11 +19,10 @@ import { deploy, getNeocitiesApiKey } from "../deploy.js"
 import strings from "../config/strings.js"
 import urls from "../config/urls.js"
 import { build } from "../site-generator.js"
-import { app, globalShortcut, crashReporter, ipcMain, Menu } from "electron"
 import { resolveHandle as resolveBlueskyHandle } from "../bluesky/main.js"
 import { createNewProject, activeProject } from "../index.js"
 import { checkVersion, CURRENT_VERSION } from "./version.js"
-import { clearTrayProject, initializeTray, updateTrayTitle } from "./tray.js"
+import { initializeTray, updateTrayTitle } from "./tray.js"
 
 let bugsplat = null
 
@@ -45,6 +45,8 @@ app.whenReady().then(() => {
         app.dock.hide()
     }
 
+    initializeTray()
+
     projects.cleanup()
 
     globalShortcut.register("CommandOrControl+Alt+R", clearConfig)
@@ -56,13 +58,12 @@ app.whenReady().then(() => {
         openExternalUrl(urls.tutorial)
     }
 
-    initializeTray()
-
     checkVersion()
 
     logger.info(strings.logMsg.ready)
 })
 
+// redirect navigation and new windows to user's browser instead
 app.on("web-contents-created", (event, contents) => {
     // prevents navigation within BrowserWindow
     contents.on("will-navigate", (event, navigationUrl) => {
@@ -113,7 +114,7 @@ export function clearConfig() {
     logger.info(strings.logMsg.configClearTry)
     APP_SETTINGS.clear()
     projects.activeIndex = -1
-    clearTrayProject()
+    updateTrayTitle(strings.projects.notLoaded)
     showMessageBox(strings.app.configClear)
     logger.info(strings.logMsg.configClearSuccess)
 }

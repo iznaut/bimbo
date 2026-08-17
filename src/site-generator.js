@@ -183,17 +183,19 @@ export async function build(isPostDeploy = false) {
     })
 
     // TODO do something with snippets idk
-    buildData._snippets = _.chain(fs.readdirSync(PROJECT_PATHS.SNIPPETS))
-        .map((filename) => {
-            const key = path.basename(filename, ".md")
-            const mdContent = fs.readFileSync(
-                path.join(PROJECT_PATHS.SNIPPETS, filename),
-                "utf-8",
-            )
-            return [key, renderMdToHtml(mdContent)]
-        })
-        .fromPairs()
-        .value()
+    if (fs.existsSync(PROJECT_PATHS.SNIPPETS)) {
+        buildData._snippets = _.chain(fs.readdirSync(PROJECT_PATHS.SNIPPETS))
+            .map((filename) => {
+                const key = path.basename(filename, ".md")
+                const mdContent = fs.readFileSync(
+                    path.join(PROJECT_PATHS.SNIPPETS, filename),
+                    "utf-8",
+                )
+                return [key, renderMdToHtml(mdContent)]
+            })
+            .fromPairs()
+            .value()
+    }
 
     _.each(buildData._pages, (pageMeta) => {
         generatePage(pageMeta)

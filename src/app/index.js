@@ -22,7 +22,11 @@ import { build } from "../site-generator.js"
 import { resolveHandle as resolveBlueskyHandle } from "../bluesky/main.js"
 import { createNewProject, activeProject } from "../index.js"
 import { checkVersion, CURRENT_VERSION } from "./version.js"
-import { initializeTray, updateTrayTitle } from "./tray.js"
+import {
+    initializeTray,
+    showUpdateNoticeInTray,
+    updateTrayTitle,
+} from "./tray.js"
 
 let bugsplat = null
 
@@ -58,7 +62,7 @@ app.whenReady().then(() => {
         openExternalUrl(urls.tutorial)
     }
 
-    checkVersion()
+    checkVersion(showUpdateNoticeInTray)
 
     logger.info(strings.logMsg.ready)
 })

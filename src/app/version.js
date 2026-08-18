@@ -48,11 +48,14 @@ export async function getLatestVersion() {
     return latestVersion
 }
 
-export async function checkVersion() {
+export async function checkVersion(onUpdateAvailable) {
     await getLatestVersion()
     if (!_versionIsCurrent) {
         logger.warn(strings.update.available(latestVersion))
         notifyUpdateAvailability()
+        if (onUpdateAvailable) {
+            onUpdateAvailable()
+        }
     }
 }
 

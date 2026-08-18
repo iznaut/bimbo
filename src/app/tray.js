@@ -106,12 +106,7 @@ function buildTrayMenu() {
             submenu: Menu.buildFromTemplate([
                 {
                     label: strings.menu.support.checkForUpdates,
-                    click: async () => {
-                        await checkVersion()
-                        const updateMenuItem =
-                            trayMenu.getMenuItemById("updateAvailable")
-                        updateMenuItem.visible = !versionIsCurrent()
-                    },
+                    click: () => checkVersion(showUpdateNoticeInTray),
                 },
                 {
                     label: strings.menu.support.openDiscord,
@@ -396,3 +391,7 @@ projects.events.on("activeProjectChanged", () => {
         trayMenu.getMenuItemById("configBsky").visible = !bskyMeta
     }
 })
+
+export function showUpdateNoticeInTray() {
+    trayMenu.getMenuItemById("updateAvailable").visible = true
+}

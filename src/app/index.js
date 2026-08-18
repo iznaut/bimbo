@@ -77,7 +77,8 @@ app.on("web-contents-created", (event, contents) => {
     })
 })
 
-function configureCrashReporting() {
+// TODO move out of this file
+export function configureCrashReporting() {
     const javaScriptErrorHandler = async (error) => {
         await bugsplat.post(error)
         app.quit()

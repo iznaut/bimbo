@@ -16,7 +16,7 @@ import {
     USER_DATA_PATH,
 } from "./electron.js"
 import { checkVersion, CURRENT_VERSION, versionIsCurrent } from "./version.js"
-import { clearConfig } from "./index.js"
+import { clearConfig, configureCrashReporting } from "./index.js"
 
 let tray // instantiated in initializeTray() when app is ready
 const trayMenu = buildTrayMenu() // build once, then only update
@@ -174,16 +174,6 @@ function buildTrayMenu() {
     return menu
 }
 
-export function updateTrayTitle(text = tooltip) {
-    tooltip = text
-    tray.setToolTip(tooltip)
-
-    const trayTitle = APP_SETTINGS.get("settings.showProjectTitleInMenubar")
-        ? tooltip
-        : ""
-    tray.setTitle(trayTitle) // only visible on mac
-}
-
 function getPlusModeItems() {
     if (!IS_PLUS_MODE) {
         return [
@@ -246,57 +236,58 @@ function getPlusModeItems() {
 }
 
 function getSettingsMenu() {
-    // TODO too clever imo, we should explicitly build the menu
-    const callbacks = {
-        showProjectTitleInMenubar: updateTrayTitle,
-        submitCrashLogs: () => {
-            if (APP_SETTINGS.get("settings.submitCrashLogs")) {
-                let clickedId = showPrompt(
-                    strings.popups.disableCrashReporting.message,
-                    "warning",
-                    [
-                        strings.popups.disableCrashReporting.confirm,
-                        strings.popups.disableCrashReporting.cancel,
-                    ],
-                )
-
-                if (clickedId == 0) {
-                    APP_SETTINGS.set("settings.submitCrashLogs", false)
-                    configureCrashReporting()
+    const createSettingsItem = (setting, options = {}, afterClick) => {
+        return {
+            id: setting,
+            label: strings.menu.settings[setting],
+            type: "checkbox",
+            checked: APP_SETTINGS.get(`settings.${setting}`),
+            click: () => {
+                const enabled = APP_SETTINGS.get(`settings.${setting}`)
+                APP_SETTINGS.set(`settings.${setting}`, !enabled)
+                if (afterClick) {
+                    afterClick()
                 }
-            } else {
-                APP_SETTINGS.set("settings.submitCrashLogs", true)
-                configureCrashReporting()
-            }
-        },
+            },
+            ...options,
+        }
     }
-
-    const requireConfirmation = ["submitCrashLogs"]
-    const hiddenSettings = ["showAssistant", "bskyAutoPost"]
-
-    const items = Object.keys(APP_SETTINGS.defaultValues.settings)
-        .filter((setting) => !hiddenSettings.includes(setting))
-        .map((setting) => {
-            return {
-                label: strings.menu.settings[setting],
-                type: "checkbox",
-                checked: APP_SETTINGS.get(`settings.${setting}`),
-                click: () => {
-                    if (!requireConfirmation.includes(setting)) {
-                        APP_SETTINGS.set(
-                            `settings.${k}`,
-                            !APP_SETTINGS.get(`settings.${setting}`),
-                        )
+    return [
+        createSettingsItem(
+            "showProjectTitleInMenubar",
+            {
+                visible: platform() === "darwin", // only relevant on mac
+            },
+            updateTrayTitle,
+        ),
+        createSettingsItem("autoOpenPreview"),
+        createSettingsItem("submitCrashLogs", {
+            click: () => {
+                const enabled = APP_SETTINGS.get("settings.submitCrashLogs")
+                if (enabled) {
+                    const clickedId = showPrompt(
+                        strings.popups.disableCrashReporting.message,
+                        "warning",
+                        [
+                            strings.popups.disableCrashReporting.confirm,
+                            strings.popups.disableCrashReporting.cancel,
+                        ],
+                    )
+                    if (clickedId !== 0) {
+                        // re-check menu item because electron unchecks it
+                        trayMenu.getMenuItemById("submitCrashLogs").checked =
+                            true
+                        return
                     }
-
-                    if (setting in callbacks) {
-                        callbacks[k]()
-                    }
-                },
-            }
-        })
-
-    return items
+                }
+                APP_SETTINGS.set("settings.submitCrashLogs", !enabled)
+                configureCrashReporting()
+            },
+        }),
+        createSettingsItem("bskyAutoPost", {
+            visible: false, // TODO change when ready
+        }),
+    ]
 }
 
 function getProjectsSubmenu() {
@@ -359,6 +350,16 @@ function getProjectsSubmenu() {
     // if (isDev()) {
     //     menuTemplate.unshift(PROJECT_STARTERS.map(PROJECT_MENU_ITEM)) // no index?
     // }
+}
+
+export function updateTrayTitle(text = tooltip) {
+    tooltip = text
+    tray.setToolTip(tooltip)
+
+    const trayTitle = APP_SETTINGS.get("settings.showProjectTitleInMenubar")
+        ? tooltip
+        : ""
+    tray.setTitle(trayTitle) // only visible on mac
 }
 
 projects.events.on("activeProjectChanged", () => {

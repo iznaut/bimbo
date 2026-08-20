@@ -1,7 +1,16 @@
 import * as fs from "node:fs"
 import * as path from "node:path"
 import { platform } from "node:os"
-import { clipboard, dialog, Menu, nativeImage, Tray, shell } from "electron"
+import {
+    clipboard,
+    dialog,
+    ipcMain,
+    Menu,
+    MenuItem,
+    nativeImage,
+    Tray,
+    shell,
+} from "electron"
 import strings from "../config/strings.js"
 import config from "../config/index.js"
 import projects from "./projects.js"
@@ -17,6 +26,7 @@ import {
 } from "./electron.js"
 import { checkVersion, CURRENT_VERSION, versionIsCurrent } from "./version.js"
 import { clearConfig, configureCrashReporting } from "./index.js"
+import { renderFormInWindow, openPageInWindow } from "./window.js"
 
 let tray // instantiated in initializeTray() when app is ready
 const trayMenu = buildTrayMenu() // build once, then only update
@@ -285,25 +295,25 @@ function getSettingsMenu() {
     ]
 }
 
-function getProjectsSubmenu() {
-    const projectMenuItem = (projectPath, index) => {
-        const project = projects.getFromPath(projectPath)
-        const relativePath = path.relative(APP_PATH, project.paths.ROOT)
-        const isStarter =
-            !relativePath.startsWith("..") && !path.isAbsolute(relativePath)
-        const projectTitle = `${isStarter ? "📝 " : ""}${project.title}`
-        return {
-            label: projectTitle,
-            type: "radio",
-            click: () => {
-                projects.activeIndex = index
-                updateTrayTitle(projectTitle)
-            },
-        }
+function createProjectMenuItem(projectPath) {
+    const project = projects.getFromPath(projectPath)
+    const relativePath = path.relative(APP_PATH, project.paths.ROOT)
+    const isStarter =
+        !relativePath.startsWith("..") && !path.isAbsolute(relativePath)
+    const projectTitle = `${isStarter ? "📝 " : ""}${project.title}`
+    return {
+        label: projectTitle,
+        type: "radio",
+        click: () => {
+            projects.activeIndex = projects.list.indexOf(projectPath)
+            updateTrayTitle(projectTitle)
+        },
     }
+}
 
+function getProjectsSubmenu() {
     return [
-        ...projects.list.map(projectMenuItem),
+        ...projects.list.map(createProjectMenuItem),
         { type: "separator" },
         {
             label: strings.menu.projects.create,
@@ -362,10 +372,19 @@ projects.events.on("activeProjectChanged", () => {
         return
     }
     const projectIsLoaded = !!activeProject
-    trayMenu.getMenuItemById("projectMenu").label = projects.getActiveTitle()
-    trayMenu.getMenuItemById("projectMenu").submenu.items[
-        projects.activeIndex
-    ].checked = true
+    const projectMenu = trayMenu.getMenuItemById("projectMenu")
+    projectMenu.label = projects.getActiveTitle()
+    // number of projects currently in project submenu (-3 non-project menu items)
+    const menuProjectCount = projectMenu.submenu.items.length - 3
+    if (projects.activeIndex >= menuProjectCount) {
+        projectMenu.submenu.insert(
+            menuProjectCount,
+            new MenuItem(
+                createProjectMenuItem(projects.list[projects.activeIndex]),
+            ),
+        )
+    }
+    projectMenu.submenu.items[projects.activeIndex].checked = true
     trayMenu.getMenuItemById("openPreview").enabled = projectIsLoaded
     trayMenu.getMenuItemById("openEditor").enabled = projectIsLoaded
     trayMenu.getMenuItemById("openFolder").enabled = projectIsLoaded

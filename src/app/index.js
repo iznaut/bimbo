@@ -12,7 +12,6 @@ import {
     showMessageBox,
     LOG_PATH,
 } from "./electron.js"
-import { renderFormInWindow, openPageInWindow } from "./window.js"
 import config from "../config/index.js"
 import projects from "./projects.js"
 import { deploy, getNeocitiesApiKey } from "../deploy.js"

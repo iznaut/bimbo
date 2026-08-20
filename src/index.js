@@ -38,7 +38,7 @@ export function getProjectStarters() {
     }).forEach((dirent) => {
         if (dirent.isDirectory()) {
             projectStartersPaths[dirent.name] = path.join(
-                dirent.path,
+                dirent.parentPath,
                 dirent.name,
             )
         }

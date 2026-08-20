@@ -1,7 +1,8 @@
 function sendForm(event) {
     event.preventDefault() // stop the form from submitting
-
-    const formInputs = Array.from(document.querySelectorAll(".input"))
+    const formInputs = [...event.currentTarget.elements].filter(
+        (input) => input.id,
+    )
     const requiredInputs = formInputs.filter((input) => input.required)
     // don't submit form if any required inputs are blank
     if (requiredInputs.some((input) => input.value === "")) {

@@ -183,17 +183,19 @@ export async function build(isPostDeploy = false) {
     })
 
     // TODO do something with snippets idk
-    buildData._snippets = _.chain(fs.readdirSync(PROJECT_PATHS.SNIPPETS))
-        .map((filename) => {
-            const key = path.basename(filename, ".md")
-            const mdContent = fs.readFileSync(
-                path.join(PROJECT_PATHS.SNIPPETS, filename),
-                "utf-8",
-            )
-            return [key, renderMdToHtml(mdContent)]
-        })
-        .fromPairs()
-        .value()
+    if (fs.existsSync(PROJECT_PATHS.SNIPPETS)) {
+        buildData._snippets = _.chain(fs.readdirSync(PROJECT_PATHS.SNIPPETS))
+            .map((filename) => {
+                const key = path.basename(filename, ".md")
+                const mdContent = fs.readFileSync(
+                    path.join(PROJECT_PATHS.SNIPPETS, filename),
+                    "utf-8",
+                )
+                return [key, renderMdToHtml(mdContent)]
+            })
+            .fromPairs()
+            .value()
+    }
 
     _.each(buildData._pages, (pageMeta) => {
         generatePage(pageMeta)
@@ -426,6 +428,7 @@ function generatePage(pageMeta) {
     const OUTPUT_PATH = path.dirname(HTML_FILEPATH)
 
     if (!fs.existsSync(OUTPUT_PATH)) {
+        // TODO catch potential permission errors
         fs.mkdirSync(path.join(PROJECT_PATHS.OUTPUT, OUTPUT_PATH), {
             recursive: true,
         })

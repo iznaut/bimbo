@@ -1,14 +1,6 @@
 import { readFileSync } from "node:fs"
 import * as path from "node:path"
-import {
-    app,
-    dialog,
-    Menu,
-    nativeImage,
-    Notification,
-    shell,
-    Tray,
-} from "electron"
+import { app, dialog, Menu, Notification, shell } from "electron"
 import { Conf } from "electron-conf/main"
 
 import config from "../config/index.js"
@@ -25,10 +17,6 @@ export const USER_DATA_PATH = app.getPath("userData")
 export const LOG_PATH = path.join(app.getPath("userData"), config.LOG_FILENAME)
 
 export const APP_SETTINGS = new Conf(config.APP_SETTINGS_DEFAULTS)
-
-export function createTray() {
-    return new Tray(nativeImage.createFromDataURL(config.ICON))
-}
 
 export function openExternalUrl(url) {
     if (trustedExternalURLs.includes(url)) {
@@ -72,6 +60,14 @@ export function showPrompt(message, type = "none", buttons = null) {
     })
 }
 
-export function showFilePicker(config) {
-    return dialog.showOpenDialogSync(config)
+export async function handlePickDirectory(attachToWindow) {
+    const { canceled, filePaths } = await dialog.showOpenDialog(
+        attachToWindow,
+        {
+            properties: ["openDirectory"],
+        },
+    )
+    if (!canceled) {
+        return filePaths[0]
+    }
 }

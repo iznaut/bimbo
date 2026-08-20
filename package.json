@@ -23,7 +23,6 @@
         "chokidar": "^5.0.0",
         "compare-versions": "^6.1.1",
         "electron-conf": "^1.3.0",
-        "electron-prompt": "^1.7.0",
         "electron-store": "^11.0.2",
         "feather-icons": "^4.29.2",
         "feed": "^4.2.2",
@@ -47,7 +46,7 @@
     "devDependencies": {
         "@electron/packager": "^18.4.4",
         "@poliklot/prettier-plugin-handlebars": "^0.3.2",
-        "electron": "^39.2.7",
+        "electron": "^40.10.6",
         "electronmon": "^2.0.4",
         "prettier": "^3.9.6",
         "vitest": "^4.1.10"

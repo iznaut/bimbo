@@ -1,11 +1,11 @@
 import { app } from "electron"
+import tiny from "tiny-json-http"
 import { compareVersions } from "compare-versions"
 import { showNotification } from "./electron.js"
 import config from "../config/index.js"
 import strings from "../config/strings.js"
 
 import pkg from "../../package.json" with { type: "json" }
-
 
 // TODO clean up version/update stuff
 
@@ -48,11 +48,14 @@ export async function getLatestVersion() {
     return latestVersion
 }
 
-export async function checkVersion() {
+export async function checkVersion(onUpdateAvailable) {
     await getLatestVersion()
     if (!_versionIsCurrent) {
         logger.warn(strings.update.available(latestVersion))
         notifyUpdateAvailability()
+        if (onUpdateAvailable) {
+            onUpdateAvailable()
+        }
     }
 }
 
